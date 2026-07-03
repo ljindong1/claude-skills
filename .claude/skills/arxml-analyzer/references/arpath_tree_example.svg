@@ -1,0 +1,89 @@
+<svg viewBox="0 0 680 400" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>Fls 정의(.epd) AR-PATH 폴더 트리 (depth 3)</title>
+  <desc>MODULE-DEF Fls 아래 최상위 컨테이너 5개와 FlsConfigSet의 하위 3개를 파일 탐색기식 폴더 트리로 표현하며, 각 노드에 member/ref/sub 개수를 표기한다.</desc>
+
+  <style>
+    text { font-family: "Anthropic Sans", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: rgb(20,20,19); }
+    .h1 { font-size: 19px; font-weight: 600; }
+    .sub { font-size: 13px; font-weight: 400; fill: rgb(115,114,108); }
+    .row { font-size: 14px; font-weight: 500; }
+    .cnt { font-size: 13px; font-weight: 400; fill: rgb(140,138,130); }
+    .leg { font-size: 12px; font-weight: 400; fill: rgb(115,114,108); }
+    .glyph { stroke-width: 0.5; }
+    .guide { stroke: rgb(180,178,170); stroke-width: 1; fill: none; }
+  </style>
+
+  <text x="20" y="30" class="h1">Fls 정의(.epd) — AR-PATH 폴더 트리</text>
+  <text x="20" y="50" class="sub">MODULE-DEF → CONTAINER-DEF → SUB-CONTAINER (depth 3) · 숫자 = member · ref · sub</text>
+
+  <!-- guide lines -->
+  <!-- root(L0) vertical to its last L1 child (r8=336) -->
+  <path class="guide" d="M37 90 V336"/>
+  <path class="guide" d="M37 112 H60"/>
+  <path class="guide" d="M37 240 H60"/>
+  <path class="guide" d="M37 272 H60"/>
+  <path class="guide" d="M37 304 H60"/>
+  <path class="guide" d="M37 336 H60"/>
+  <!-- FlsConfigSet(L1) vertical to its last L2 child (r4=208) -->
+  <path class="guide" d="M71 124 V208"/>
+  <path class="guide" d="M71 144 H96"/>
+  <path class="guide" d="M71 176 H96"/>
+  <path class="guide" d="M71 208 H96"/>
+
+  <!-- r0 Fls (mint folder) -->
+  <path class="glyph" d="M28 76 q0 -3 3 -3 h5 l2 2 h5 q3 0 3 3 v6 q0 3 -3 3 h-15 q-3 0 -3 -3 z" fill="rgb(225,245,238)" stroke="rgb(15,110,86)"/>
+  <text x="52" y="84" class="row" fill="rgb(8,80,65)">Fls</text>
+  <text x="92" y="84" class="sub" fill="rgb(15,110,86)">MODULE-DEF · refines /AUTOSAR/EcucDefs/Fls</text>
+
+  <!-- r1 FlsConfigSet (blue folder) -->
+  <path class="glyph" d="M62 108 q0 -3 3 -3 h5 l2 2 h5 q3 0 3 3 v6 q0 3 -3 3 h-15 q-3 0 -3 -3 z" fill="rgb(230,241,251)" stroke="rgb(24,95,165)"/>
+  <text x="86" y="116" class="row" fill="rgb(12,68,124)">FlsConfigSet</text>
+  <text x="662" y="116" text-anchor="end" class="cnt">member 22 · sub 3</text>
+
+  <!-- r2 FlsInternalDriver (blue folder) -->
+  <path class="glyph" d="M98 140 q0 -3 3 -3 h5 l2 2 h5 q3 0 3 3 v6 q0 3 -3 3 h-15 q-3 0 -3 -3 z" fill="rgb(230,241,251)" stroke="rgb(24,95,165)"/>
+  <text x="122" y="148" class="row" fill="rgb(12,68,124)">FlsInternalDriver</text>
+  <text x="662" y="148" text-anchor="end" class="cnt">sub 1 (내부 C40)</text>
+
+  <!-- r3 FlsExternalDriver (blue folder) -->
+  <path class="glyph" d="M98 172 q0 -3 3 -3 h5 l2 2 h5 q3 0 3 3 v6 q0 3 -3 3 h-15 q-3 0 -3 -3 z" fill="rgb(230,241,251)" stroke="rgb(24,95,165)"/>
+  <text x="122" y="180" class="row" fill="rgb(12,68,124)">FlsExternalDriver</text>
+  <text x="662" y="180" text-anchor="end" class="cnt">ref 1 · sub 5 (QSPI)</text>
+
+  <!-- r4 FlsSectorList (blue folder) -->
+  <path class="glyph" d="M98 204 q0 -3 3 -3 h5 l2 2 h5 q3 0 3 3 v6 q0 3 -3 3 h-15 q-3 0 -3 -3 z" fill="rgb(230,241,251)" stroke="rgb(24,95,165)"/>
+  <text x="122" y="212" class="row" fill="rgb(12,68,124)">FlsSectorList</text>
+  <text x="662" y="212" text-anchor="end" class="cnt">sub 1</text>
+
+  <!-- r5 AutosarExt (grey file) -->
+  <path class="glyph" d="M62 233 h7 l5 5 v9 q0 1.5 -1.5 1.5 h-9 q-1.5 0 -1.5 -1.5 v-12.5 q0 -1.5 1.5 -1.5 z" fill="rgb(247,246,244)" stroke="rgb(180,178,170)"/>
+  <path class="guide" d="M69 233 v5 h5"/>
+  <text x="86" y="244" class="row">AutosarExt</text>
+  <text x="662" y="244" text-anchor="end" class="cnt">member 13</text>
+
+  <!-- r6 FlsGeneral (grey file) -->
+  <path class="glyph" d="M62 265 h7 l5 5 v9 q0 1.5 -1.5 1.5 h-9 q-1.5 0 -1.5 -1.5 v-12.5 q0 -1.5 1.5 -1.5 z" fill="rgb(247,246,244)" stroke="rgb(180,178,170)"/>
+  <path class="guide" d="M69 265 v5 h5"/>
+  <text x="86" y="276" class="row">FlsGeneral</text>
+  <text x="662" y="276" text-anchor="end" class="cnt">member 49 · ref 1</text>
+
+  <!-- r7 FlsPublishedInformation (grey file) -->
+  <path class="glyph" d="M62 297 h7 l5 5 v9 q0 1.5 -1.5 1.5 h-9 q-1.5 0 -1.5 -1.5 v-12.5 q0 -1.5 1.5 -1.5 z" fill="rgb(247,246,244)" stroke="rgb(180,178,170)"/>
+  <path class="guide" d="M69 297 v5 h5"/>
+  <text x="86" y="308" class="row">FlsPublishedInformation</text>
+  <text x="662" y="308" text-anchor="end" class="cnt">member 10</text>
+
+  <!-- r8 CommonPublishedInformation (grey file) -->
+  <path class="glyph" d="M62 329 h7 l5 5 v9 q0 1.5 -1.5 1.5 h-9 q-1.5 0 -1.5 -1.5 v-12.5 q0 -1.5 1.5 -1.5 z" fill="rgb(247,246,244)" stroke="rgb(180,178,170)"/>
+  <path class="guide" d="M69 329 v5 h5"/>
+  <text x="86" y="340" class="row">CommonPublishedInformation</text>
+  <text x="662" y="340" text-anchor="end" class="cnt">member 9</text>
+
+  <!-- legend -->
+  <path class="glyph" d="M20 368 q0 -3 3 -3 h5 l2 2 h5 q3 0 3 3 v6 q0 3 -3 3 h-15 q-3 0 -3 -3 z" fill="rgb(225,245,238)" stroke="rgb(15,110,86)"/>
+  <text x="44" y="376" class="leg">MODULE-DEF 루트</text>
+  <path class="glyph" d="M170 368 q0 -3 3 -3 h5 l2 2 h5 q3 0 3 3 v6 q0 3 -3 3 h-15 q-3 0 -3 -3 z" fill="rgb(230,241,251)" stroke="rgb(24,95,165)"/>
+  <text x="194" y="376" class="leg">하위(sub/ref) 가진 컨테이너</text>
+  <path class="glyph" d="M390 361 h7 l5 5 v9 q0 1.5 -1.5 1.5 h-9 q-1.5 0 -1.5 -1.5 v-12.5 q0 -1.5 1.5 -1.5 z" fill="rgb(247,246,244)" stroke="rgb(180,178,170)"/>
+  <text x="412" y="376" class="leg">멤버만 있는 평면 컨테이너</text>
+</svg>

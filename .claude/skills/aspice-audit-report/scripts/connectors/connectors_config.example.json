@@ -1,0 +1,9 @@
+{
+  "_note": "이 파일을 connectors_config.json 으로 복사해 채운다. 토큰은 비밀이므로 버전관리에서 제외(.gitignore)하거나 환경변수(REDMINE_URL/REDMINE_API_KEY) 사용을 권장한다.",
+  "redmine": {
+    "url": "http://ccm.mobaseelec.com:8080",
+    "api_key": "여기에 레드마인 API 키 (내 계정 > API 액세스 키)",
+    "verify_ssl": true,
+    "default_project_id": "프로젝트 식별자 (예: swrc_cn8)"
+  }
+}
