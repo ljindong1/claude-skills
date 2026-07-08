@@ -1,0 +1,18 @@
+{
+  "revision": 7,
+  "revised": "26.07.07",
+  "fingerprint": "d3968042c3e1",
+  "content": {
+    "process": {
+      "n": 98,
+      "hash": "840a6b23cda8"
+    },
+    "wp": {
+      "n": 515,
+      "hash": "0874c97557fa"
+    }
+  },
+  "source": "JX HEV 확정 문항 세트(26.07.07) 기반 — 개정번호 7로 Template History에 개정 내용 명문화. 작성/검토/승인란은 사내 승인 후 기입",
+  "stored": "2026-07-07",
+  "note": "양식 갱신 절차: NEWER 판정 → make_blank_template.py로 빈 양식 생성 → assets/latest_template.xlsx 교체 → template_version.py 출력으로 이 파일 갱신 → .skill 재패키징 후 Save skill"
+}

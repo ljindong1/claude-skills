@@ -87,10 +87,42 @@ def sum_dir(path):
     return inner, kinds, heads
 
 
-def main(folder, out):
+def extract_zips(folder, workdir):
+    """폴더(+1단계 하위)의 zip을 workdir/<zip이름>/에 해제. 원본 폴더는 건드리지 않는다.
+
+    중복 방지: 산출물 폴더에 zip과 같은 이름의 폴더가 이미 있으면(사용자가 직접 푼 경우)
+    해제를 건너뛰고 그 폴더를 쓴다. 반환: [(zip경로, 해제폴더 또는 None(스킵), 사유)]
+    """
+    done = []
+    cand = []
+    for root in [folder] + [os.path.join(folder, d) for d in sorted(os.listdir(folder))
+                            if os.path.isdir(os.path.join(folder, d)) and not d.startswith('_')]:
+        for f in sorted(os.listdir(root)):
+            if f.lower().endswith('.zip') and os.path.isfile(os.path.join(root, f)):
+                cand.append(os.path.join(root, f))
+    for zp in cand:
+        stem = os.path.splitext(os.path.basename(zp))[0]
+        sibling = os.path.join(os.path.dirname(zp), stem)
+        if os.path.isdir(sibling):
+            done.append((zp, None, f"동일 이름 폴더 존재({stem}/) — 이미 해제됨, 건너뜀"))
+            continue
+        dest = os.path.join(workdir, stem)
+        try:
+            os.makedirs(dest, exist_ok=True)
+            with zipfile.ZipFile(zp) as z:
+                z.extractall(dest)
+            done.append((zp, dest, "해제 완료"))
+        except Exception as e:
+            done.append((zp, None, f"해제 실패: {str(e)[:40]} — 수동 해제 필요(암호/형식)"))
+    return done
+
+
+def main(folder, out, extract_dir=None):
     entries = sorted(os.listdir(folder))
     files = [f for f in entries if os.path.isfile(os.path.join(folder, f))]
-    dirs = [f for f in entries if os.path.isdir(os.path.join(folder, f))]
+    # `_`로 시작하는 폴더(작업 산출물: _오디트결과/_압축해제/_기준양식 등)는 점검대상에서 제외
+    dirs = [f for f in entries if os.path.isdir(os.path.join(folder, f)) and not f.startswith('_')]
+    extracted = extract_zips(folder, extract_dir) if extract_dir else []
     lines = [f"# 폴더 다이제스트 — {os.path.basename(folder)} (파일 {len(files)} + 폴더 {len(dirs)})",
              "", "각 항목의 내용 요약. AI가 이걸 읽고 체크리스트 산출물에 매핑한다.",
              "폴더 항목(📁)은 그 폴더 전체가 하나의 산출물(예: 모듈별로 나뉜 상세설계서)일 수 있다.", ""]
@@ -102,6 +134,16 @@ def main(folder, out):
         lines.append(f"- 내부 파일(일부): {[os.path.basename(x) for x in inner[:10]]}")
         if heads:
             lines.append(f"- 대표 문서 헤딩: {heads}")
+        lines.append("")
+    for zp, dest, msg in extracted:
+        lines.append(f"## 🗜 {os.path.basename(zp)} → {msg}")
+        if dest:
+            inner, kinds, heads = sum_dir(dest)
+            lines.append(f"- 해제 위치: {dest}")
+            lines.append(f"- 구성: {kinds}")
+            lines.append(f"- 내부 파일(일부): {[os.path.basename(x) for x in inner[:10]]}")
+            if heads:
+                lines.append(f"- 대표 문서 헤딩: {heads}")
         lines.append("")
     for f in files:
         p = os.path.join(folder, f)
@@ -127,6 +169,8 @@ def main(folder, out):
                 with zipfile.ZipFile(p) as z:
                     inner = [n for n in z.namelist() if not n.endswith('/')][:8]
                 lines.append(f"- 압축 내용: {inner}")
+                if not extract_dir:
+                    lines.append("- (내용 정독하려면 --extract-zips <작업폴더> 로 자동 해제)")
             elif ext == '.pdf':
                 lines.append("- (PDF — 파일명 기준, 내용요약 생략)")
             else:
@@ -143,8 +187,11 @@ def main(folder, out):
 
 
 if __name__ == '__main__':
+    import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument('folder')
-    ap.add_argument('--out', default=None)
+    ap.add_argument('--out', default='folder_digest.md')
+    ap.add_argument('--extract-zips', dest='extract_dir', default=None,
+                    help='zip을 이 작업 폴더에 자동 해제해 다이제스트에 포함(원본 폴더 불변)')
     a = ap.parse_args()
-    main(a.folder, a.out)
+    main(a.folder, a.out, a.extract_dir)

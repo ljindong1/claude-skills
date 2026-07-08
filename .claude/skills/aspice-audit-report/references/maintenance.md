@@ -27,8 +27,8 @@
 
 ## 전형적 변경 시나리오
 
-1. **양식 V2 → V3 개정**: `make_blank_template.py`로 새 빈 양식 생성 → 출력의 "문항 칸" 검증 줄 확인 → 어긋나면 `config.py` 컬럼만 조정. `assets/blank_template.xlsx`도 새 버전으로 교체.
-2. **새 단계(P2 테스트) 점검**: 같은 양식의 P2 시트 세트에 동일 워크플로 적용. `config.find_sheets()`가 접두어로 시트를 찾으므로 코드 불변. `classification_rules.NA_KEYWORDS`에서 P2에선 빼야 할 항목 조정.
+1. **양식 개정(Template History 개정번호 증가)**: `template_version.py`가 NEWER 판정 → `make_blank_template.py`로 새 빈 양식 생성 → 출력의 "문항 칸" 검증 줄 확인(컬럼은 머리글 자동 감지, 특이 양식만 `config.py` 폴백 조정) → `assets/latest_template.xlsx` 교체 + `assets/template_version.json` 갱신 → `.skill` 재패키징 후 Save skill 재설치.
+2. **새 단계(다음 차수) 점검**: 한 워크북에 차수 시트를 누적하는 증분 모드를 쓴다 — `make_blank_template.py --new-sheet "..." --copy-from "..."`로 직전 차수 시트를 복사해 새 시트만 비우고, 이후 스크립트들은 `--sheet`로 그 시트만 처리한다(기존 완료 시트는 보존 = 직전 차수 스코핑 근거). `config.find_sheets()`는 종류별 시트 '전부'를 리스트로 반환하고, 컬럼은 `config.detect_cols()`가 시트별 머리글로 감지한다(Applicable 없는 구버전 레이아웃 포함). `classification_rules.NA_KEYWORDS`에서 해당 차수에 빼야 할 항목 조정.
 3. **일치율이 떨어짐**: 검증표의 위험오판/AI누락을 보고 `classification_rules.py` 또는 `deliverable_map.json`만 손봄. 2단계 재실행 → 검증표로 변화 확인.
 
 ## 정직성 불변식 (변경해도 깨지면 안 됨)

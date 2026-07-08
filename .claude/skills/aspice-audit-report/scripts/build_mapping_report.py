@@ -49,16 +49,25 @@ def st(c, b=False, sz=10, col='000000', fill=None, h='left'):
 def main(mappath, result, folder, out):
     ev = json.load(open(mappath, encoding='utf-8')).get('evidence', {})
     wb = openpyxl.load_workbook(result, data_only=True)
-    T = config.TARGET_COLS
-    tws = wb[config.find_sheets(wb)['target']]
+    # find_sheets는 종류별 '리스트'를 반환한다. Target 시트가 여러 개면 전부,
+    # 없으면(Process 전용 양식) 매핑(evidence) 기준으로만 리포트를 만든다.
     targets = []
-    for r in range(config.DATA_START_ROW, tws.max_row + 1):
-        prod = tws.cell(r, T['product']).value
-        if not prod:
-            continue
-        f = str(tws.cell(r, T['file']).value or '')
-        b = str(tws.cell(r, T['bigo']).value or '')
-        targets.append((str(prod), f, b))
+    for tname in config.find_sheets(wb)['target']:
+        tws = wb[tname]
+        T = config.detect_cols(tws, 'target')
+        for r in range(config.DATA_START_ROW, tws.max_row + 1):
+            prod = tws.cell(r, T['product']).value
+            if not prod:
+                continue
+            f = str(tws.cell(r, T['file']).value or '')
+            b = str(tws.cell(r, T['bigo']).value or '')
+            targets.append((str(prod), f, b))
+    if not targets:
+        # Target 시트 부재 — deliverable_map의 evidence를 대체 소스로 사용
+        print('[안내] Target 시트 없음 — 매핑(deliverable_map) 기준으로 리포트 생성')
+        for kw, val in ev.items():
+            fn = val[0] if isinstance(val, (list, tuple)) and val else str(val)
+            targets.append((str(kw), str(fn), '[매핑 기준]'))
 
     # 체크시트 관점
     chk = []
@@ -77,7 +86,8 @@ def main(mappath, result, folder, out):
     allcells = [tok(c) for _, c, _ in targets if c]
     entries = os.listdir(folder)
     files = sorted([x for x in entries if os.path.isfile(os.path.join(folder, x))]
-                   + [x + '/' for x in entries if os.path.isdir(os.path.join(folder, x))])
+                   + [x + '/' for x in entries
+                      if os.path.isdir(os.path.join(folder, x)) and not x.startswith('_')])
     fileside = []
     for fn in files:
         ft = tok(fn)

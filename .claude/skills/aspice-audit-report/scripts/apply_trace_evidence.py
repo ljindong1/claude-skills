@@ -40,38 +40,42 @@ def main(result, trace_json):
                 bykey[k] = e
     wb = openpyxl.load_workbook(result)
     sh = config.find_sheets(wb)
-    W = config.WP_COLS
-    ws = wb[sh['wp']]
+    if not sh['wp']:
+        print("WP Checklist 시트 없음 - 추적성 반영 생략 (Process 전용 양식)")
+        return
     updated = 0
-    for row in range(config.DATA_START_ROW, ws.max_row + 1):
-        no = ws.cell(row, 1).value
-        q = ws.cell(row, W['question']).value
-        if no is None or not q:
-            continue
-        if not any(k in str(q) for k in TRACE_KW):
-            continue
-        prod = norm(ws.cell(row, W['product']).value)
-        pairs = next((ks for sub, ks in DELIV_PAIRS if sub in prod), None)
-        if not pairs:
-            continue
-        rel = [bykey[k] for k in pairs if k in bykey]
-        if not rel:
-            continue
-        gaps = sum(e['gaps_active'] for e in rel)
-        labels = ', '.join(f"{e['pair']}:{e['gaps_active']}" for e in rel)
-        if gaps > 0:
-            ws.cell(row, W['applicable']).value = 'Yes'
-            ws.cell(row, W['result']).value = None  # 자동 Pass 금지
-            ws.cell(row, W['comments']).value = (
-                f"260623 (AI 1차·추적성): export 기준 활성 미연결 {gaps}건 ({labels}). "
-                f"Fail 후보 — 미할당/미추적 사유 확인 필요")
-        else:
-            ws.cell(row, W['applicable']).value = 'Yes'
-            if not ws.cell(row, W['result']).value:
-                ws.cell(row, W['result']).value = 'Pass'
-            ws.cell(row, W['comments']).value = (
-                f"260623 (AI 1차·추적성): export 기준 활성 미연결 0건 ({labels}). 추적성 완전")
-        updated += 1
+    for wsname in sh['wp']:
+      ws = wb[wsname]
+      W = config.detect_cols(ws, 'wp')
+      for row in range(config.DATA_START_ROW, ws.max_row + 1):
+          no = ws.cell(row, 1).value
+          q = ws.cell(row, W['question']).value
+          if no is None or not q:
+              continue
+          if not any(k in str(q) for k in TRACE_KW):
+              continue
+          prod = norm(ws.cell(row, W['product']).value)
+          pairs = next((ks for sub, ks in DELIV_PAIRS if sub in prod), None)
+          if not pairs:
+              continue
+          rel = [bykey[k] for k in pairs if k in bykey]
+          if not rel:
+              continue
+          gaps = sum(e['gaps_active'] for e in rel)
+          labels = ', '.join(f"{e['pair']}:{e['gaps_active']}" for e in rel)
+          if gaps > 0:
+              ws.cell(row, W['applicable']).value = 'Yes'
+              ws.cell(row, W['result']).value = None  # 자동 Pass 금지
+              ws.cell(row, W['comments']).value = (
+                  f"260623 (AI 1차·추적성): export 기준 활성 미연결 {gaps}건 ({labels}). "
+                  f"Fail 후보 — 미할당/미추적 사유 확인 필요")
+          else:
+              ws.cell(row, W['applicable']).value = 'Yes'
+              if not ws.cell(row, W['result']).value:
+                  ws.cell(row, W['result']).value = 'Pass'
+              ws.cell(row, W['comments']).value = (
+                  f"260623 (AI 1차·추적성): export 기준 활성 미연결 0건 ({labels}). 추적성 완전")
+          updated += 1
     wb.save(result)
     print(f"추적성 반영 행: {updated}  (사용 pair: {sorted(bykey)})")
 

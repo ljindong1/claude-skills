@@ -28,7 +28,8 @@ def main(folder, mappath):
     map_tokens = [tok(v[0]) for v in mp.get('evidence', {}).values()]
     entries = os.listdir(folder)
     files = [f for f in entries if os.path.isfile(os.path.join(folder, f))]
-    files += [f + '/' for f in entries if os.path.isdir(os.path.join(folder, f))]  # 하위 폴더도 한 항목으로
+    files += [f + '/' for f in entries
+              if os.path.isdir(os.path.join(folder, f)) and not f.startswith('_')]  # 작업 폴더(_*) 제외
     mapped, ref, unmapped = [], [], []
     for f in sorted(files):
         ft = tok(f)

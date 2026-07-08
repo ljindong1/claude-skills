@@ -37,7 +37,9 @@ def is_human_required(question: str) -> bool:
 
 # 검증/시험이라도 '계획서'와 '정적(분석/검증)'은 설계 단계에 작성·점검되는 점검대상이다.
 # NA_KEYWORDS('통합 검증' 등)가 산출물명에 부분매칭돼 계획서까지 미대상으로 떨구는 과소(누락)를 막는다.
-DESIGN_PHASE_KEEP = ["계획", "정적"]
+# "설계서/아키텍처/설계 명세"는 설계 단계말의 핵심 점검대상 — NA 키워드 부분매칭에서 보호
+# (실측: CN8 No.32 시스템 아키텍처 설계서가 미대상으로 오분류된 과소 사례 수정)
+DESIGN_PHASE_KEEP = ["계획", "정적", "설계서", "아키텍처", "설계 명세", "단위"]
 
 
 def is_design_phase_target(product: str) -> bool:
@@ -72,3 +74,36 @@ LATER_PHASE_TIMING = ["M-1", "마일스톤 점검", "개발 완료 시점", "프
 def is_later_phase_timing(timing: str) -> bool:
     t = str(timing or "")
     return any(k in t for k in LATER_PHASE_TIMING)
+
+
+# 조건부 활동: 실행시점이 "주기 도래/발생 시"류면 발생 여부를 폴더로 알 수 없다.
+# (실측: 형상감사·CCB 등 27건 과대 스코핑의 주원인 — 사람은 '미도래→No', AI는 일괄 Yes)
+CONDITIONAL_TRIGGERS = ["도래", "발생 시", "발생시"]
+
+
+def is_conditional_activity(timing: str) -> bool:
+    t = str(timing or "")
+    return any(k in t for k in CONDITIONAL_TRIGGERS)
+
+
+# 사건발생형 활동: 실행시점이 빈칸이라도 활동 자체가 '사건이 있어야' 수행되는 것들.
+# (실측: CN8 과대 27건 중 25건이 실행시점 빈칸 — 형상감사·CCB·변경요청 발생류)
+# 폴더에 수행 흔적(출력 산출물)이 있으면 발생한 것이므로 보류하지 않는다 — fill에서 hit 우선.
+# 주의: 문제해결/레드마인 상시 절차는 사람이 Yes로 보는 항목이 많아 여기 넣지 않는다.
+EVENT_DRIVEN = ["형상감사", "형상 감사", "CCB", "변경 요청 관리", "변경요청 관리", "변경 발생"]
+
+
+def is_event_driven(output_product: str, question: str = "") -> bool:
+    t = str(output_product or "") + " " + str(question or "")
+    return any(k in t for k in EVENT_DRIVEN)
+
+
+# 상시 운영 활동: 시스템(레드마인/PMS) 근거라도 모든 단계에서 점검대상(Yes)이다.
+# (실측: 2차 CN8에서 이들을 "P1 범위 밖" 일괄 미대상 처리 → 과소 12건 전원 이 유형)
+ONGOING_ACTIVITIES = ["문제 해결", "문제해결", "이슈 관리", "이슈관리", "레드마인",
+                      "모니터링", "의사소통", "이슈"]
+
+
+def is_ongoing_activity(output_product: str, question: str = "") -> bool:
+    t = str(output_product or "") + " " + str(question or "")
+    return any(k in t for k in ONGOING_ACTIVITIES)
