@@ -1,8 +1,15 @@
-"""판정 분류 규칙 — 일치율을 좌우하는 튜닝 포인트.
+"""판정 분류 규칙 — 1차 스코핑·힌트 제공(판정 아님).
 
-검증표의 불일치를 보고 이 파일을 고친 뒤 fill_checklist.py를 다시 돌린다.
-- 위험 오판(사람 Fail인데 AI Pass)이 나오면 그 문항 키워드를 HUMAN_REQUIRED에 추가.
-- AI 과소(누락)가 나오면 NA_KEYWORDS에서 과한 패턴을 빼거나 매핑을 보강.
+[evidence 브리핑 재정의, references/roadmap.md]
+judge()는 더 이상 Pass를 자동 부여하지 않는다. Pass는 오직 본문 정독 계층
+(comment_style.md 형식의 comments.json)에서 실제 산출물의 Intent 충족 근거를
+'인용'했을 때만 부여된다. 이 파일의 역할은 (a) 스코핑(미대상/조건부/후행단계)과
+(b) '무엇을 어디서 확인해야 하는지' 힌트를 주는 것으로 한정된다.
+- 구 버전의 structural 키워드 자동 Pass('문서 내 해당 항목 존재·충족 확인')는 제거했다
+  — 근거 없는 일반 문구 Pass가 위험 오판의 주원인이었다.
+- HUMAN_REQUIRED는 이제 '자동 확인필요 고정'이 아니라 '본문/대체 산출물/시스템 중
+  어디를 봐야 하는지'를 알려주는 힌트 축이다. 대체 근거로 Pass 인정 여부는
+  comment_style.md(대체 근거 규칙)가 정하며 judge()는 관여하지 않는다.
 """
 import re
 
@@ -55,15 +62,23 @@ def is_na_product(product: str) -> bool:
 
 
 def judge(question: str, evidence: str):
-    """(result, comment) 반환. result=None 이면 '확인 필요'(판정 보류)."""
+    """(result, comment) 반환. 항상 result=None(확인 필요/보류) — 판정은 정독 계층 몫.
+
+    Pass는 이 함수가 아니라 본문 정독(comments.json)에서 근거 인용과 함께 부여된다.
+    여기서는 '어떤 Intent를, 어디서(표준 위치→없으면 대체 산출물/회의록/다른 활동),
+    무엇을 인용해 판정해야 하는지'만 힌트로 남긴다.
+    """
     q = str(question or "")
     date_tag = "(AI 1차)"
-    if "최신 템플릿" in q or "공통" in q:
-        return "Pass", f"{date_tag}: {evidence} — 표준 템플릿 구조 충족 확인. 사내 최신 Rev 대조 별도 권장"
     if is_human_required(q):
-        return None, (f"{date_tag}: {evidence} / 확인 필요 — 승인·배포·추적성·일관성·협의 등은 "
-                      f"내용 깊이 또는 시스템(PMS/codebeamer/레드마인) 직접 확인")
-    return "Pass", f"{date_tag}: {evidence} — 문서 내 해당 항목 존재·충족 확인"
+        return None, (f"{date_tag}: 확인 필요 — {evidence}. "
+                      f"승인·배포·추적성·일관성·협의 등 Intent는 산출물 본문(및 표준 위치에 없으면 "
+                      f"대체 산출물·회의록·다른 활동)에서 직접 정독하거나 시스템 확인 후 판정. "
+                      f"Pass는 근거(파일·절·활동) 인용 필수, 아니면 읽어야 할 산출물을 지목")
+    return None, (f"{date_tag}: 확인 필요 — {evidence}. "
+                  f"해당 Intent 충족 여부를 산출물 본문에서 직접 정독 후 판정"
+                  f"(표준 위치에 없으면 대체 산출물·회의록·다른 활동 근거 탐색). "
+                  f"Pass는 근거 인용 필수, 아니면 읽어야 할 산출물을 지목")
 
 
 # 실행시점이 후행 단계를 가리키면 이번(설계) 단계에선 미대상. (바로 '완료'는 P1 시점에도 쓰여 제외)
