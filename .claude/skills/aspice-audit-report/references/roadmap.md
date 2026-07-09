@@ -44,9 +44,12 @@ Phase D를 다시 검토하게 될 경우 아래 전제를 지킨다.
 
 | 단계 | 내용 | 사내망 | 상태 |
 |---|---|---|---|
-| **A** | 스킬 성격·규칙 재정의 (SKILL 목적, `judge()` 자동 Pass 제거, `comment_style §7` 개정: Intent 라인 필수·대체활동 Pass 인용 규칙·not-Pass 산출물 지목) | 불필요 | 예정 |
-| **B** | Intent 지식베이스 `intent_map.json` (문항→PAM 4.0 BP/outcome·초점·1차 위치·허용 대체 evidence), 사람 1회 검수 후 재사용 | 불필요 | 예정 |
-| **C** | 다원 evidence 탐색 엔진 (`deliverable_map` 다대일 확장, 1차 없으면 폴더 전체에서 대체 근거 탐색, 게이트에 "Pass=인용 필수·not-Pass=다음 산출물 명시" 검사 추가) | 불필요 | 예정 |
+| **A** | 스킬 성격·규칙 재정의 (SKILL 목적, `judge()` 자동 Pass 제거, `comment_style §7` 개정: Intent 라인 필수·대체활동 Pass 인용 규칙·not-Pass 산출물 지목) | 불필요 | **완료** |
+| **B** | Intent 지식베이스 `intent_map.json` (문항→PAM 4.0 BP/outcome·초점·1차 위치·허용 대체 evidence), 사람 1회 검수 후 재사용 | 불필요 | **완료 (구현)** |
+| **C** | 다원 evidence 탐색 + 게이트 강화 (폴더에서 대체 근거 탐색, 게이트에 "Pass=인용 필수·not-Pass=산출물 지목·[의도] 라인" 검사 추가) | 불필요 | **완료 (구현)** |
 | **D** | 시스템 커넥터로 `확인 필요`→Pass 전환 | 필요 | **보류(무결성 리스크, §3)** |
 
-A~C는 export 복사본 폴더만으로 완결되며, 이것으로 목적 ①·②의 대부분을 충족한다. D는 리스크 해소 전까지 착수하지 않는다.
+### 구현 산출물 (A~C)
+
+- **A** — `scripts/classification_rules.py`(judge 자동 Pass 제거), `references/comment_style.md §7·§10~13`, `SKILL.md` 판정 원칙.
+- **

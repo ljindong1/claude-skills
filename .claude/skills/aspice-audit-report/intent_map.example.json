@@ -1,0 +1,57 @@
+{
+  "_meta": {
+    "source": "예시 — 실제는 build_intent_map.py로 초안 생성 후 AI가 채운다",
+    "template_rev": 7,
+    "note": "ASPICE PAM 4.0을 사내 프로세스로 adapt한 관점의 Intent 예시. 표준 위치가 없으면 alt_evidence를 폴더에서 탐색해 Intent 충족 시 Pass(근거 인용 필수, comment_style §11)."
+  },
+  "entries": [
+    {
+      "sheet": "wp",
+      "no": 5,
+      "product": "프로젝트 계획서",
+      "question_excerpt": "프로젝트 리스크가 식별되고 관리되는가",
+      "intent": "프로젝트 위험이 식별·분석되고 완화 방안과 함께 지속 관리되고 있음을 확인(위험이 방치되지 않고 관리 체계 안에 들어와 있는가).",
+      "pam_ref": "MAN.5 (Risk Management) BP1~BP5",
+      "focus": "위험 목록의 존재·분류·완화조치·상태 추적. 형식 유무가 아니라 '관리되고 있음'이 핵심.",
+      "depth": "내용",
+      "primary_location": "프로젝트 계획서 위험관리 절",
+      "alt_evidence": ["별도 위험관리 대장/파일", "리스크 관리 회의록", "개발 진행 점검 회의록의 리스크 항목", "이슈/문제해결 시스템의 리스크 등록 기록"]
+    },
+    {
+      "sheet": "wp",
+      "no": 12,
+      "product": "시스템 요구사항 명세서",
+      "question_excerpt": "상위(이해관계자) 요구사항과 추적되고 최신 내용을 반영하는가",
+      "intent": "시스템 요구가 이해관계자 요구와 양방향 추적되며, 참조 버전만이 아니라 실제 요구 내용이 최신 상위 요구를 반영하는지 확인.",
+      "pam_ref": "SYS.2 BP (System Requirements) / SUP.10 형상관리 연계",
+      "focus": "추적성 매트릭스 + 실제 요구 내용 대사. 참조 버전 표기만 낡고 내용은 최신이면 문서관리 이슈로 구분(현 단계 Major/Minor 등급은 미판정).",
+      "depth": "내용",
+      "primary_location": "시스템 요구사항 명세서 추적표/참조 절",
+      "alt_evidence": ["TraceabilityBrowser export", "변경이력에 상위 요구 반영 기록", "요구 검토 회의록"]
+    },
+    {
+      "sheet": "process",
+      "no": 34,
+      "product": "산출물 승인 기록",
+      "question_excerpt": "산출물이 공식 승인되어 하위 도메인으로 전개 가능한가",
+      "intent": "산출물이 하위 도메인으로 전개 가능한 공식 승인 상태인지 확인(승인이라는 목적이 달성됐는가 — 확인 경로는 다양).",
+      "pam_ref": "SUP.1 (Quality Assurance) / MAN.3 승인 게이트",
+      "focus": "승인 사실 자체. 하나의 경로에 의존하지 말고 여러 근거를 종합.",
+      "depth": "시스템",
+      "primary_location": "PMS 승인 로그",
+      "alt_evidence": ["산출물 내 승인 서명란", "전자결재/전자 승인 기록", "형상 baseline 등록 기록", "배포 통보 메일/회의록"]
+    },
+    {
+      "sheet": "process",
+      "no": 58,
+      "product": "동료검토 결과서",
+      "question_excerpt": "산출물에 대한 검토(peer review)가 수행되고 결함이 관리되는가",
+      "intent": "산출물 품질을 확인하는 검토 활동이 실제로 수행되고, 발견 결함이 기록·조치·완료되었는지 확인.",
+      "pam_ref": "SUP.1 / SWE.4 검증 연계 (Verification)",
+      "focus": "검토 수행 사실 + 결함의 조치·반영. 문항이 요구하는 '그 검토 활동'의 직접 기록이 원칙이나, 동일 Intent를 충족하는 대체 검토 활동이 명시되면 인정(comment_style §7⒝).",
+      "depth": "내용",
+      "primary_location": "동료검토 검토결과서(NG 시트/결함 내용)",
+      "alt_evidence": ["검토 회의록", "codebeamer 리뷰 기록", "체크리스트 기반 검토 기록", "결함 후속 반영된 개정이력"]
+    }
+  ]
+}

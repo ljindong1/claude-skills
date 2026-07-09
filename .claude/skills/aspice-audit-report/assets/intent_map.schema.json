@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "intent_map",
+  "description": "ASPICE PAM 4.0 체크리스트 문항별 점검 의도(Intent) 지식베이스. 문항 문구가 아니라 그 문항이 확인하려는 QA 목적(outcome) 중심으로 점검하기 위한 것. build_intent_map.py로 초안 생성, AI가 intent 등을 채움(comment_style §10~11).",
+  "type": "object",
+  "properties": {
+    "_meta": {
+      "type": "object",
+      "properties": {
+        "source": {"type": "string"},
+        "template_rev": {"type": ["integer", "string"]},
+        "total": {"type": "integer"},
+        "filled": {"type": "integer"},
+        "note": {"type": "string"}
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sheet", "no", "product"],
+        "properties": {
+          "sheet": {"enum": ["wp", "process"], "description": "WP Checklist | Process Checklist"},
+          "no": {"type": ["integer", "string"], "description": "문항 번호"},
+          "product": {"type": "string", "description": "WP는 산출물명(No 중복이라 필수 구분자), Process는 출력 산출물/활동명"},
+          "question_excerpt": {"type": "string", "description": "원문 일부(식별용)"},
+          "intent": {"type": "string", "description": "이 문항이 확인하려는 QA 목적(outcome). ASPICE의 general 문구를 사내 프로세스로 adapt한 관점으로 서술"},
+          "pam_ref": {"type": "string", "description": "가능하면 PAM 4.0 프로세스/BP·GP 참조 (예: 'MAN.5 BP', 'SUP.10', 'SWE.1 BP7')"},
+          "focus": {"type": "string", "description": "점검 초점 — 무엇을 봐야 목적 달성을 판정할 수 있는가"},
+          "depth": {"type": "string", "description": "점검 깊이: '존재성'(문서에 있는가) | '내용'(내용 대사·일관성 필요) | '시스템'(PMS/codebeamer 등 시스템 근거 필요)"},
+          "primary_location": {"type": "string", "description": "1차 표준 위치 (예: '프로젝트 계획서 위험관리 절')"},
+          "alt_evidence": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "프로젝트 특성상 Intent를 충족할 수 있는 대체 근거(별도 파일·회의록·다른 활동). Pass 인정 시 코멘트에 어떤 것이 근거인지 인용 필수"
+          }
+        }
+      }
+    }
+  },
+  "required": ["entries"]
+}
