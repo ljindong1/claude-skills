@@ -17,7 +17,8 @@ description: 계정에 등록된 Claude 스킬을 로컬 git 저장소(기본 D:
 | 원본 | 세션에 마운트된 계정 스킬 폴더 (`/sessions/<세션>/mnt/.claude/skills`, 읽기 전용) |
 | 저장소 구조 | 스킬 폴더가 **저장소 최상위**에 바로 놓인다 (`skills-repo/svg-creation/SKILL.md`) |
 | 대상 | 이름을 지정하면 그 스킬만, 없으면 사용자가 만든 스킬 전체 |
-| 커밋·푸시 | **사용자가 PowerShell로 실행** (이유는 아래 "누가 무엇을 하는가") |
+| 커밋 | Claude 가 한다 (임시 인덱스 사용 — 아래 참조) |
+| 푸시 | **사용자가 PowerShell 한 줄** (샌드박스에 네트워크 경로 없음) |
 
 Anthropic 기본 스킬(`docx`, `pdf`, `pptx`, `xlsx`, `skill-creator`, `morning` 등)은 사용자가 만든 것이 아니고 플랫폼 업데이트마다 바뀌어 커밋 노이즈가 되므로 기본 대상에서 뺀다. 사용자가 "전부", "기본 스킬까지"라고 하면 `--include-builtin` 을 붙인다.
 
@@ -91,28 +92,39 @@ find /sessions/<세션>/mnt/.claude/skills/<스킬> -type f -printf '%TY-%Tm-%Td
 
 ## 누가 무엇을 하는가
 
-| 단계 | 담당 | 이유 |
-| --- | --- | --- |
-| 파일 비교·복사 | Claude | 마운트된 저장소에 쓰기 가능 |
-| `git status` 확인 | Claude | 읽기는 문제없음 |
-| `git add` · `commit` · `push` | **사용자 (PowerShell)** | 아래 두 제약 |
+| 단계 | 담당 |
+| --- | --- |
+| 파일 비교·복사 | Claude |
+| `git add` · `git commit` | Claude |
+| `git push` | **사용자 (PowerShell 한 줄)** |
 
-샌드박스에서 git 쓰기 작업이 막히는 이유는 두 가지다.
-
-- **`.git/index.lock` 을 지울 수 없다.** 마운트가 삭제를 막아서, 잠금 파일이 한 번 남으면 이후 모든 git 쓰기가 실패한다. `mcp__cowork__allow_cowork_file_delete` 로 권한을 요청할 수는 있지만 사용자가 거절할 수 있으니 이 경로에 의존하지 않는다.
-- **푸시 인증이 없다.** 원격이 SSH(`git@github.com-...`)라면 샌드박스에 키가 없어 실패한다.
-
-그래서 복사까지 끝낸 뒤 사용자에게 명령을 건네는 것이 정상 경로다. 이것을 "실패"처럼 말하지 말고 역할 분담으로 설명한다.
+푸시만 넘기는 이유는 샌드박스에 원격까지 가는 길이 없기 때문이다. DNS 가 해석되지 않고(`Could not resolve hostname github.com`), SSH 22번 포트가 프록시에서 차단되며(`E CONNECT …:22: Forbidden`), 키도 없다. 권한이나 설정 문제가 아니라 경로 자체가 없는 것이므로 **재시도하지 말고 바로 사용자에게 넘긴다.**
 
 ```powershell
-cd D:\Ljindong\skills-repo
-git add -A
-git status --short
-git commit -m "<스킬명>: 계정 최신본 반영"
-git push
+git -C D:\Ljindong\skills-repo push
 ```
 
-`index.lock` 오류가 뜨면 지우고 다시 하면 된다고 덧붙인다.
+### 커밋할 때 — 인덱스를 샌드박스 밖에 둔다
+
+마운트는 파일 생성과 이름변경은 되지만 **삭제가 안 된다.** git 이 `.git/index.lock` 을 지우는 경로를 타면 잠금 파일이 그대로 남고, 그때부터 샌드박스는 물론 **Windows 쪽 git 까지 전부 막힌다.** 사용자가 손으로 지워야 풀리는, 가장 성가신 사고다.
+
+`GIT_INDEX_FILE` 로 인덱스를 `/tmp` 에 두면 `.git/index.lock` 이 애초에 생기지 않는다. 참조(ref) 갱신은 rename 으로 처리되므로 삭제 제약에 걸리지 않는다.
+
+```bash
+R=/sessions/<세션>/mnt/skills-repo
+export GIT_INDEX_FILE=/tmp/gitidx
+git -C $R read-tree HEAD
+git -C $R add -A
+git -C $R status --short          # 무엇이 커밋되는지 확인해서 사용자에게 보여준다
+git -C $R -c user.name="$(git -C $R config user.name || echo ljindong)" \
+          -c user.email="$(git -C $R config user.email || echo ljindong1@gmail.com)" \
+          commit -m "<메시지>"
+git -C $R rev-parse --short HEAD
+```
+
+커밋 후 `.git/index` 는 갱신되지 않은 채 남지만, Windows git 이 다음 명령에서 알아서 새로 읽으므로 문제되지 않는다.
+
+그래도 잠금 파일이 남았다면 사용자에게 부탁한다. 이것을 실패로 포장하지 말고, 마운트 제약이라 사용자만 지울 수 있다고 담백하게 설명한다.
 
 ```powershell
 Remove-Item D:\Ljindong\skills-repo\.git\index.lock -Force
@@ -120,14 +132,14 @@ Remove-Item D:\Ljindong\skills-repo\.git\index.lock -Force
 
 ### 줄바꿈(CRLF) 오탐
 
-Windows git 이 체크아웃하면 파일이 CRLF 로 저장된다. 샌드박스 git 은 기본 설정이 달라 **모든 파일이 수정된 것처럼 보인다.** 갓 clone 한 저장소에서 수십 개가 ` M` 으로 뜨면 이 경우다. 실제 변경이 아니므로 놀라지 말고 설정만 맞춘다.
+Windows git 이 체크아웃하면 파일이 CRLF 로 저장된다. 샌드박스 git 의 설정이 다르면 **모든 파일이 수정된 것처럼 보인다.** 갓 clone 한 저장소에서 수십 개가 ` M` 으로 뜨면 이 경우다. 실제 변경이 아니므로 설정만 맞춘다.
 
 ```bash
 git -C /sessions/<세션>/mnt/skills-repo config core.autocrlf true
 git -C /sessions/<세션>/mnt/skills-repo status --porcelain | wc -l   # 0 이면 정상
 ```
 
-이 명령이 `index.lock` 을 남길 수 있으니, 이후 커밋은 사용자 쪽에서 하도록 안내한다.
+파일 비교 자체는 스크립트가 줄바꿈 차이를 무시하므로 영향받지 않는다.
 
 ## 절차
 
@@ -155,7 +167,7 @@ python3 <skill>/scripts/sync_skills.py \
   --skills slack-morning-briefing --no-commit --json
 ```
 
-`--no-commit` 을 쓰는 이유는 위 "누가 무엇을 하는가" 그대로다. 커밋은 사용자가 한다.
+복사는 스크립트에 맡기되 커밋은 `--no-commit` 으로 떼어내 위의 `GIT_INDEX_FILE` 방식으로 직접 한다. 스크립트 안의 `git add` 는 기본 인덱스를 써서 `.git/index.lock` 을 남길 수 있기 때문이다.
 
 스크립트가 어떤 이유로든 막히면 손으로 복사해도 결과는 같다. 스크립트는 편의 도구이지 필수가 아니다.
 
@@ -177,7 +189,7 @@ cp -rf /sessions/<세션>/mnt/.claude/skills/<스킬>/. /sessions/<세션>/mnt/s
 | `--include-builtin` | Anthropic 기본 스킬도 포함 |
 | `--dry-run` | 쓰지 않고 변경 내용만 |
 | `--allow-dirty` | 커밋 안 된 변경이 있어도 진행 (사용자 승인 후에만) |
-| `--no-commit` | 복사만 (기본 권장) |
+| `--no-commit` | 복사만 (커밋을 따로 하고 싶을 때) |
 | `--message "..."` | 커밋 메시지 지정 |
 | `--json` | JSON 요약 출력 |
 
@@ -191,11 +203,11 @@ cp -rf /sessions/<세션>/mnt/.claude/skills/<스킬>/. /sessions/<세션>/mnt/s
   svg-creation           SKILL.md, references/patterns.md 갱신
   confluence-writing     신규 추가 (5개 파일)
 
+  커밋 a1b2c3d
   원본 스냅샷: 2026-07-31 10:37 (이 시각 이후 수정분은 미포함)
 
-이어서 아래를 실행해 주세요:
-  cd D:\Ljindong\skills-repo
-  git add -A; git commit -m "..."; git push
+푸시만 실행해 주세요:
+  git -C D:\Ljindong\skills-repo push
 ```
 
 변경이 없으면 한 줄로 끝낸다: `저장소가 이미 계정과 같습니다 — 반영할 변경 없음.`
