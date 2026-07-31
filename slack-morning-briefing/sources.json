@@ -1,0 +1,100 @@
+{
+  "_comment": "감시 소스 레지스트리. 채널은 이름이 아니라 id로 박제한다(이름 표기 흔들림·개명·비공개 검색 불가 대응). 발견 스윕(P4)이 여기에 없는 채널을 잡아내면 즉시 소인하고 등록을 제안한다. 사람이 직접 관리하지 않아도 자동으로 드리프트가 드러나는 구조.",
+  "_verified": "2026-07-31 실측(only_my_channels=true 다중 토큰 60일 스윕 + slack_search_channels 카탈로그 대조)",
+
+  "target_default": {
+    "user_id": "U0B8UFCATRU",
+    "name": "이진동",
+    "name_en": "JD Lee"
+  },
+
+  "channels": [
+    {
+      "id": "C09GSH1MBSS",
+      "name": "모베이스에이에쓰이씨-공통",
+      "private": true,
+      "tier": "core",
+      "note": "전사 공지 채널. @channel 공지가 여기로 온다. 비공개라 slack_search_public 으로는 원천적으로 안 보임 — read_channel 필수."
+    },
+    {
+      "id": "C0BCY4F9E86",
+      "name": "daily-standup",
+      "private": false,
+      "tier": "core",
+      "note": "팀 전원 스탠드업. 정형 서식이라 §B에서 접기 대상이지만, '이슈/막힌 점'에 내용이 있거나 일정·요청이 섞이면 개별 승격."
+    },
+    {
+      "id": "C0AAU64LUG0",
+      "name": "proj_2026모빌진-기반-차세대-미들웨어플랫폼",
+      "private": false,
+      "tier": "core",
+      "note": "AUTOSAR/NVM 요구사항·일정이 오가는 업무 직결 채널. 2026-07 누락 사고 당시 레지스트리에 없었음."
+    },
+    {
+      "id": "C0AAT0YJMM3",
+      "name": "mobase_asec_미들웨어플랫폼_sw_개발",
+      "private": true,
+      "tier": "core",
+      "note": "정기미팅 회의록·인터페이스 협의. 2026-07 누락 사고 당시 레지스트리에 없었음."
+    },
+    {
+      "id": "C0A4F28KADP",
+      "name": "proj-wpc",
+      "private": false,
+      "tier": "watch",
+      "note": "최근 60일 트래픽 미확인. 소인 비용이 거의 없으므로 유지하되, 90일 무트래픽이면 정리 검토."
+    },
+    {
+      "id": "C0BBAAX300M",
+      "name": "jg-wpc-개발-협업",
+      "private": true,
+      "tier": "watch",
+      "note": "최근 60일 트래픽 미확인."
+    },
+    {
+      "id": "C0BBAA63MT7",
+      "name": "jg-wpc-sleep-문제점-논의",
+      "private": true,
+      "tier": "watch",
+      "note": "최근 60일 트래픽 미확인."
+    }
+  ],
+
+  "retired_channels": [
+    {
+      "id": "C0BBYSPB75M",
+      "name": "26년6월-면접",
+      "private": true,
+      "retired_at": "2026-07-31",
+      "reason": "archived",
+      "note": "아카이브됨(실측 확인). 소인 대상에서 제외한다. 아카이브 채널은 read_channel 이 성공하되 항상 0건이라 무해하지만, 매일 빈 호출을 돌릴 이유가 없다. 이 목록에 있으면 발견 스윕이 다시 찾아내도 '미등록 소스'로 재제안하지 않는다 — 해제(unarchive)되어 새 트래픽이 생기면 스윕이 잡으므로 그때 channels 로 복귀시킨다."
+    }
+  ],
+
+  "lifecycle": {
+    "_comment": "소스는 생기고, 조용해지고, 아카이브되고, 사라진다. 각 전이의 처리 규칙.",
+    "new_channel": "발견 스윕(P4)이 registry·retired 어디에도 없는 channel_id 를 잡으면 → 즉시 read_channel 로 소인 + ledger 에 add --discovered + 감사 푸터에 '미등록 소스'로 등록 제안. 스킬 파일은 세션에서 영구 수정되지 않으므로, 사용자가 sources.json 에 반영하기 전까지 매일 재검출·재제안된다(놓치지는 않는다).",
+    "archived": "read_channel 이 성공하며 0건을 반환한다 — 게이트를 막지 않는다. 30일 연속 0건이면 감사 푸터에 retired_channels 이동을 제안한다.",
+    "not_found": "read_channel 이 channel_not_found 오류를 낸다(채널 삭제, 비공개 채널에서 이탈, id 오기). 재시도하지 말고 mark --status unavailable --reason not_found 로 명시 처리하고 계속 진행한다. 감사 푸터에 반드시 표시한다. 3일 연속이면 retired_channels 이동을 제안한다.",
+    "_deadlock_note": "게이트#1 을 pending 으로 막아두면 무인 루틴에서 브리핑이 영원히 안 나간다. 접근 불가는 '해소된 상태'로 취급하되 반드시 보이게 만든다 — 조용한 실패를 만들지 않는 것이 이 규칙의 목적이다."
+  },
+
+  "dm_roster": [
+    { "id": "U09L8G19BF0", "name": "최연훈", "name_en": "Choi YeunHun" },
+    { "id": "U09GKB2MY8J", "name": "한창우", "name_en": "Han ChangWoo" },
+    { "id": "U0AJDBD0542", "name": "한무희", "name_en": "Muhui Han" },
+    { "id": "U0AB9BJ58NM", "name": "서진우", "name_en": "SEO Jin Woo" },
+    { "id": "U0A9DFXE03X", "name": "김수홍", "name_en": "Kim Su Hong" },
+    { "id": "U09GJ0EA3QC", "name": "김지훈", "name_en": "Kim Ji Hoon" }
+  ],
+
+  "bots_excluded": [
+    { "name": "agent-m", "note": "근태 자동 알림. 사유코드 BOT." },
+    { "name": "Google Calendar", "note": "일정 자동 알림. 사유코드 BOT." }
+  ],
+
+  "discovery_tokens": [
+    "니다", "요", "확인", "회의", "공유", "부탁"
+  ],
+  "_discovery_note": "P4 발견 스윕용. 한국어 존댓말 종결어미·업무 상용어를 섞어 채널 단위 recall 을 확보한다. 채널은 창 안에서 단 한 건만 걸려도 발견되므로 메시지 단위 recall 이 완벽할 필요는 없다 — 발견된 채널은 read_channel 로 전수 소인한다."
+}
