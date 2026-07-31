@@ -8,10 +8,14 @@
 #   ├── slack-to-calendar/SKILL.md
 #   └── arxml-analyzer/SKILL.md   (몇 개든 폴더로 추가 가능)
 #
-# 사용법: 아래 REPO_URL만 본인 저장소로 바꾸면 끝. 스킬을 추가해도 이 스크립트는 고칠 필요 없음.
+# 사용법: 이 파일 내용을 클라우드 환경 설정의 "설정 스크립트" 칸에 붙여넣으면 끝.
+#         스킬을 추가해도 이 스크립트는 고칠 필요 없음 (SKILL.md 를 가진 폴더를 자동으로 찾는다).
+#
+# 참고: SSH 별칭(git@github.com-ljindong:...) 이 아니라 HTTPS 주소를 쓴다.
+#       클라우드 컨테이너에는 SSH 키가 없어서 공개 저장소를 HTTPS 로 받아야 한다.
 set -euo pipefail
 
-REPO_URL="https://github.com/<사용자명>/<저장소명>.git"
+REPO_URL="https://github.com/ljindong1/claude-skills.git"
 TMP_DIR="$(mktemp -d)"
 SKILLS_ROOT="$HOME/.claude/skills"
 
