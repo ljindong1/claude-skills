@@ -17,7 +17,7 @@ description: 계정에 등록된 Claude 스킬을 로컬 git 저장소(기본 D:
 | 원본 | 세션에 마운트된 계정 스킬 폴더 (`/sessions/<세션>/mnt/.claude/skills`, 읽기 전용) |
 | 저장소 구조 | 스킬 폴더가 **저장소 최상위**에 바로 놓인다 (`skills-repo/svg-creation/SKILL.md`) |
 | 대상 | 이름을 지정하면 그 스킬만, 없으면 사용자가 만든 스킬 전체 |
-| 커밋 | Claude 가 한다 (임시 인덱스 사용 — 아래 참조) |
+| 커밋 | Claude 가 한다 (세션당 한 번 삭제 권한 필요 — 아래 참조) |
 | 푸시 | **사용자가 PowerShell 한 줄** (샌드박스에 네트워크 경로 없음) |
 
 Anthropic 기본 스킬(`docx`, `pdf`, `pptx`, `xlsx`, `skill-creator`, `morning` 등)은 사용자가 만든 것이 아니고 플랫폼 업데이트마다 바뀌어 커밋 노이즈가 되므로 기본 대상에서 뺀다. 사용자가 "전부", "기본 스킬까지"라고 하면 `--include-builtin` 을 붙인다.
@@ -104,30 +104,36 @@ find /sessions/<세션>/mnt/.claude/skills/<스킬> -type f -printf '%TY-%Tm-%Td
 git -C D:\Ljindong\skills-repo push
 ```
 
-### 커밋할 때 — 인덱스를 샌드박스 밖에 둔다
+### 커밋 전에 — 삭제 권한을 먼저 받는다
 
-마운트는 파일 생성과 이름변경은 되지만 **삭제가 안 된다.** git 이 `.git/index.lock` 을 지우는 경로를 타면 잠금 파일이 그대로 남고, 그때부터 샌드박스는 물론 **Windows 쪽 git 까지 전부 막힌다.** 사용자가 손으로 지워야 풀리는, 가장 성가신 사고다.
+마운트는 기본적으로 파일 생성과 이름변경만 허용하고 **삭제를 막는다.** git 은 `index.lock`, `HEAD.lock`, `objects/tmp_obj_*` 같은 임시 파일을 만들었다 지우며 동작하므로, 삭제가 막히면 잠금 파일이 그대로 남는다. 그러면 샌드박스는 물론 **Windows 쪽 git 까지 전부 막혀서** 사용자가 손으로 지워야 풀린다. 가장 성가신 사고이니 커밋 전에 권한부터 받는다.
 
-`GIT_INDEX_FILE` 로 인덱스를 `/tmp` 에 두면 `.git/index.lock` 이 애초에 생기지 않는다. 참조(ref) 갱신은 rename 으로 처리되므로 삭제 제약에 걸리지 않는다.
+```
+mcp__cowork__allow_cowork_file_delete(file_path="/sessions/<세션>/mnt/skills-repo/.git/index.lock")
+```
+
+승인은 파일 단위가 아니라 **폴더 단위**로 적용되므로 세션당 한 번이면 된다. 이후에는 평범하게 커밋하면 된다.
 
 ```bash
 R=/sessions/<세션>/mnt/skills-repo
-export GIT_INDEX_FILE=/tmp/gitidx
-git -C $R read-tree HEAD
 git -C $R add -A
-git -C $R status --short          # 무엇이 커밋되는지 확인해서 사용자에게 보여준다
-git -C $R -c user.name="$(git -C $R config user.name || echo ljindong)" \
-          -c user.email="$(git -C $R config user.email || echo ljindong1@gmail.com)" \
-          commit -m "<메시지>"
+git -C $R status --short          # 무엇이 커밋되는지 사용자에게 보여준다
+git -C $R -c user.name="ljindong" -c user.email="ljindong1@gmail.com" commit -m "<메시지>"
 git -C $R rev-parse --short HEAD
 ```
 
-커밋 후 `.git/index` 는 갱신되지 않은 채 남지만, Windows git 이 다음 명령에서 알아서 새로 읽으므로 문제되지 않는다.
+커밋 뒤에는 찌꺼기가 남지 않았는지 확인하고, 남았으면 지운다.
 
-그래도 잠금 파일이 남았다면 사용자에게 부탁한다. 이것을 실패로 포장하지 말고, 마운트 제약이라 사용자만 지울 수 있다고 담백하게 설명한다.
+```bash
+find $R/.git -name "*.lock" -o -name "tmp_obj*"
+```
+
+**사용자가 삭제 권한을 거부하면** 커밋도 사용자에게 넘긴다. 억지로 진행하면 잠금 파일만 남기고 상황을 악화시킨다.
 
 ```powershell
-Remove-Item D:\Ljindong\skills-repo\.git\index.lock -Force
+cd D:\Ljindong\skills-repo
+Remove-Item .git\index.lock -Force -ErrorAction SilentlyContinue
+git add -A; git commit -m "..."; git push
 ```
 
 ### 줄바꿈(CRLF) 오탐
@@ -167,7 +173,7 @@ python3 <skill>/scripts/sync_skills.py \
   --skills slack-morning-briefing --no-commit --json
 ```
 
-복사는 스크립트에 맡기되 커밋은 `--no-commit` 으로 떼어내 위의 `GIT_INDEX_FILE` 방식으로 직접 한다. 스크립트 안의 `git add` 는 기본 인덱스를 써서 `.git/index.lock` 을 남길 수 있기 때문이다.
+복사는 스크립트에 맡기고 커밋은 `--no-commit` 으로 떼어내 직접 한다. 무엇이 커밋되는지 `git status` 로 확인해 사용자에게 보여준 뒤 커밋하는 편이, 스크립트에 통째로 맡기는 것보다 사고가 적다.
 
 스크립트가 어떤 이유로든 막히면 손으로 복사해도 결과는 같다. 스크립트는 편의 도구이지 필수가 아니다.
 
