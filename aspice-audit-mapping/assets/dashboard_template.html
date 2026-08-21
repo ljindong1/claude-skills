@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASPICE 산출물 매핑 대시보드</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --page: #f9f9f7;
+    --ink-1: #0b0b0b; --ink-2: #52514e; --ink-3: #898781;
+    --grid: #e1e0d9; --border: rgba(11,11,11,0.10);
+    --st-matched: #0ca30c; --st-partial: #ec835a; --st-vm: #fab219;
+    --st-missing: #d03b3b; --st-url: #2a78d6; --st-excluded: #898781;
+    --st-unclaimed: #4a3aa7; --st-unverified: #0e7f8a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --page: #0d0d0d;
+      --ink-1: #ffffff; --ink-2: #c3c2b7; --ink-3: #898781;
+      --grid: #2c2c2a; --border: rgba(255,255,255,0.10);
+      --st-url: #3987e5; --st-unclaimed: #9085e9; --st-unverified: #35b0bf;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink-1);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 24px 64px; }
+  header h1 { font-size: 20px; margin: 0 0 2px; }
+  header .meta { color: var(--ink-2); font-size: 13px; }
+  header .meta span + span::before { content: " · "; color: var(--ink-3); }
+
+  .gate { margin: 14px 0 18px; padding: 10px 14px; border-radius: 8px;
+          border: 1px solid var(--border); display: flex; gap: 10px; align-items: center;
+          background: var(--surface-1); font-size: 13px; }
+  .gate .badge { font-weight: 700; padding: 2px 10px; border-radius: 999px; font-size: 12px; }
+  .gate.draft .badge { background: color-mix(in srgb, var(--st-vm) 18%, transparent); color: var(--ink-1); border: 1px solid var(--st-vm); }
+  .gate.confirmed .badge { background: color-mix(in srgb, var(--st-matched) 15%, transparent); color: var(--ink-1); border: 1px solid var(--st-matched); }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .kpi { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .kpi .v { font-size: 26px; font-weight: 700; }
+  .kpi .l { color: var(--ink-2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+
+  .warnbox { border: 1px solid var(--st-vm); background: color-mix(in srgb, var(--st-vm) 10%, var(--surface-1));
+             border-radius: 8px; padding: 10px 14px; margin-bottom: 18px; font-size: 13px; }
+  .warnbox strong { display: block; margin-bottom: 2px; }
+
+  h2 { font-size: 15px; margin: 26px 0 10px; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .filters button { font: inherit; font-size: 12px; padding: 4px 12px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--ink-2); cursor: pointer; }
+  .filters button.on { border-color: var(--ink-1); color: var(--ink-1); font-weight: 600; }
+
+  .group { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+           padding: 12px 14px; margin-bottom: 10px; }
+  .group .ghead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+  .group .gname { font-weight: 600; font-size: 13.5px; }
+  .group .gproc { color: var(--ink-3); font-size: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 6px;
+          font-size: 12px; cursor: pointer; border: 1px solid var(--grid);
+          border-left-width: 4px; background: var(--surface-1); color: var(--ink-1); }
+  .chip:hover { border-color: var(--ink-3); }
+  .chip.sel { outline: 2px solid var(--st-url); }
+  .chip .ic { font-size: 11px; }
+
+  .detail { position: sticky; bottom: 0; background: var(--surface-1); border: 1px solid var(--border);
+            border-radius: 10px 10px 0 0; padding: 14px 16px; margin-top: 16px;
+            box-shadow: 0 -4px 16px rgba(0,0,0,0.07); display: none; max-height: 44vh; overflow: auto; }
+  .detail.show { display: block; }
+  .detail h3 { margin: 0 0 6px; font-size: 14px; }
+  .detail .close { float: right; cursor: pointer; color: var(--ink-3); font-size: 16px; border: 0; background: none; }
+  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 3px 12px; font-size: 13px; }
+  .kv dt { color: var(--ink-2); } .kv dd { margin: 0; word-break: break-all; }
+  .ev { border-top: 1px dashed var(--grid); margin-top: 8px; padding-top: 8px; font-size: 13px; }
+  .aibox { margin-top: 8px; padding: 8px 10px; border-radius: 6px; font-size: 12.5px;
+           background: color-mix(in srgb, var(--st-url) 8%, var(--surface-1)); border: 1px dashed var(--st-url); }
+  .aibox .tag { font-weight: 700; font-size: 11px; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface-1);
+          border: 1px solid var(--border); border-radius: 10px; overflow: hidden; font-size: 13px; }
+  th { text-align: left; color: var(--ink-2); font-weight: 600; font-size: 12px;
+       border-bottom: 1px solid var(--grid); padding: 8px 10px; }
+  td { border-bottom: 1px solid var(--grid); padding: 7px 10px; vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .stlabel { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+
+  .note { color: var(--ink-3); font-size: 12px; margin-top: 6px; }
+  .empty { border: 1px dashed var(--border); background: var(--surface-1); border-radius: 10px;
+           padding: 14px 16px; font-size: 13px; color: var(--ink-2); }
+  .empty .ic { color: var(--st-url); margin-right: 4px; }
+  .empty b { color: var(--ink-1); }
+  footer { margin-top: 32px; color: var(--ink-3); font-size: 12px; border-top: 1px solid var(--grid); padding-top: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="title"></h1>
+    <div class="meta" id="meta"></div>
+  </header>
+  <div class="gate" id="gate"></div>
+  <div class="kpis" id="kpis"></div>
+  <div id="warnings"></div>
+
+  <h2>절차 그룹별 매핑 현황 <span class="note" style="display:inline">— 칩을 클릭하면 상세가 열립니다. MATCHED는 파일 존재 확인일 뿐 내용 적정성은 미검증입니다.</span></h2>
+  <div class="filters" id="filters"></div>
+  <div id="matrix"></div>
+
+  <h2>조치 필요 항목 (AI 1차 제안 — 확정: 점검자)</h2>
+  <div id="actions"></div>
+
+  <h2>미참조 파일 (폴더에만 있음)</h2>
+  <div id="unclaimed"></div>
+
+  <div class="detail" id="detail"></div>
+  <footer id="footer"></footer>
+</div>
+
+<script>
+const M = __MAPPING_JSON__;
+
+const ST = {
+  MATCHED:          { label: "매핑됨",     icon: "●", color: "var(--st-matched)",
+    desc: "기재 파일 존재 + 무결성·정체성 확인 (내용 적정성은 미검증 — 2·3단계 몫)" },
+  PARTIAL:          { label: "부분 확인",  icon: "◐", color: "var(--st-partial)",
+    desc: "한 항목에 기재된 여러 파일 중 일부만 폴더에서 확인됨" },
+  SUSPECT:          { label: "매칭 의심",  icon: "⚠", color: "var(--st-missing)",
+    desc: "불일치 증거 있음 — 0바이트·손상·포맷 위장 또는 표지 정체 불일치 (확정: 점검자)" },
+  UNVERIFIED:       { label: "확인 불가",  icon: "◌", color: "var(--st-unverified)",
+    desc: "정오 확인 불가 — 암호 보호·표지 없음·스캔본 등. 불일치로 단정하지 않음 (사람 확인 필요)" },
+  VERSION_MISMATCH: { label: "버전 불일치", icon: "▲", color: "var(--st-vm)",
+    desc: "시트 기재 버전과 폴더 보유 버전이 다름 — 기준본 재지정 결정 필요" },
+  MISSING:          { label: "누락",       icon: "✕", color: "var(--st-missing)",
+    desc: "기재 파일이 폴더에 없음 (미작성인지 미제출인지는 사람 확인)" },
+  SYSTEM_URL:       { label: "수동 확인(시스템)", icon: "⇗", color: "var(--st-url)",
+    desc: "기재가 파일이 아닌 사내 시스템 URL — 폴더 점검 불가, 시스템 직접 확인 필요" },
+  EXCLUDED:         { label: "미대상",     icon: "⊘", color: "var(--st-excluded)",
+    desc: "이번 점검 범위에서 제외된 항목" },
+  INFERRED_HIGH:    { label: "추론(명확)", icon: "●", color: "var(--st-matched)",
+    desc: "[모드 B] 파일명·경로 근거가 단일 절차그룹으로 명확히 수렴" },
+  INFERRED_LOW:     { label: "추론(확인 필요)", icon: "◐", color: "var(--st-vm)",
+    desc: "[모드 B] 복수 절차그룹 후보 — 사람 확인 필요" },
+  UNCLASSIFIED:     { label: "추론 불가",  icon: "?", color: "var(--st-missing)",
+    desc: "[모드 B] 근거 부족으로 절차그룹 추론 불가 (추측 분류 금지 원칙)" },
+};
+/* 모드별 실사용 상태 — 필터 탭은 이 목록만 노출 */
+const MODE_A_STATUSES = ["MATCHED","PARTIAL","SUSPECT","UNVERIFIED","VERSION_MISMATCH","MISSING","SYSTEM_URL","EXCLUDED"];
+const MODE_B_STATUSES = ["INFERRED_HIGH","INFERRED_LOW","UNCLASSIFIED"];
+const isModeB = M.source.mode === "folder_inferred";
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const stChip = k => { const s = ST[k] || {label:k, icon:"?", color:"var(--ink-3)"};
+  return `<span class="stlabel"><span class="dot" style="background:${s.color}"></span>${esc(s.label)}</span>`; };
+
+/* 헤더 */
+document.getElementById("title").textContent =
+  `${M.project.name} — ${M.project.phase} 산출물 매핑`;
+document.getElementById("meta").innerHTML =
+  `<span>체크리스트: ${esc(M.source.checklist_file)} (${esc(M.source.checklist_sheet)})</span>` +
+  `<span>폴더 스냅샷: ${esc(M.source.scanned_at)}</span>` +
+  `<span>파일 ${M.source.file_count}건</span>`;
+
+/* 게이트 배너 (+모드 배너) */
+const g = M.gate, gateEl = document.getElementById("gate");
+gateEl.className = "gate " + g.status;
+const modeNote = isModeB
+  ? " · <b>추론 매핑(모드 B)</b> — Target 시트 초안 생성용, 2단계 진입 불가"
+  : (g.status === "confirmed" ? " — 2단계(프로세스 점검) 진행 가능" : "");
+/* v0.4: 미해결 잔존 표시 (§4.2 ⑧ — 확정을 막지 않되 숨기지 않는다) */
+const ur = g.unresolved || {};
+const urTotal = (ur.fuzzy_unconfirmed||0)+(ur.identity_open||0)+(ur.unverified||0)+(ur.scope_gap_open||0);
+const urNote = urTotal ? ` · <span style="color:var(--st-partial)"><b>미해결 ${urTotal}건</b>` +
+  `(fuzzy ${ur.fuzzy_unconfirmed||0} · 정체성 ${ur.identity_open||0} · 확인불가 ${ur.unverified||0} · 범위후보 ${ur.scope_gap_open||0})</span>` : "";
+gateEl.innerHTML = g.status === "confirmed"
+  ? `<span class="badge">확정</span><span>${esc(g.confirmed_by)} 확정 (${esc(g.confirmed_at)}) · rev ${g.revision}${urNote}${modeNote}</span>`
+  : `<span class="badge">초안 (미확정)</span><span>모든 판정·추론은 AI 1차 제안입니다. 점검자 검토·확정이 필요합니다. · rev ${g.revision}${urNote}${modeNote}</span>`;
+
+/* KPI (모드별) */
+const bs = M.summary.by_status || {};
+const bi = M.summary.by_inference || {};
+const matched = bs.MATCHED || 0, tgt = M.summary.target_items;
+const kpiDefs = isModeB ? [
+  { v: M.summary.total_items, l: "문서 파일" },
+  { v: bi.INFERRED_HIGH || 0, l: ST.INFERRED_HIGH.label, dot: ST.INFERRED_HIGH.color },
+  { v: bi.INFERRED_LOW || 0, l: ST.INFERRED_LOW.label, dot: ST.INFERRED_LOW.color },
+  { v: bi.UNCLASSIFIED || 0, l: ST.UNCLASSIFIED.label, dot: ST.UNCLASSIFIED.color },
+  { v: bi.NON_DOCUMENT || 0, l: "비문서", dot: "var(--st-excluded)" },
+] : [
+  { v: tgt, l: "점검 대상 항목" },
+  { v: tgt ? Math.round(matched / tgt * 100) + "%" : "-", l: "완전 매핑률" , dot: ST.MATCHED.color},
+  { v: bs.SUSPECT || 0, l: "매칭 의심", dot: ST.SUSPECT.color },
+  { v: bs.UNVERIFIED || 0, l: "확인 불가", dot: ST.UNVERIFIED.color },
+  { v: bs.PARTIAL || 0, l: "부분 확인", dot: ST.PARTIAL.color },
+  { v: bs.VERSION_MISMATCH || 0, l: "버전 불일치", dot: ST.VERSION_MISMATCH.color },
+  { v: bs.MISSING || 0, l: "누락", dot: ST.MISSING.color },
+  { v: bs.SYSTEM_URL || 0, l: ST.SYSTEM_URL.label, dot: ST.SYSTEM_URL.color },
+  { v: `${M.summary.unclaimed_files}${M.summary.scope_gap_candidates ? " (범위누락후보 " + M.summary.scope_gap_candidates + ")" : ""}`,
+    l: "미참조 파일", dot: "var(--st-unclaimed)" },
+];
+document.getElementById("kpis").innerHTML = kpiDefs.map(k =>
+  `<div class="kpi"><div class="v">${k.v}</div><div class="l">${k.dot ? `<span class="dot" style="background:${k.dot}"></span>` : ""}${esc(k.l)}</div></div>`).join("");
+
+/* 경고 */
+document.getElementById("warnings").innerHTML = (M.warnings || []).map(w =>
+  `<div class="warnbox"><strong>⚠ ${esc(w.code)}</strong>${esc(w.message)}</div>`).join("");
+
+/* 필터 + 매트릭스 */
+let filter = "ALL", selected = null;
+/* 모드에 맞는 상태만 탭으로 노출 + 건수 표기 (전 항목 기준 — 미대상 포함) */
+const statusCount = {};
+for (const it of M.items) statusCount[it.item_status] = (statusCount[it.item_status] || 0) + 1;
+const modeStatuses = isModeB ? MODE_B_STATUSES : MODE_A_STATUSES;
+const filterDefs = [["ALL", `전체 (${M.items.length})`, "모든 항목"],
+  ...modeStatuses.map(k => [k, `${ST[k].label} (${statusCount[k] || 0})`, ST[k].desc])];
+const filtersEl = document.getElementById("filters");
+filtersEl.innerHTML = filterDefs.map(([k,l,d]) =>
+  `<button data-f="${k}" class="${k==="ALL"?"on":""}" title="${esc(d)}">${esc(l)}</button>`).join("");
+filtersEl.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  filter = b.dataset.f;
+  filtersEl.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  renderMatrix();
+});
+
+const groups = [];
+for (const it of M.items) {
+  let grp = groups.find(x => x.name === it.procedure_group);
+  if (!grp) { grp = { name: it.procedure_group, items: [] }; groups.push(grp); }
+  grp.items.push(it);
+}
+function renderMatrix() {
+  document.getElementById("matrix").innerHTML = groups.map(grp => {
+    const items = grp.items.filter(it => filter === "ALL" || it.item_status === filter);
+    if (!items.length) return "";
+    const procs = [...new Set(grp.items.flatMap(it => (it.aspice?.process || "").split("/")).filter(Boolean))];
+    const chips = items.map(it => {
+      const s = ST[it.item_status] || { icon: "?", color: "var(--ink-3)", label: it.item_status };
+      return `<span class="chip ${selected===it.id?"sel":""}" data-id="${it.id}"
+        style="border-left-color:${s.color}" title="${esc(it.work_product)} — ${esc(s.label)}">
+        <span class="ic" style="color:${s.color}">${s.icon}</span>${esc(it.id)} ${esc(it.work_product)}</span>`;
+    }).join("");
+    return `<div class="group"><div class="ghead"><span class="gname">${esc(grp.name)}</span>
+      <span class="gproc">${esc(procs.join(", "))}</span></div><div class="chips">${chips}</div></div>`;
+  }).join("") || emptyMessage();
+}
+function emptyMessage() {
+  const name = filter === "ALL" ? "전체" : (ST[filter]?.label || filter);
+  return `<div class="empty"><span class="ic">ⓘ</span> <b>'${esc(name)}'</b> 상태의 항목이 없습니다.</div>`;
+}
+document.getElementById("matrix").addEventListener("click", e => {
+  const chip = e.target.closest(".chip"); if (!chip) return;
+  selected = chip.dataset.id; renderMatrix(); showDetail(selected);
+});
+
+/* 상세 패널 */
+function showDetail(id) {
+  const it = M.items.find(x => x.id === id); if (!it) return;
+  const el = document.getElementById("detail");
+  const ev = (it.evidence || []).map(e => {
+    let extra = "";
+    if (e.resolved_path) extra += `<dd style="grid-column:2">→ ${esc(e.resolved_path)}${e.resolved_mtime ? ` <span class="note" style="display:inline">(수정 ${esc(e.resolved_mtime.slice(0,10))})</span>` : ""}</dd>`;
+    const tech = [];
+    if (e.match_basis) tech.push(`매칭 근거: ${esc(e.match_basis)}`);
+    if (e.decided_by) tech.push(`확정: ${esc(e.decided_by)}`);
+    if (e.integrity) tech.push(`무결성: ${esc(e.integrity)}`);
+    if (e.carried_over) tech.push(`<b style="color:var(--st-url)">이전 rev 승계</b>`);
+    if (tech.length) extra += `<dd style="grid-column:2" class="note" >${tech.join(" · ")}</dd>`;
+    if (e.human_decision) extra += `<dd style="grid-column:2"><b>점검자 결정:</b> ${esc(e.human_decision)}</dd>`;
+    if (e.identity) extra += `<dd style="grid-column:2">정체성: <b>${esc(e.identity.result)}</b> — ${esc(e.identity.basis || "")} <span class="note" style="display:inline">(확정: ${esc(e.identity.human_decision || e.identity.decided_by || "미확정")})</span></dd>`;
+    if (e.version_note) extra += `<dd style="grid-column:2">${esc(e.version_note)}</dd>`;
+    if (e.candidates && e.candidates.length) extra += `<dd style="grid-column:2">후보: ${e.candidates.map(esc).join(" / ")}</dd>`;
+    return `<div class="ev"><div class="kv"><dt>${e.status ? stChip(e.status) : "파일"}</dt><dd>${esc(e.listed || e.resolved_path)}</dd>${extra}</div></div>`;
+  }).join("") || `<div class="ev note">기재 파일 없음</div>`;
+  const ai = it.ai_assessment && it.ai_assessment.proposal ? `
+    <div class="aibox"><span class="tag">AI 1차 제안 · 확정 주체: 점검자</span><br>
+    ${esc(it.ai_assessment.proposal)}<br>
+    <span class="note" style="display:inline">근거: ${esc(it.ai_assessment.basis)} · 확인 위치: ${esc(it.ai_assessment.where_to_look || "-")}</span>
+    ${it.ai_assessment.human_decision ? `<br><b>점검자 결정:</b> ${esc(it.ai_assessment.human_decision)} ${esc(it.ai_assessment.human_note || "")}` : ""}</div>` : "";
+  el.innerHTML = `<button class="close" onclick="this.parentElement.classList.remove('show')">✕</button>
+    <h3>${esc(it.id)} · ${esc(it.work_product)} ${stChip(it.item_status)}</h3>
+    <div class="kv">
+      <dt>절차 그룹</dt><dd>${esc(it.procedure_group)}</dd>
+      <dt>PAM 프로세스</dt><dd>${esc(it.aspice?.process || "-")} <span class="note" style="display:inline">(${esc(it.aspice?.confidence || "")})</span></dd>
+      <dt>내용 검증</dt><dd>${it.content_verified ? "완료" : "미검증 — 존재 확인만 수행됨 (2·3단계에서 점검)"}</dd>
+      ${it.remark ? `<dt>비고</dt><dd>${esc(it.remark)}</dd>` : ""}
+      ${it.note ? `<dt>Note</dt><dd>${esc(it.note)}</dd>` : ""}
+    </div>${ev}${ai}`;
+  el.classList.add("show");
+  el.scrollIntoView({ behavior: "smooth", block: "end" });
+}
+
+/* v0.4: 재매핑 diff 영역 (§4.4 — --prev 재실행 시에만 존재) */
+const diffEl = document.createElement("div");
+document.getElementById("warnings").after(diffEl);
+if (M.diff) {
+  const d = M.diff;
+  const chunk = (label, arr, color) => arr && arr.length
+    ? `<div><b style="color:${color}">${label} (${arr.length})</b> — ${arr.map(x => esc(typeof x === "string" ? x : `${x.id}${x.from ? ` ${x.from}→${x.to}` : ""}${x.reason ? ` (${x.reason})` : ""}`)).join(", ")}</div>` : "";
+  const body = [
+    chunk("신규 매핑", d.new_matches, "var(--st-matched)"),
+    chunk("해소된 누락", d.resolved_missing, "var(--st-matched)"),
+    chunk("새로 생긴 누락", d.new_missing, "var(--st-missing)"),
+    chunk("상태 변경", d.status_changed, "var(--st-vm)"),
+    chunk("무효화된 확정 — 재확인 필요", d.invalidated, "var(--st-missing)"),
+    chunk("추가된 항목", d.items_added, "var(--ink-2)"),
+    chunk("삭제된 항목", d.items_removed, "var(--ink-2)"),
+  ].filter(Boolean).join("");
+  diffEl.innerHTML = `<div class="warnbox" style="border-color:var(--st-url);background:color-mix(in srgb, var(--st-url) 8%, var(--surface-1))">
+    <strong>↻ 재매핑 — rev ${esc(d.previous_revision)} 대비 변경</strong>${body || "변경 없음 (확정 승계됨)"}</div>`;
+}
+
+/* 조치 필요 테이블 */
+const needsAction = M.items.filter(it => (isModeB ? ["INFERRED_LOW","UNCLASSIFIED"].includes(it.item_status)
+  : (it.target && ["MISSING","VERSION_MISMATCH","SYSTEM_URL","PARTIAL","SUSPECT","UNVERIFIED"].includes(it.item_status))));
+document.getElementById("actions").innerHTML = needsAction.length ? `
+  <table><thead><tr><th>ID</th><th>산출물</th><th>상태</th><th>AI 1차 제안</th><th>점검자 결정</th></tr></thead>
+  <tbody>${needsAction.map(it => `<tr>
+    <td class="num">${esc(it.id)}</td><td>${esc(it.work_product)}</td>
+    <td>${stChip(it.item_status)}</td>
+    <td>${esc(it.ai_assessment?.proposal || "-")}<div class="note">${esc(it.ai_assessment?.basis || "")}</div></td>
+    <td>${esc(it.ai_assessment?.human_decision || "미확정")}</td></tr>`).join("")}
+  </tbody></table>` : `<div class="note">조치 필요 항목이 없습니다.</div>`;
+
+/* 미참조 파일 (v0.3: link_reason·추정·범위누락 후보) */
+const uc = M.unclaimed_files || [];
+const reasonLabel = { NOT_LISTED: "시트 미기재", VERSION_SUPERSEDED: "타 버전 매칭됨", REJECTED_CANDIDATE: "후보 탈락" };
+document.getElementById("unclaimed").innerHTML = uc.length ? `
+  <table><thead><tr><th>ID</th><th>파일</th><th>미연결 사유</th><th>분류</th><th>추정(그룹/산출물)</th><th>메모</th></tr></thead>
+  <tbody>${uc.map(f => `<tr><td class="num">${esc(f.id || "-")}</td><td>${esc(f.path)}${f.scope_gap_candidate ? ` <span class="stlabel" style="color:var(--st-missing)"><span class="dot" style="background:var(--st-missing)"></span>범위 누락 후보</span>` : ""}</td>
+    <td>${esc(reasonLabel[f.link_reason] || f.link_reason || "-")}</td>
+    <td><span class="stlabel"><span class="dot" style="background:var(--st-unclaimed)"></span>${esc(f.classification || "미분류")}</span></td>
+    <td class="note" style="display:table-cell">${f.inferred ? esc((f.inferred.procedure_group || "?") + " / " + (f.inferred.work_product || "?")) + `<br>${esc(f.inferred.basis || "")}` : "-"}</td>
+    <td class="note" style="display:table-cell">${esc(f.ai_note || "")}</td></tr>`).join("")}
+  </tbody></table>` : `<div class="note">미참조 파일이 없습니다.</div>`;
+/* v0.4: 모드 A 비문서 미참조는 집계만 (UNCLAIMED 노이즈 방지 — §4.2 ②) */
+if (!isModeB && (M.non_document_files || []).length) {
+  document.getElementById("unclaimed").insertAdjacentHTML("beforeend",
+    `<div class="note">이외 비문서 파일(소스·바이너리·이미지 등) ${M.non_document_files.length}건은 집계만 하고 개별 표시하지 않습니다.</div>`);
+}
+
+/* 푸터 */
+document.getElementById("footer").textContent =
+  `${M.tool.skill} v${M.tool.skill_version} · schema ${M.schema_version} · 생성 ${M.generated_at} · ` +
+  `본 대시보드의 모든 판정은 AI 1차 제안이며 확정 책임은 점검자에게 있습니다. MATCHED는 파일 존재 확인이며 내용 적정성 검증이 아닙니다.`;
+
+renderMatrix();
+</script>
+</body>
+</html>

@@ -1,0 +1,784 @@
+{
+ "$schema": "http://json-schema.org/draft-07/schema#",
+ "title": "aspice-audit-mapping output contract",
+ "description": "오디트 1단계 매핑 결과 (계약 1.3.0) — 모드별 필수·금지는 oneOf 분기. 의미 정의: references/output_contract.md",
+ "type": "object",
+ "required": [
+  "schema_version",
+  "generated_at",
+  "tool",
+  "project",
+  "source",
+  "summary",
+  "items",
+  "unclaimed_files",
+  "warnings",
+  "gate"
+ ],
+ "properties": {
+  "schema_version": {
+   "type": "string",
+   "pattern": "^\\d+\\.\\d+\\.\\d+$"
+  },
+  "generated_at": {
+   "type": "string"
+  },
+  "tool": {
+   "type": "object",
+   "required": [
+    "skill",
+    "skill_version"
+   ]
+  },
+  "project": {
+   "type": "object",
+   "required": [
+    "name",
+    "phase"
+   ]
+  },
+  "source": {
+   "type": "object",
+   "required": [
+    "mode",
+    "deliverable_root",
+    "scanned_at",
+    "file_count"
+   ],
+   "properties": {
+    "mode": {
+     "enum": [
+      "checklist",
+      "folder_inferred"
+     ]
+    },
+    "checklist_file": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "checklist_sheet": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "template_version": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "draft_origin": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "deliverable_root": {
+     "type": "string"
+    },
+    "listing_mode": {
+     "enum": [
+      "filesystem",
+      "listing"
+     ]
+    },
+    "scanned_at": {
+     "type": "string"
+    },
+    "file_count": {
+     "type": "integer",
+     "minimum": 0
+    },
+    "excluded_from_scan": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "path",
+       "reason"
+      ],
+      "properties": {
+       "path": {
+        "type": "string"
+       },
+       "reason": {
+        "enum": [
+         "INPUT_CHECKLIST",
+         "AI_DRAFT_MARKER"
+        ]
+       }
+      }
+     },
+     "description": "v0.4 인벤토리 제외 내역 (§4.2 ②)"
+    }
+   }
+  },
+  "summary": {
+   "type": "object",
+   "required": [
+    "total_items",
+    "unclaimed_files",
+    "scope_gap_candidates"
+   ],
+   "properties": {
+    "total_items": {
+     "type": "integer"
+    },
+    "target_items": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "excluded_items": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "by_status": {
+     "type": [
+      "object",
+      "null"
+     ],
+     "additionalProperties": {
+      "type": "integer"
+     }
+    },
+    "by_inference": {
+     "type": [
+      "object",
+      "null"
+     ],
+     "additionalProperties": {
+      "type": "integer"
+     }
+    },
+    "unclaimed_files": {
+     "type": "integer"
+    },
+    "scope_gap_candidates": {
+     "type": "integer"
+    }
+   }
+  },
+  "items": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "procedure_group",
+     "work_product",
+     "aspice",
+     "evidence",
+     "item_status",
+     "content_verified",
+     "inference",
+     "ai_assessment"
+    ],
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^(T|F)-\\d{3,}$"
+     },
+     "no": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "procedure_group": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "work_product": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "target": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     },
+     "excluded_reason": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "aspice": {
+      "type": "object",
+      "required": [
+       "process",
+       "oii_candidates",
+       "confidence",
+       "basis"
+      ],
+      "properties": {
+       "process": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "oii_candidates": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "confidence": {
+        "type": "string"
+       },
+       "basis": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
+      }
+     },
+     "evidence": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "integrity"
+       ],
+       "properties": {
+        "listed": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "status": {
+         "enum": [
+          "MATCHED",
+          "VERSION_MISMATCH",
+          "MISSING",
+          "SYSTEM_URL",
+          null
+         ]
+        },
+        "match_basis": {
+         "enum": [
+          "exact",
+          "normalized",
+          "fuzzy_ai",
+          null
+         ]
+        },
+        "integrity": {
+         "enum": [
+          "OK",
+          "FILE_EMPTY",
+          "FILE_CORRUPT",
+          "FORMAT_MISMATCH",
+          "PASSWORD_PROTECTED",
+          "NOT_CHECKED",
+          null
+         ]
+        },
+        "identity": {
+         "type": [
+          "object",
+          "null"
+         ],
+         "required": [
+          "result",
+          "basis",
+          "decided_by"
+         ],
+         "properties": {
+          "result": {
+           "enum": [
+            "일치",
+            "불일치",
+            "판단 불가"
+           ]
+          },
+          "basis": {
+           "type": [
+            "string",
+            "null"
+           ]
+          },
+          "decided_by": {
+           "type": "string"
+          },
+          "human_decision": {
+           "type": [
+            "string",
+            "null"
+           ]
+          }
+         }
+        },
+        "resolved_path": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "resolved_mtime": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "resolved_bytes": {
+         "type": [
+          "integer",
+          "null"
+         ]
+        },
+        "version_note": {
+         "type": [
+          "string",
+          "null"
+         ]
+        },
+        "candidates": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "decided_by": {
+         "type": [
+          "string",
+          "null"
+         ],
+         "description": "v0.4 확정 주체 — exact/normalized='스크립트', fuzzy_ai='미확정'→사람"
+        },
+        "human_decision": {
+         "type": [
+          "string",
+          "null"
+         ],
+         "description": "v0.4 사람 정정 내용 (버전·경로 선택 등)"
+        },
+        "carried_over": {
+         "type": "boolean",
+         "default": false,
+         "description": "v0.4 재매핑 승계 표시 (§4.4 — 3요소 불변 시 이전 확정 승계)"
+        }
+       }
+      }
+     },
+     "item_status": {
+      "enum": [
+       "MATCHED",
+       "VERSION_MISMATCH",
+       "MISSING",
+       "SYSTEM_URL",
+       "EXCLUDED",
+       "PARTIAL",
+       "SUSPECT",
+       "UNVERIFIED",
+       "INFERRED_HIGH",
+       "INFERRED_LOW",
+       "UNCLASSIFIED"
+      ]
+     },
+     "content_verified": {
+      "const": false
+     },
+     "inference": {
+      "type": [
+       "object",
+       "null"
+      ],
+      "properties": {
+       "level": {
+        "enum": [
+         "INFERRED_HIGH",
+         "INFERRED_LOW",
+         "UNCLASSIFIED"
+        ]
+       },
+       "basis": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "content_checked": {
+        "type": "boolean"
+       },
+       "decided_by": {
+        "type": "string"
+       },
+       "human_decision": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "human_note": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
+      }
+     },
+     "remark": {
+      "type": "string"
+     },
+     "note": {
+      "type": "string"
+     },
+     "ai_assessment": {
+      "type": [
+       "object",
+       "null"
+      ],
+      "properties": {
+       "proposal": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "basis": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "where_to_look": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "decided_by": {
+        "type": "string"
+       },
+       "human_decision": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "human_note": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  "unclaimed_files": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "path",
+     "link_reason",
+     "scope_gap_candidate",
+     "decided_by"
+    ],
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^U-\\d{3,}$"
+     },
+     "path": {
+      "type": "string"
+     },
+     "link_reason": {
+      "enum": [
+       "NOT_LISTED",
+       "VERSION_SUPERSEDED",
+       "REJECTED_CANDIDATE"
+      ]
+     },
+     "classification": {
+      "enum": [
+       "구버전",
+       "검토본",
+       "참고자료",
+       "미분류",
+       null
+      ]
+     },
+     "inferred": {
+      "type": [
+       "object",
+       "null"
+      ],
+      "properties": {
+       "procedure_group": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "work_product": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "basis": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
+      }
+     },
+     "scope_gap_candidate": {
+      "type": "boolean"
+     },
+     "decided_by": {
+      "type": "string"
+     },
+     "human_decision": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "ai_note": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "basis": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    }
+   }
+  },
+  "non_document_files": {
+   "type": [
+    "array",
+    "null"
+   ],
+   "items": {
+    "type": "object",
+    "required": [
+     "path"
+    ],
+    "properties": {
+     "path": {
+      "type": "string"
+     },
+     "ext": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "warnings": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "code",
+     "message"
+    ]
+   }
+  },
+  "gate": {
+   "type": "object",
+   "required": [
+    "status",
+    "revision",
+    "unresolved"
+   ],
+   "properties": {
+    "status": {
+     "enum": [
+      "draft",
+      "confirmed"
+     ]
+    },
+    "confirmed_by": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "confirmed_at": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "revision": {
+     "type": "integer",
+     "minimum": 1
+    },
+    "unresolved": {
+     "type": "object",
+     "required": [
+      "fuzzy_unconfirmed",
+      "identity_open",
+      "unverified",
+      "scope_gap_open"
+     ],
+     "properties": {
+      "fuzzy_unconfirmed": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "identity_open": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "unverified": {
+       "type": "integer",
+       "minimum": 0
+      },
+      "scope_gap_open": {
+       "type": "integer",
+       "minimum": 0
+      }
+     },
+     "description": "v0.4 확정 시점 미해결 잔존 (§4.2 ⑧ — 모드 B의 unverified는 UNCLASSIFIED 집계)"
+    }
+   }
+  },
+  "diff": {
+   "type": [
+    "object",
+    "null"
+   ],
+   "description": "v0.4 재매핑 diff (§4.4 — --prev 없으면 null)",
+   "properties": {
+    "previous_revision": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "new_matches": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "resolved_missing": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "new_missing": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "status_changed": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "id",
+       "from",
+       "to"
+      ]
+     }
+    },
+    "invalidated": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "id",
+       "reason"
+      ]
+     }
+    },
+    "items_added": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "items_removed": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ },
+ "oneOf": [
+  {
+   "properties": {
+    "source": {
+     "properties": {
+      "mode": {
+       "const": "checklist"
+      }
+     }
+    },
+    "summary": {
+     "properties": {
+      "by_status": {
+       "type": "object"
+      },
+      "by_inference": {
+       "type": "null"
+      }
+     }
+    },
+    "non_document_files": {
+     "type": "array"
+    }
+   }
+  },
+  {
+   "properties": {
+    "source": {
+     "properties": {
+      "mode": {
+       "const": "folder_inferred"
+      }
+     }
+    },
+    "summary": {
+     "properties": {
+      "by_status": {
+       "type": "null"
+      },
+      "by_inference": {
+       "type": "object"
+      }
+     }
+    },
+    "unclaimed_files": {
+     "maxItems": 0
+    },
+    "non_document_files": {
+     "type": "array"
+    }
+   }
+  }
+ ]
+}

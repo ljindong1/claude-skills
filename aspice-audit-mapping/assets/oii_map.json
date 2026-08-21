@@ -1,0 +1,390 @@
+{
+  "_comment": "사내 절차그룹/산출물 → PAM 4.0 프로세스·OII 대응표. oii_candidates는 PAM 4.0 Annex 원문 대조 전까지 confidence='확인 필요'. 근거 해설: references/oii_map.md",
+  "schema_version": "1.1.0",
+  "group_to_process": {
+    "프로젝트 관리": [
+      "MAN.3"
+    ],
+    "형상관리 절차": [
+      "SUP.8"
+    ],
+    "문제해결 관리 절차": [
+      "SUP.9"
+    ],
+    "변경요청 관리 절차": [
+      "SUP.10"
+    ],
+    "소프트웨어설계 업무 절차": [
+      "SWE.1",
+      "SWE.2",
+      "SWE.3"
+    ],
+    "소프트웨어 단위 통합 테스트 절차": [
+      "SWE.4",
+      "SWE.5"
+    ],
+    "시스템 요구 사항 분석 절차": [
+      "SYS.1",
+      "SYS.2"
+    ],
+    "시스템 아키텍처 설계 절차": [
+      "SYS.3"
+    ],
+    "소프트웨어 인정 테스트 절차": [
+      "SWE.6"
+    ],
+    "시스템 통합 테스트 절차": [
+      "SYS.4"
+    ],
+    "시스템 인정 테스트 절차": [
+      "SYS.5"
+    ],
+    "프로젝트 품질보증 절차": [
+      "SUP.1"
+    ]
+  },
+  "work_product_rules": [
+    {
+      "contains": "소프트웨어 요구사항 분석서",
+      "process": "SWE.1",
+      "oii_candidates": []
+    },
+    {
+      "contains": "소프트웨어 요구사양서",
+      "process": "SWE.1",
+      "oii_candidates": []
+    },
+    {
+      "contains": "아키텍처 선정 평가서",
+      "process": "SWE.2",
+      "oii_candidates": []
+    },
+    {
+      "contains": "아키텍쳐 설계서",
+      "process": "SWE.2",
+      "oii_candidates": []
+    },
+    {
+      "contains": "아키텍처설계서",
+      "process": "SWE.2",
+      "oii_candidates": []
+    },
+    {
+      "contains": "상세설계서",
+      "process": "SWE.3",
+      "oii_candidates": []
+    },
+    {
+      "contains": "소스코드",
+      "process": "SWE.3",
+      "oii_candidates": []
+    },
+    {
+      "contains": "정적 검증리포트",
+      "process": "SWE.4",
+      "oii_candidates": [],
+      "note": "PAM 4.0 유닛 검증에 정적 검증 포함 — 해석 여지 있음, 원문 확인 필요"
+    },
+    {
+      "contains": "보안 코딩 점검",
+      "process": "SWE.4",
+      "oii_candidates": []
+    },
+    {
+      "contains": "코드 동료 검토",
+      "process": "SWE.4",
+      "oii_candidates": []
+    },
+    {
+      "contains": "오픈소스 취약점",
+      "process": "SWE.4",
+      "oii_candidates": [],
+      "note": "사이버보안 연계 — 확인 필요"
+    },
+    {
+      "contains": "단위 테스트",
+      "process": "SWE.4",
+      "oii_candidates": []
+    },
+    {
+      "contains": "단위 시험",
+      "process": "SWE.4",
+      "oii_candidates": []
+    },
+    {
+      "contains": "통합 테스트",
+      "process": "SWE.5",
+      "oii_candidates": [],
+      "scope_hint": "소프트웨어 통합에 한함 — 시스템 통합은 그룹 규칙(SYS.4) 우선"
+    },
+    {
+      "contains": "통합 시험",
+      "process": "SWE.5",
+      "oii_candidates": [],
+      "scope_hint": "소프트웨어 통합에 한함 — 시스템 통합은 그룹 규칙(SYS.4) 우선"
+    },
+    {
+      "contains": "재사용 리스트",
+      "process": "SWE.1",
+      "oii_candidates": [],
+      "note": "재사용 분석 — 프로세스 귀속 확인 필요"
+    },
+    {
+      "contains": "Stakeholder Requirements",
+      "process": "SYS.1",
+      "oii_candidates": []
+    },
+    {
+      "contains": "System Requirements",
+      "process": "SYS.2",
+      "oii_candidates": []
+    },
+    {
+      "contains": "소프트웨어 설계 계획서",
+      "process": "SWE.1",
+      "oii_candidates": [],
+      "note": "설계·검증 계획 — MAN.3 연관, 확인 필요"
+    }
+  ],
+  "review_report_note": "검토 결과서(Review Report)류는 대상 산출물의 프로세스에 귀속시키되 SUP.1 연관을 related에 기록",
+  "group_aliases": {
+    "SW설계 절차": "소프트웨어설계 업무 절차",
+    "소프트웨어 설계 절차": "소프트웨어설계 업무 절차",
+    "형상 관리 절차": "형상관리 절차",
+    "품질보증 절차": "프로젝트 품질보증 절차",
+    "문제해결 절차": "문제해결 관리 절차",
+    "변경관리 절차": "변경요청 관리 절차"
+  },
+  "keyword_dict": [
+    {
+      "keywords": [
+        "프로젝트 계획서",
+        "프로젝트계획서",
+        "project plan"
+      ],
+      "procedure_group": "프로젝트 관리",
+      "work_product": "프로젝트 계획서",
+      "pam": "MAN.3"
+    },
+    {
+      "keywords": [
+        "리소스 관리",
+        "공수",
+        "장비현황"
+      ],
+      "procedure_group": "프로젝트 관리",
+      "work_product": "자원 관리 대장",
+      "pam": "MAN.3"
+    },
+    {
+      "keywords": [
+        "형상관리계획서",
+        "형상 관리 계획서"
+      ],
+      "procedure_group": "형상관리 절차",
+      "work_product": "형상 관리 계획서",
+      "pam": "SUP.8"
+    },
+    {
+      "keywords": [
+        "형상관리대장",
+        "형상항목"
+      ],
+      "procedure_group": "형상관리 절차",
+      "work_product": "형상항목관리대장",
+      "pam": "SUP.8"
+    },
+    {
+      "keywords": [
+        "형상상태보고서"
+      ],
+      "procedure_group": "형상관리 절차",
+      "work_product": "형상 상태 보고서",
+      "pam": "SUP.8"
+    },
+    {
+      "keywords": [
+        "형상감사"
+      ],
+      "procedure_group": "형상관리 절차",
+      "work_product": "형상감사 보고서/체크리스트",
+      "pam": "SUP.8"
+    },
+    {
+      "keywords": [
+        "형상통제위원회",
+        "CCB"
+      ],
+      "procedure_group": "형상관리 절차",
+      "work_product": "CCB 회의록",
+      "pam": "SUP.8"
+    },
+    {
+      "keywords": [
+        "문제해결관리"
+      ],
+      "procedure_group": "문제해결 관리 절차",
+      "work_product": "문제해결관리 계획서",
+      "pam": "SUP.9"
+    },
+    {
+      "keywords": [
+        "변경요청관리",
+        "변경점"
+      ],
+      "procedure_group": "변경요청 관리 절차",
+      "work_product": "변경요청 관리 산출물",
+      "pam": "SUP.10"
+    },
+    {
+      "keywords": [
+        "이해관계자 요구사항",
+        "stakeholder requirement"
+      ],
+      "procedure_group": "시스템 요구 사항 분석 절차",
+      "work_product": "Stakeholder Requirements",
+      "pam": "SYS.1"
+    },
+    {
+      "keywords": [
+        "시스템 요구사항",
+        "system requirements"
+      ],
+      "procedure_group": "시스템 요구 사항 분석 절차",
+      "work_product": "System Requirements Specification",
+      "pam": "SYS.2"
+    },
+    {
+      "keywords": [
+        "시스템 아키텍쳐",
+        "시스템 아키텍처"
+      ],
+      "procedure_group": "시스템 아키텍처 설계 절차",
+      "work_product": "시스템 아키텍처 설계서",
+      "pam": "SYS.3"
+    },
+    {
+      "keywords": [
+        "소프트웨어 요구사양서",
+        "소프트웨어 요구사항"
+      ],
+      "procedure_group": "소프트웨어설계 업무 절차",
+      "work_product": "소프트웨어 요구사양서",
+      "pam": "SWE.1"
+    },
+    {
+      "keywords": [
+        "소프트웨어 아키텍쳐",
+        "소프트웨어 아키텍처",
+        "SWA"
+      ],
+      "procedure_group": "소프트웨어설계 업무 절차",
+      "work_product": "소프트웨어 아키텍쳐 설계서",
+      "pam": "SWE.2"
+    },
+    {
+      "keywords": [
+        "상세설계서",
+        "상세 설계서",
+        "SWD"
+      ],
+      "procedure_group": "소프트웨어설계 업무 절차",
+      "work_product": "소프트웨어 상세설계서",
+      "pam": "SWE.3"
+    },
+    {
+      "keywords": [
+        "QAC",
+        "코딩룰",
+        "메트릭",
+        "run-time-error",
+        "정적"
+      ],
+      "procedure_group": "소프트웨어설계 업무 절차",
+      "work_product": "소프트웨어 정적 검증리포트",
+      "pam": "SWE.4"
+    },
+    {
+      "keywords": [
+        "보안코딩",
+        "ESIR"
+      ],
+      "procedure_group": "소프트웨어설계 업무 절차",
+      "work_product": "보안 코딩 점검 리포트",
+      "pam": "SWE.4"
+    },
+    {
+      "keywords": [
+        "opensource",
+        "오픈소스"
+      ],
+      "procedure_group": "소프트웨어설계 업무 절차",
+      "work_product": "오픈소스 취약점 점검 리포트",
+      "pam": "SWE.4"
+    },
+    {
+      "keywords": [
+        "단위 테스트",
+        "단위테스트",
+        "unit test",
+        "SWUT"
+      ],
+      "procedure_group": "소프트웨어 단위 통합 테스트 절차",
+      "work_product": "소프트웨어 단위 테스트 산출물",
+      "pam": "SWE.4"
+    },
+    {
+      "keywords": [
+        "통합 테스트",
+        "통합테스트"
+      ],
+      "procedure_group": "소프트웨어 단위 통합 테스트 절차",
+      "work_product": "소프트웨어 통합 테스트 산출물",
+      "pam": "SWE.5"
+    },
+    {
+      "keywords": [
+        "인정 테스트",
+        "인정테스트"
+      ],
+      "procedure_group": "소프트웨어 인정 테스트 절차",
+      "work_product": "인정 테스트 산출물",
+      "pam": "SWE.6"
+    },
+    {
+      "keywords": [
+        "traceability",
+        "추적성"
+      ],
+      "procedure_group": "소프트웨어설계 업무 절차",
+      "work_product": "추적성 분석 자료",
+      "pam": "SWE.1~3"
+    },
+    {
+      "keywords": [
+        "품질보증 계획서",
+        "품질보증계획서"
+      ],
+      "procedure_group": "프로젝트 품질보증 절차",
+      "work_product": "프로젝트 품질보증 계획서",
+      "pam": "SUP.1"
+    },
+    {
+      "keywords": [
+        "test_report",
+        "test report",
+        "테스트 결과"
+      ],
+      "procedure_group": "소프트웨어 단위 통합 테스트 절차",
+      "work_product": "테스트 결과서",
+      "pam": "SWE.4~5"
+    }
+  ],
+  "ruler_patterns": [
+    "절차서",
+    "업무절차",
+    "지침서",
+    "표준 템플릿",
+    "표준템플릿"
+  ]
+}

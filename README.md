@@ -16,11 +16,20 @@ skills-repo/
 │   ├── SKILL.md
 │   ├── references/                     # 개념 설명·용어집·예시
 │   └── scripts/                        # ARXML 검사·변환
+├── aspice-audit-mapping/
+│   ├── SKILL.md
+│   ├── assets/                         # 대시보드 템플릿·mapping 스키마·OII 맵·Target 시트 양식
+│   ├── references/                     # 매칭 규칙·출력 계약
+│   └── scripts/                        # Target 시트 파싱·산출물 스캔·매핑·검증
 ├── aspice-audit-report/
 │   ├── SKILL.md
 │   ├── assets/                         # 체크리스트 템플릿(.xlsx)
 │   ├── references/
 │   └── scripts/                        # 매핑·판정·검증
+├── autosar-artifact-map/
+│   ├── SKILL.md
+│   ├── references/                     # mobilgene Classic 스택 규칙
+│   └── scripts/                        # 4단계 스캔 파이프라인
 ├── confluence-project-page/
 │   ├── SKILL.md
 │   ├── assets/                         # 페이지 본문 HTML 템플릿
@@ -135,7 +144,9 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | 스킬 | 용도 |
 | --- | --- |
 | `arxml-analyzer` | AUTOSAR ARXML 구조를 개념 중심으로 정리해 Confluence 에 보고 |
+| `aspice-audit-mapping` | ASPICE 오디트 1단계 — 체크리스트 Target 시트와 산출물 폴더를 대조·매핑하고 HTML 대시보드로 시각화 |
 | `aspice-audit-report` | ASPICE 품질점검 체크리스트를 자동 1차 작성하고 사람 작성본과 대비해 일치율 측정·개선 |
+| `autosar-artifact-map` | AUTOSAR 프로젝트 폴더를 4단계 스캔해 BSWMD → ECUC → 코드 → 모듈 의존의 산출물 추적성 지도 생성 |
 | `confluence-project-page` | mobaseasec Confluence 에 신규 프로젝트 페이지 세트를 표준 템플릿으로 생성 |
 | `confluence-writing` | Confluence 글쓰기 톤·구조·서식과 MCP 발행 규약의 정본 |
 | `daily-standup` | 슬랙 데일리 스탠드업을 대화로 작성해 본인 이름으로 게시 |
@@ -147,4 +158,4 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `tech-research-to-confluence` | 기술 자료를 조사·기획해 다중 페이지 Confluence 가이드로 발행 |
 | `travel-english-weekly` | 초중급 학습자용 해외여행 영어 회화 주간 학습 브리핑 |
 
-계정에는 있지만 이 저장소에 두지 않은 스킬도 있다 (`python-dev`, `mcu-c-dev`, `office-file-slimmer`, `portfolio-theme`, `sw-tech-doc`, `wanted-resume-tailoring`, `confluence-cross-site-copy`). 필요해지면 그때 추가한다.
+계정에는 있지만 이 저장소에 두지 않은 스킬도 있다 (`python-dev`, `mcu-c-dev`, `office-file-slimmer`, `portfolio-theme`, `sw-tech-doc`, `wanted-resume-tailoring`, `confluence-cross-site-copy`, `aspice-audit-process-check`, `aspice-audit-wp-check`, `aspice-audit-final-report`). 필요해지면 그때 추가한다.
