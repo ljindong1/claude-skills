@@ -33,12 +33,14 @@ python autosar_map.py "<과제 루트>" --stage 0|1|2|3|4|all
 | 단계 | 하는 일 | 출력 (JSON = 다음 단계 입력) | 사람이 확인하는 것 |
 |---|---|---|---|
 | 0 | 사전 점검 (스캔 안 함) | `stage0_env.json` + stdout | Python 3.10+, 경로·쓰기 권한, 최상위 구성 |
-| 1 | 폴더 구조 분석·계층 판정 (ARXML 안 엶) | `stage1_structure.json` + `1_structure.html` | 폴더 트리, 계층 색, ETC 비율 |
+| 1 | 폴더 구조 분석·계층 판정 (ARXML 안 엶) | `stage1_structure.json` + `1_structure.html` | 두 탭: 폴더→파일 목록(계층 색·검색), 모듈→파일 위치. ETC 비율 |
 | 2 | ARXML 분류·해석 | `stage2_arxml.json` + `2_arxml.html` | 정의/값/SWCD/시스템/해석 실패 |
 | 3 | 모듈 조립·소스 매칭·의존 수집 | `stage3_modules.json` + `3_modules.html` + `report.txt` | 모듈 수, 미사용, 매칭 실패 |
 | 4 | 의존 그래프·지도 렌더링 | `graph.json` + `map.html` | 노드-링크 지도 |
 
-**단계 4는 파일 시스템을 읽지 않는다.** `stage3_modules.json`만으로 렌더링하므로, 화면(map.html)만 고친 새 스크립트를 받으면 `--stage 4` 재실행(수 초)으로 다시 그린다. 재스캔 불필요 — 화면 반복 개선은 이 루프로 돌린다.
+**단계 4는 파일 시스템을 읽지 않는다.** `stage3_modules.json`만으로 렌더링하므로, 화면(map.html)만 고친 새 스크립트를 받으면 `--stage 4` 재실행(수 초)으로 다시 그린다. 재스캔 불필요 — 화면 반복 개선은 이 루프로 돌린다. `1_structure.html` 화면만 고쳤을 때는 `--stage 1` 재실행(폴더 스캔뿐이라 수 초)이다.
+
+**1_structure.html의 모듈→파일 탭**은 렌더링 시점에 `stage3_modules.json`이 있으면 함께 심어진다. 3단계까지 돈 뒤 `--stage 1`을 한 번 더 실행하면 채워진다 (JSON 계약은 불변 — HTML에만 심는다). 폴더 뷰는 `.arxml/.c/.h`와 도구체인 파일(.epd_/.xdm/.template 등)만 다루며, 문서·실행파일·빌드 바이너리 등 확실히 무관한 확장자는 `NON_AUTOSAR_EXTS` 블랙리스트로 뷰에서 제외된다 (통계에 제외 개수만 표시).
 
 각 단계는 stdout에 텍스트 요약을 찍는다. 이것이 모드 A에서 사용자가 붙여넣는 내용이다.
 
@@ -55,7 +57,7 @@ Claude가 0~4단계를 직접 실행하고 게이트 판정·보정·해석까�
 
 ## 단계별 게이트 워크플로
 
-한 단계 실행 → HTML/요약 확인 → 이상하면 보정 후 그 단계만 재실행 → 다음 단계. 첫 실행이 저품질이어도 정상이다 — **보정 상수를 고쳐 재실행하는 것까지가 이 스킬의 워크플로다** (검증된 과제 기준 3회 이내 수렴). 상수는 스크립트 상단에 모여 있다: `LAYER_RULES`, `SYSTEM_ARXML_RULES`, `DEFINITION_TAGS`, `REF_NOISE`, `GENERATED_*`.
+한 단계 실행 → HTML/요약 확인 → 이상하면 보정 후 그 단계만 재실행 → 다음 단계. 첫 실행이 저품질이어도 정상이다 — **보정 상수를 고쳐 재실행하는 것까지가 이 스킬의 워크플로다** (검증된 과제 기준 3회 이내 수렴). 상수는 스크립트 상단에 모여 있다: `LAYER_RULES`, `SYSTEM_ARXML_RULES`, `DEFINITION_TAGS`, `REF_NOISE`, `GENERATED_*`, `NON_AUTOSAR_EXTS`(폴더 뷰 제외 확장자 블랙리스트).
 
 ### 단계 0 게이트 — 스캔을 시작해도 되는가
 스캔 전에 대화로 수집·확인한다:

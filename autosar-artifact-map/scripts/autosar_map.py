@@ -14,8 +14,8 @@ HTML 화면과 다음 단계 입력이 되는 JSON을 출력한다.
 
 추적 단위는 '파일'이다. 파라미터 단위는 다루지 않는다.
 벤더 규칙은 아래 상수(LAYER_RULES / GENERATED_DIR_HINTS / SYSTEM_ARXML_RULES /
-DEFINITION_TAGS / REF_NOISE)에 모여 있으므로, 다른 스택에 적용할 때는
-이 부분만 수정하면 된다. 현재 값은 모빌진 클래식 기준으로 검증되었다.
+DEFINITION_TAGS / REF_NOISE / NON_AUTOSAR_EXTS)에 모여 있으므로, 다른 스택에
+적용할 때는 이 부분만 수정하면 된다. 현재 값은 모빌진 클래식 기준으로 검증되었다.
 
 표준 라이브러리만 사용한다. pip 설치 불필요, 인터넷 불필요, 읽기 전용.
 
@@ -47,6 +47,24 @@ SOURCE_SUFFIXES: frozenset[str] = frozenset({".c", ".h"})
 SKIP_DIR_NAMES: frozenset[str] = frozenset(
     {".git", ".svn", ".metadata", "__pycache__", "node_modules", ".settings"}
 )
+
+# 폴더 뷰에서 제외하는 '확실히 AUTOSAR와 무관한' 확장자 (블랙리스트 방식).
+# 여기 없는 확장자는 도구체인 관련일 수 있으므로 기타 파일로 남긴다
+# (.epd_/.epd/.epc, .xdm, .template, .properties, .ver, .svd 등은 유지).
+NON_AUTOSAR_EXTS: frozenset[str] = frozenset({
+    # 문서·이미지
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".chm",
+    ".txt", ".md", ".html", ".htm", ".csv",
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp",
+    # 도구 실행 파일·스크립트 부산물
+    ".exe", ".dll", ".jar", ".pyc", ".bat", ".cmd",
+    # 빌드 결과 바이너리
+    ".s19", ".s37", ".sre", ".srec", ".hex", ".bin", ".elf",
+    ".map", ".lst", ".o", ".obj", ".a", ".lib",
+    # 작업 잔재·로그·압축
+    ".temp", ".tmp", ".log", ".bak", ".ini", ".asc",
+    ".zip", ".7z", ".rar", ".lnk",
+})
 
 # --- 계층 분류 규칙 (경로 조각 소문자 매칭, 위에서부터 먼저 맞는 것 적용) ---
 LAYER_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -419,8 +437,10 @@ def stage0_summary(data: dict) -> str:
 def run_stage1(root: Path, out_dir: Path) -> dict:
     """폴더 구조 분석 — 파일 인벤토리와 계층 판정. ARXML은 아직 열지 않는다."""
     files: list[dict] = []
+    others: list[dict] = []
     ext_counter: Counter[str] = Counter()
     dir_other: Counter[str] = Counter()
+    excluded_counter: Counter[str] = Counter()
     layer_counter: Counter[str] = Counter()
     skip_out = out_dir if out_dir.is_relative_to(root) else None
 
@@ -436,15 +456,20 @@ def run_stage1(root: Path, out_dir: Path) -> dict:
             layer = classify_layer(rel)
             layer_counter[layer] += 1
             files.append({"path": rel, "ext": suffix, "layer": layer})
+        elif suffix in NON_AUTOSAR_EXTS:
+            excluded_counter[suffix] += 1  # 확실히 무관 — 폴더 뷰에서 제외
         else:
             parent = to_slash(str(path.parent.relative_to(root)))
             dir_other[parent] += 1
+            others.append({"path": rel, "ext": suffix or ""})
 
     data = {
         "stage": 1,
         "version": SCRIPT_VERSION,
         "root": str(root),
         "files": files,
+        "other_files": others,
+        "excluded_other_counts": dict(excluded_counter.most_common()),
         "dir_other_counts": dict(dir_other.most_common()),
         "extension_counts": dict(ext_counter.most_common()),
         "layer_file_counts": {
@@ -454,8 +479,22 @@ def run_stage1(root: Path, out_dir: Path) -> dict:
         },
     }
     write_json(out_dir / STAGE_FILES[1], data)
-    write_html(out_dir / "1_structure.html", TEMPLATE_STRUCTURE, data)
+
+    # 모듈→파일 뷰: 3단계 결과가 있으면 HTML에만 함께 심는다 (JSON 계약은 불변)
+    view = dict(data)
+    view["modules_view"] = None
+    stage3_path = out_dir / STAGE_FILES[3]
+    if stage3_path.exists():
+        try:
+            view["modules_view"] = json.loads(
+                stage3_path.read_text(encoding="utf-8")
+            )["modules"]
+        except (OSError, json.JSONDecodeError, KeyError):
+            pass
+    write_html(out_dir / "1_structure.html", TEMPLATE_STRUCTURE, view)
     print(stage1_summary(data))
+    if view["modules_view"] is None:
+        print("   (모듈→파일 뷰는 3단계까지 실행한 뒤 --stage 1 재실행 시 채워집니다)")
     return data
 
 
@@ -488,6 +527,14 @@ def stage1_summary(data: dict) -> str:
     lines += ["", "[ 확장자 분포 (상위 12) ]"]
     for ext, count in list(data["extension_counts"].items())[:12]:
         lines.append(f"  {ext:<14}{count:>7}")
+
+    excluded = data.get("excluded_other_counts", {})
+    if excluded:
+        top = ", ".join(list(excluded)[:6])
+        lines.append(
+            f"  ※ AUTOSAR와 무관한 파일 {sum(excluded.values())}개는"
+            f" 폴더 뷰에서 제외 ({top} ...)"
+        )
     lines += ["", "-> 1_structure.html 을 브라우저로 열어 폴더 트리·계층 색을 확인하세요."]
     return "\n".join(lines)
 
@@ -1138,13 +1185,41 @@ TEMPLATE_STRUCTURE = """<!DOCTYPE html>
 <title>1단계 - 폴더 구조 분석</title>
 <style>
 __CSS__
-main { padding:16px 24px; max-width:1200px; }
+main { padding:16px 24px; max-width:1400px; }
+.tabs { display:flex; gap:6px; margin-bottom:14px; }
+.tabs button { padding:7px 20px; border:1px solid var(--line); background:var(--panel);
+  border-radius:6px; font-size:13px; cursor:pointer; font-family:inherit; }
+.tabs button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+.view { display:none; }
+.view.on { display:block; }
+.toolbar { display:flex; gap:14px; align-items:center; margin-bottom:10px; flex-wrap:wrap;
+  font-size:12px; }
 details { margin:1px 0; }
 summary { cursor:pointer; padding:3px 6px; border-radius:4px; font-size:13px; }
 summary:hover { background:var(--chip); }
 .kids { margin-left:20px; border-left:1px dotted var(--line); padding-left:8px; }
 .cnt { color:var(--muted); font-size:11px; margin-left:7px; }
 .legend { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; margin-bottom:12px; }
+.flist { margin:1px 0 3px 24px; border-left:1px dotted var(--line); padding-left:10px; }
+.frow { font-family:Consolas,monospace; font-size:12px; padding:1px 5px; border-radius:3px; }
+.frow:hover { background:var(--chip); }
+.frow.other { color:var(--muted); }
+mark { background:#fde68a; padding:0; }
+.mod-wrap { display:flex; gap:14px; align-items:flex-start; }
+.mod-side { width:330px; flex:none; }
+.mod-list { max-height:72vh; overflow:auto; }
+.mod-group { font-size:11px; color:var(--muted); margin:9px 2px 3px; letter-spacing:.5px;
+  font-weight:600; }
+.mod-item { padding:4px 9px; border-radius:4px; cursor:pointer; font-size:13px;
+  display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
+.mod-item:hover { background:var(--chip); }
+.mod-item.sel { background:var(--accent); color:#fff; }
+.mod-item.sel .cnt { color:#dbe4ee; }
+.mod-detail { flex:1; min-width:0; }
+.cat { margin:0 0 13px; }
+.cat h4 { margin:0 0 4px; font-size:12px; }
+.cat .frow { display:block; cursor:pointer; }
+.note { font-size:12px; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -1152,12 +1227,49 @@ summary:hover { background:var(--chip); }
 <main>
 <div class="stats" id="stats"></div>
 <div class="legend" id="legend"></div>
-<div class="card"><h3>폴더 트리 (폴더별 파일 수 / 우세 계층 색)</h3><div id="tree"></div></div>
-<div class="card" id="etcCard" style="display:none">
-  <h3 style="color:var(--bad)">계층 미판정(ETC) 파일 - LAYER_RULES 점검 필요</h3>
-  <div id="etcList" class="mono"></div>
+<div class="tabs">
+  <button id="tabFolder" class="on">폴더 → 파일</button>
+  <button id="tabModule">모듈 → 파일 위치</button>
 </div>
-<div class="card"><h3>확장자 분포</h3><div id="exts" class="mono"></div></div>
+
+<div class="view on" id="viewFolder">
+  <div class="card">
+    <h3>폴더 트리 - 폴더별 보유 파일 목록 (우세 계층 색)</h3>
+    <div class="toolbar">
+      <input type="text" id="fq" placeholder="파일명 검색..." size="30">
+      <label><input type="checkbox" id="chkFiles" checked> 파일 목록 표시</label>
+      <label><input type="checkbox" id="chkOther"> 도구체인 파일(.epd_ .xdm .template 등) 포함</label>
+      <span class="note" id="fqNote"></span>
+    </div>
+    <div id="tree"></div>
+  </div>
+  <div class="card" id="etcCard" style="display:none">
+    <h3 style="color:var(--bad)">계층 미판정(ETC) 파일 - LAYER_RULES 점검 필요</h3>
+    <div id="etcList" class="mono"></div>
+  </div>
+  <div class="card"><h3>확장자 분포</h3><div id="exts" class="mono"></div></div>
+</div>
+
+<div class="view" id="viewModule">
+  <div class="card" id="modNone" style="display:none">
+    <p class="note">모듈 정보가 아직 없습니다. <b>--stage 3</b>까지 실행한 뒤
+    <b>--stage 1</b>을 다시 실행하면 이 뷰가 채워집니다.</p>
+  </div>
+  <div class="mod-wrap" id="modWrap" style="display:none">
+    <div class="card mod-side">
+      <h3>모듈 목록 (<span id="modCount"></span>)</h3>
+      <div class="toolbar" style="margin-bottom:6px">
+        <input type="text" id="mq" placeholder="모듈명 검색..." size="16">
+        <label><input type="checkbox" id="chkUnused" checked> 미사용 포함</label>
+      </div>
+      <div class="mod-list" id="modList"></div>
+    </div>
+    <div class="card mod-detail" id="modDetail">
+      <p class="note">왼쪽에서 모듈을 선택하면 그 모듈 산출물의 파일 위치가 종류별로 표시됩니다.<br>
+      파일 경로를 클릭하면 폴더 뷰에서 해당 파일을 검색해 보여줍니다.</p>
+    </div>
+  </div>
+</div>
 </main>
 <script>
 const DATA = __DATA__;
@@ -1165,26 +1277,41 @@ const LAYERS = __LAYERS__;
 const LC = {BSW:'var(--c-bsw)',MCAL:'var(--c-mcal)',RTE_SWC:'var(--c-rte)',
             LIB:'var(--c-lib)',DEVICE_HDR:'var(--c-hdr)',ETC:'var(--c-etc)'};
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function fname(p){const i=p.lastIndexOf('/');return i<0?p:p.slice(i+1);}
 
 document.getElementById('meta').textContent = DATA.root;
 
 const files = DATA.files;
+const others = DATA.other_files || [];
 const nArx = files.filter(f=>f.ext==='.arxml').length;
 const nC = files.filter(f=>f.ext==='.c').length;
 const nH = files.filter(f=>f.ext==='.h').length;
 const nOther = Object.values(DATA.dir_other_counts).reduce((a,b)=>a+b,0);
+const nExcl = Object.values(DATA.excluded_other_counts||{}).reduce((a,b)=>a+b,0);
 document.getElementById('stats').innerHTML =
   '<div class="stat"><b>'+nArx+'</b><span>ARXML</span></div>'+
   '<div class="stat"><b>'+nC+'</b><span>.c</span></div>'+
   '<div class="stat"><b>'+nH+'</b><span>.h</span></div>'+
-  '<div class="stat"><b>'+nOther+'</b><span>기타 파일</span></div>';
+  '<div class="stat"><b>'+nOther+'</b><span>도구체인 기타</span></div>'+
+  (nExcl?'<div class="stat"><b>'+nExcl+'</b><span>무관 파일 (뷰 제외)</span></div>':'');
 
 document.getElementById('legend').innerHTML = Object.entries(DATA.layer_file_counts)
   .map(([l,c])=>'<span><span class="dot" style="background:'+LC[l]+'"></span>'+
        (LAYERS[l]||l)+' '+c+'</span>').join('');
 
-// --- 폴더 트리 조립 ---
-function newNode(name){return {name:name,dirs:{},counts:{arxml:0,c:0,h:0,other:0},layers:{}};}
+// --- 탭 전환 ---
+const tabs=[['tabFolder','viewFolder'],['tabModule','viewModule']];
+tabs.forEach(([tb,vw])=>{
+  document.getElementById(tb).onclick=()=>{
+    tabs.forEach(([tb2,vw2])=>{
+      document.getElementById(tb2).classList.toggle('on',tb2===tb);
+      document.getElementById(vw2).classList.toggle('on',vw2===vw);
+    });
+  };
+});
+
+// --- 폴더 트리 조립 (폴더별 실제 파일 목록 보유) ---
+function newNode(name){return {name:name,dirs:{},files:[],others:[]};}
 const rootNode = newNode('(과제 루트)');
 function getDir(path){
   let n = rootNode;
@@ -1196,29 +1323,15 @@ function getDir(path){
   return n;
 }
 function dirOf(p){const i=p.lastIndexOf('/');return i<0?'':p.slice(0,i);}
-files.forEach(f=>{
-  const d = getDir(dirOf(f.path));
-  const k = f.ext==='.arxml'?'arxml':(f.ext==='.c'?'c':'h');
-  d.counts[k]++;
-  d.layers[f.layer]=(d.layers[f.layer]||0)+1;
-});
-Object.entries(DATA.dir_other_counts).forEach(([p,c])=>{ getDir(p).counts.other+=c; });
+files.forEach(f=>getDir(dirOf(f.path)).files.push(f));
+others.forEach(f=>getDir(dirOf(f.path)).others.push(f));
 
-function acc(n){
-  n.total = {...n.counts};
-  n.layerTotal = {...n.layers};
-  Object.values(n.dirs).forEach(ch=>{
-    acc(ch);
-    for(const k in ch.total) n.total[k]+=ch.total[k];
-    Object.entries(ch.layerTotal).forEach(([k,v])=>n.layerTotal[k]=(n.layerTotal[k]||0)+v);
-  });
-}
-acc(rootNode);
-
-function domLayer(n){
-  let best=null, bc=0;
-  Object.entries(n.layerTotal).forEach(([k,v])=>{if(v>bc){bc=v;best=k;}});
-  return best;
+function hl(name,q){
+  if(!q) return esc(name);
+  const i=name.toLowerCase().indexOf(q);
+  if(i<0) return esc(name);
+  return esc(name.slice(0,i))+'<mark>'+esc(name.slice(i,i+q.length))+'</mark>'+
+         esc(name.slice(i+q.length));
 }
 function cntStr(t){
   const parts=[];
@@ -1228,18 +1341,62 @@ function cntStr(t){
   if(t.other) parts.push('기타 '+t.other);
   return parts.join(' · ')||'-';
 }
-function render(n, depth){
-  const kids = Object.values(n.dirs).sort((a,b)=>a.name.localeCompare(b.name));
-  const dl = domLayer(n);
-  const dot = dl ? '<span class="dot" style="background:'+LC[dl]+'"></span>' : '';
-  let html = '<details'+(depth<2?' open':'')+'><summary>'+dot+'<b>'+esc(n.name)+
-    '</b><span class="cnt">'+cntStr(n.total)+'</span></summary>';
-  if(kids.length){
-    html += '<div class="kids">'+kids.map(k=>render(k,depth+1)).join('')+'</div>';
+function renderNode(n, depth, q, showFiles, showOther){
+  const cnt={arxml:0,c:0,h:0,other:0}, layers={};
+  let kidsHtml='';
+  const kids=Object.values(n.dirs).sort((a,b)=>a.name.localeCompare(b.name));
+  for(const k of kids){
+    const r=renderNode(k,depth+1,q,showFiles,showOther);
+    if(r){
+      kidsHtml+=r.html;
+      for(const key in r.cnt) cnt[key]+=r.cnt[key];
+      Object.entries(r.layers).forEach(([k2,v])=>layers[k2]=(layers[k2]||0)+v);
+    }
   }
-  return html+'</details>';
+  const myFiles=n.files.filter(f=>!q||fname(f.path).toLowerCase().includes(q))
+    .sort((a,b)=>fname(a.path).localeCompare(fname(b.path)));
+  const myOthers=(showOther?n.others:[]).filter(f=>!q||fname(f.path).toLowerCase().includes(q))
+    .sort((a,b)=>fname(a.path).localeCompare(fname(b.path)));
+  myFiles.forEach(f=>{
+    const k=f.ext==='.arxml'?'arxml':(f.ext==='.c'?'c':'h');
+    cnt[k]++; layers[f.layer]=(layers[f.layer]||0)+1;
+  });
+  cnt.other+=myOthers.length;
+  if(q && !kidsHtml && !myFiles.length && !myOthers.length) return null;
+
+  let best=null, bc=0;
+  Object.entries(layers).forEach(([k,v])=>{if(v>bc){bc=v;best=k;}});
+  const dot = best ? '<span class="dot" style="background:'+LC[best]+'"></span>' : '';
+  let flist='';
+  if(showFiles && (myFiles.length||myOthers.length)){
+    flist='<div class="flist">'+
+      myFiles.map(f=>'<div class="frow"><span class="dot" style="background:'+LC[f.layer]+
+        '"></span>'+hl(fname(f.path),q)+'</div>').join('')+
+      myOthers.map(f=>'<div class="frow other">'+hl(fname(f.path),q)+'</div>').join('')+
+      '</div>';
+  }
+  const open = q ? ' open' : (depth<2?' open':'');
+  const html='<details'+open+'><summary>'+dot+'<b>'+esc(n.name)+
+    '</b><span class="cnt">'+cntStr(cnt)+'</span></summary>'+
+    flist+
+    (kidsHtml?'<div class="kids">'+kidsHtml+'</div>':'')+
+    '</details>';
+  return {html:html, cnt:cnt, layers:layers};
 }
-document.getElementById('tree').innerHTML = render(rootNode, 0);
+function renderTree(){
+  const q=document.getElementById('fq').value.trim().toLowerCase();
+  const showFiles=document.getElementById('chkFiles').checked;
+  const showOther=document.getElementById('chkOther').checked;
+  const r=renderNode(rootNode,0,q,showFiles,showOther);
+  document.getElementById('tree').innerHTML =
+    r ? r.html : '<p class="empty">일치하는 파일이 없습니다.</p>';
+  document.getElementById('fqNote').textContent =
+    (q && r) ? '일치 ' + (r.cnt.arxml+r.cnt.c+r.cnt.h+r.cnt.other) + '개' : '';
+}
+document.getElementById('fq').oninput=renderTree;
+document.getElementById('chkFiles').onchange=renderTree;
+document.getElementById('chkOther').onchange=renderTree;
+renderTree();
 
 // --- ETC 경고 ---
 const etc = files.filter(f=>f.layer==='ETC');
@@ -1248,7 +1405,7 @@ if(etc.length){
   card.style.display='block';
   const ratio=(etc.length/files.length*100).toFixed(1);
   card.querySelector('h3').textContent =
-    '계층 미판정(ETC) '+etc.length+'개 ('+ratio+'%)'+(ratio>3?' - LAYER_RULES 점검 필요':'');
+    '계층 미판정(ETC) '+etc.length+'개 ('+ratio+'%)'+(+ratio>3?' - LAYER_RULES 점검 필요':'');
   document.getElementById('etcList').innerHTML =
     etc.slice(0,60).map(f=>esc(f.path)).join('<br>')+
     (etc.length>60?'<br>... 외 '+(etc.length-60)+'개':'');
@@ -1256,6 +1413,84 @@ if(etc.length){
 
 document.getElementById('exts').innerHTML = Object.entries(DATA.extension_counts)
   .slice(0,15).map(([e,c])=>esc(e)+' : '+c).join('<br>');
+
+// --- 모듈 → 파일 위치 뷰 ---
+const MODS = DATA.modules_view;
+if(!MODS){
+  document.getElementById('modNone').style.display='block';
+}else{
+  document.getElementById('modWrap').style.display='flex';
+  const CATS=[['definition_arxml','정의 ARXML (BSWMD)','var(--c-bsw)'],
+              ['value_arxml','값 ARXML (ECUC)','var(--c-mcal)'],
+              ['swcd_arxml','서비스 컴포넌트 (SWCD)','var(--c-rte)'],
+              ['generated_files','생성 소스','var(--c-lib)'],
+              ['static_files','정적 소스','var(--c-hdr)']];
+  const totalOf=m=>CATS.reduce((a,[k])=>a+(m[k]||[]).length,0);
+  let selected=null;
+
+  function renderList(){
+    const q=document.getElementById('mq').value.trim().toLowerCase();
+    const showUnused=document.getElementById('chkUnused').checked;
+    const groups={BSW:[],MCAL:[],ETC:[]};
+    Object.values(MODS).forEach(m=>{
+      if(q && !m.name.toLowerCase().includes(q)) return;
+      if(!showUnused && m.is_unused) return;
+      (groups[m.layer]||groups.ETC).push(m);
+    });
+    let html='';
+    [['BSW','BSW'],['MCAL','MCAL'],['ETC','기타']].forEach(([k,label])=>{
+      const arr=groups[k]; if(!arr.length) return;
+      arr.sort((a,b)=>a.name.localeCompare(b.name));
+      html+='<div class="mod-group">'+label+' ('+arr.length+')</div>'+
+        arr.map(m=>'<div class="mod-item'+(m.name===selected?' sel':'')+
+          '" data-m="'+esc(m.name)+'"><span><span class="dot" style="background:'+
+          (LC[m.layer]||LC.ETC)+'"></span>'+esc(m.name)+
+          (m.is_unused?' <span class="badge warn">미사용</span>':'')+'</span>'+
+          '<span class="cnt">'+totalOf(m)+'</span></div>').join('');
+    });
+    const el=document.getElementById('modList');
+    el.innerHTML=html||'<p class="empty">일치하는 모듈이 없습니다.</p>';
+    el.querySelectorAll('.mod-item').forEach(it=>it.onclick=()=>selectMod(it.dataset.m));
+    document.getElementById('modCount').textContent=Object.keys(MODS).length+'개';
+  }
+  function jumpToFile(path){
+    document.getElementById('tabFolder').click();
+    document.getElementById('fq').value=fname(path);
+    renderTree();
+  }
+  function selectMod(name){
+    selected=name; renderList();
+    const m=MODS[name];
+    let html='<h3 style="font-size:14px"><span class="dot" style="background:'+
+      (LC[m.layer]||LC.ETC)+'"></span>'+esc(name)+
+      ' <span class="badge">'+(LAYERS[m.layer]||m.layer)+'</span>'+
+      (m.is_unused?' <span class="badge warn">미사용 (정의만 존재)</span>':'')+'</h3>';
+    CATS.forEach(([key,label,color])=>{
+      const arr=m[key]||[];
+      html+='<div class="cat"><h4><span class="dot" style="background:'+color+'"></span>'+
+        label+' ('+arr.length+')</h4>'+
+        (arr.length
+          ? arr.map(p=>'<div class="frow" data-p="'+esc(p)+'" title="폴더 뷰에서 찾기">'+
+              esc(p)+'</div>').join('')
+          : '<p class="empty">없음</p>')+
+        '</div>';
+    });
+    const chips=(list,label)=>'<div class="cat"><h4>'+label+' ('+list.length+')</h4>'+
+      (list.length
+        ? '<div class="chips">'+list.map(d=>'<span class="chip" data-m="'+esc(d)+'">'+
+            esc(d)+'</span>').join('')+'</div>'
+        : '<p class="empty">없음</p>')+'</div>';
+    html+=chips(m.depends_on||[],'사용함 (depends on)');
+    html+=chips(m.used_by||[],'사용됨 (used by)');
+    const det=document.getElementById('modDetail');
+    det.innerHTML=html;
+    det.querySelectorAll('.frow').forEach(r=>r.onclick=()=>jumpToFile(r.dataset.p));
+    det.querySelectorAll('.chip').forEach(c=>c.onclick=()=>selectMod(c.dataset.m));
+  }
+  document.getElementById('mq').oninput=renderList;
+  document.getElementById('chkUnused').onchange=renderList;
+  renderList();
+}
 </script>
 </body>
 </html>
