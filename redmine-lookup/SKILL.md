@@ -112,7 +112,7 @@ python scripts/redmine.py projects
 | HTTP 401 | 키가 틀렸거나 관리자가 'REST 웹 서비스 사용'을 켜지 않음 (`관리 → 설정 → API`) |
 | HTTP 403 | 계정에 해당 프로젝트 열람 권한이 없음. 프로젝트 관리자에게 요청 |
 | HTTP 404 | 이슈 번호나 프로젝트 식별자 오타. `projects` 로 식별자 확인 |
-| `403 blocked-by-allowlist` / DNS 해석 실패 / 연결 타임아웃 | 샌드박스에서 실행 중이다. 키나 설정 문제가 아니므로 그쪽을 파지 말고 Claude Code CLI로 안내 |
+| `403 blocked-by-allowlist` / DNS 해석 실패 / 연결 타임아웃 | 샌드박스이거나 사내망 밖이다. 키·설정 문제가 아니다. Cowork·웹이면 Claude Code CLI로 안내. 이미 CLI라면 VPN/사내망 연결 확인 |
 | 환경변수 없음 | 윈도우에서 `set`은 그 창에서만 유효. `setx`로 등록 |
 | `UnicodeEncodeError` (cp949) | 윈도우 콘솔 인코딩 문제. 결과는 이미 출력됐고 연결도 정상이나 종료코드 1이라 실패로 오인된다. 스크립트가 stdout을 UTF-8로 재설정해 해결 |
 | HTML 응답 | Redmine이 아니라 앞단 프록시가 막은 것. 키로는 해결 안 되므로 CCM 담당자 문의 |
