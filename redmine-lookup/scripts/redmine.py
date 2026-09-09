@@ -16,6 +16,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+# 윈도우 콘솔 기본 인코딩(cp949)은 em-dash 등을 못 찍어 UnicodeEncodeError 로 죽는다.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 TIMEOUT = 20
 
 
