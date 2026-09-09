@@ -43,6 +43,9 @@ skills-repo/
 │   ├── SKILL.md
 │   ├── references/                     # 국사·관광자원 출제 규칙, 최신화 체크리스트
 │   └── scripts/                        # 시험지 검증·인쇄용 PDF 빌드
+├── redmine-lookup/
+│   ├── SKILL.md
+│   └── scripts/                        # Redmine REST 조회 CLI (읽기 전용)
 ├── skill-repo-sync/
 │   ├── SKILL.md
 │   └── scripts/                        # 계정 → 저장소 미러링
@@ -151,6 +154,7 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `confluence-writing` | Confluence 글쓰기 톤·구조·서식과 MCP 발행 규약의 정본 |
 | `daily-standup` | 슬랙 데일리 스탠드업을 대화로 작성해 본인 이름으로 게시 |
 | `gwantongsa-mock-exam` | 관광통역안내사 필기 모의고사(국사 25 + 관광자원해설 25)를 이력 기반 중복 방지·사실 검증을 거쳐 생성하고 인쇄용 2단 PDF로 전달 |
+| `redmine-lookup` | 사내 Redmine 이슈·프로젝트를 REST API로 조회해 상태와 경과 중심으로 정리 (읽기 전용) |
 | `skill-repo-sync` | 계정 스킬을 이 저장소에 반영하고 커밋·푸시를 안내 |
 | `slack-morning-briefing` | 직전 브리핑 이후의 슬랙 메시지를 정리해 매일 아침 대상 DM으로 전송 |
 | `slack-to-calendar` | 슬랙 공지·일정 메시지를 파싱해 구글 캘린더에 등록 |
