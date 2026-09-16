@@ -2,3 +2,6 @@
 *.sh text eol=lf
 # 마크다운/일반 텍스트는 git이 알아서 정규화
 *.md text
+# 배치 파일은 항상 CRLF (cmd.exe 는 LF 단독 줄바꿈을 못 읽는다)
+*.cmd text eol=crlf
+*.bat text eol=crlf

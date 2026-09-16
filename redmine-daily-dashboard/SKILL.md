@@ -157,8 +157,14 @@ claude -p "/redmine-daily-dashboard"
 - `dontAsk` 모드는 피한다 (커넥터 도구가 allow 규칙이 있어도 거부될 수 있음).
 - 무인 실행에서는 §4-4 의 승인 단계를 건너뛴다. 대신 **§1 의 1·2·3번 규칙이
   마지막 방어선이다** — 수집 실패면 발행하지 않고 0이 아닌 코드로 종료한다.
-- 작업 스케줄러: 시작 위치 `D:\Ljindong\automation\redmine-dashboard`, `run.cmd` 실행,
-  출력은 `logs\run-YYYY-MM.log` 에 append.
+- 작업 스케줄러: 프로그램 `<스킬폴더>\run.cmd` (시작 위치는 무관 — run.cmd 가 스스로
+  작업 폴더로 이동한다). 출력은 작업 폴더의 `logs\run-YYYY-MM.log` 에 append.
+  **run.cmd 는 스킬 폴더에 있고 skills-repo 로 형상관리된다.** 작업 폴더는
+  `REDMINE_DASHBOARD_HOME` 이 있으면 그 값, 없으면
+  `D:\Ljindong\automation\redmine-dashboard` — `collect.py` 의 판정과 같은 규칙이다.
+  run.cmd 는 **ASCII 전용·CRLF** 로 유지한다. cmd.exe 는 배치 파일을 ANSI 코드페이지(949)
+  로 읽어 UTF-8 한글을 깨뜨리고, LF 단독 줄바꿈도 못 읽는다. 둘 중 하나만 어긋나도
+  아무 로그도 남기지 않고 죽는다. `.gitattributes` 의 `*.cmd text eol=crlf` 가 이를 지킨다.
 - 가장 흔한 실패 두 가지: **MCP OAuth 만료**, **사내망 미연결**. 종료코드가 0이 아니면
   사용자에게 알린다.
 
