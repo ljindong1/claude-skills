@@ -61,13 +61,20 @@ DNS 실패, 타임아웃).
 | P4 | **Claude** | 델타가 있는 건만 코멘트를 읽고 1~2줄 해설 |
 | P5 | **Claude** | fetch → 구간 교체 → update |
 
-P0~P3 는 한 번의 명령으로 끝난다:
+P0~P3 는 한 번의 명령으로 끝난다.
+
+⚠️ **스크립트는 작업 폴더가 아니라 스킬 폴더에 있다.** 작업 폴더에는 `scripts/` 가 없으므로
+`python scripts/collect.py` 는 반드시 실패한다. 항상 아래 절대경로로 호출한다.
+작업 디렉터리는 `D:\Ljindong\automation\redmine-dashboard` 에 둔 채 스크립트만 절대경로로
+지정한다 (스크립트는 `state/` 가 있는 현재 폴더를 작업 폴더로 인식한다):
 
 ```bash
-python scripts/collect.py              # 전체 (스냅샷 저장)
-python scripts/collect.py --dry-run    # 스냅샷 저장 없이 조각만 (검증용)
-python scripts/collect.py --whoami     # 도달 확인만
-python scripts/collect.py --notes 47629  # 이슈 코멘트 (P4 해설용)
+SKILLDIR="C:/Users/ljindong/.claude/skills/redmine-daily-dashboard"
+
+python "$SKILLDIR/scripts/collect.py"              # 전체 (스냅샷 저장)
+python "$SKILLDIR/scripts/collect.py" --dry-run    # 스냅샷 저장 없이 조각만 (검증용)
+python "$SKILLDIR/scripts/collect.py" --whoami     # 도달 확인만
+python "$SKILLDIR/scripts/collect.py" --notes 47629  # 이슈 코멘트 (P4 해설용)
 ```
 
 > ⚠️ **셸 파이프로 JSON 을 흘리지 마라.** PowerShell 파이프는 cp949/BOM 으로 한글을
@@ -90,7 +97,7 @@ python scripts/collect.py --notes 47629  # 이슈 코멘트 (P4 해설용)
 
 `state/latest-data.json` 의 `delta.events` 를 읽고, **이벤트가 있는 건에만** 1~2줄 해설을 쓴다.
 
-1. 이벤트별로 `python scripts/collect.py --notes <id>` 로 최근 코멘트를 읽는다.
+1. 이벤트별로 `python "$SKILLDIR/scripts/collect.py" --notes <id>` 로 최근 코멘트를 읽는다.
 2. `state/commentary.json` 에 이슈 번호별 문장을 쓴다. `_date` 는 **오늘 날짜 필수**:
 
 ```json
@@ -100,7 +107,7 @@ python scripts/collect.py --notes 47629  # 이슈 코멘트 (P4 해설용)
 }
 ```
 
-3. `python scripts/render.py .` 로 조각을 다시 만든다.
+3. `python "$SKILLDIR/scripts/render.py" .` 로 조각을 다시 만든다.
 
 해설은 **사실 요약만.** 코멘트에 없는 배경·추측·다음 할 일을 지어내지 않는다.
 델타가 없는 날(`events` 가 빈 배열)은 P4 를 통째로 건너뛴다.
@@ -141,6 +148,11 @@ claude -p "/redmine-daily-dashboard"
 ```
 
 - MCP 도구 이름은 **확인 완료** (2026-09-15): 공백 없음. 서버 재등록 불필요.
+- 무인 실행의 `--allowedTools` 는 `Bash(python *)` 로 **`python` 으로 시작하는 명령만** 허용한다.
+  `cd ... && python ...` 처럼 앞에 다른 명령을 붙이면 매칭이 깨져 거부된다
+  (`--permission-prompts none` 이라 물어보지도 않고 그대로 실패한다).
+  run.cmd 가 이미 작업 폴더에서 claude 를 띄우므로 **`cd` 를 붙일 필요가 없다** — 스크립트만
+  절대경로로 주고 명령은 `python` 으로 시작하라.
 - `--bare` 는 쓰지 않는다 (스킬·MCP 로드가 필요).
 - `dontAsk` 모드는 피한다 (커넥터 도구가 allow 규칙이 있어도 거부될 수 있음).
 - 무인 실행에서는 §4-4 의 승인 단계를 건너뛴다. 대신 **§1 의 1·2·3번 규칙이
