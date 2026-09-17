@@ -47,6 +47,11 @@ skills-repo/
 │   ├── SKILL.md
 │   ├── references/                     # CQL 쿼리 설계 가이드
 │   └── scripts/                        # CQL 검색·본문 읽기 (읽기 전용)
+├── gitea-jenkins-setup/
+│   ├── SKILL.md
+│   ├── assets/                         # 표준 배치 파일(CRLF)·Jenkins Job XML 템플릿
+│   ├── references/                     # 토큰 발급·Chrome 모드·트러블슈팅
+│   └── scripts/                        # Fork·공동작업자·클론·Job 생성 CLI
 ├── gwantongsa-mock-exam/
 │   ├── SKILL.md
 │   ├── references/                     # 국사·관광자원 출제 규칙, 최신화 체크리스트
@@ -167,6 +172,7 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `daily-standup` | 슬랙 데일리 스탠드업을 대화로 작성해 본인 이름으로 게시 |
 | `ecody-ecm-monitor` | eCoDY-ECM 변경분을 매일 수집해 그룹별 누적 원장과 날짜별 기록으로 사내 Confluence 에 발행 |
 | `ecody-ecm-search` | eCoDY-ECM 공식 문서를 CQL 다중 검색·정독해 근거 링크와 함께 답변 (읽기 전용) |
+| `gitea-jenkins-setup` | 사내 Gitea 저장소를 Fork해 공동작업자·작업 브랜치·표준 배치 파일·Jenkins Job(비활성)까지 자동 빌드 환경을 한 번에 구축 (생성 전용) |
 | `gwantongsa-mock-exam` | 관광통역안내사 필기 모의고사(국사 25 + 관광자원해설 25)를 이력 기반 중복 방지·사실 검증을 거쳐 생성하고 인쇄용 2단 PDF로 전달 |
 | `redmine-daily-dashboard` | 매일 할당 일감을 수집해 어제 대비 변화·마감 임박·정체 건과 함께 Confluence 대시보드로 발행 |
 | `redmine-lookup` | 사내 Redmine 이슈·프로젝트를 REST API로 조회해 상태와 경과 중심으로 정리 (읽기 전용) |
