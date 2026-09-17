@@ -87,8 +87,19 @@ Chrome 모드 시스템의 모든 단계는 `references/chrome_mode.md`의 해�
 | 로컬 폴더 | 아래 "로컬 폴더 확인" 절차로 **실행 폴더를 기본값으로 보여주고 선택**받는다 |
 | 개발 단계 | 사용자 입력 (예: `LP2`) |
 | 작업 주제 | 사용자 입력 (예: `R44_DeliveryPatch`). 공백은 `_`로 바꿔 제안 |
-| 작업 브랜치 | 제안: `devel_<단계>_<로그인ID>_<작업주제>` |
+| 작업 브랜치 | 제안: `devel_<단계>_<로그인ID>_<기준표식>_<작업주제>` |
 | 프로젝트 폴더 | Clone 후 `detect-project`로 찾아 제안 (예: `psu_app`). 후보가 여럿이면 선택. 입력 수집 시점에는 "Clone 후 자동 확인"으로 둔다 |
+
+**`<기준표식>`은 기준 브랜치를 이름에 남기기 위한 것이다.** 저장소에 `develop`·`develop_he1i`·`develop_bj1`처럼 비슷한 브랜치가 여럿이면, 브랜치 이름만 보고는 어디서 딴 것인지 알 수 없어 나중에 `git merge-base`로 캐야 한다. 기준 브랜치 이름에서 `develop_` 접두어를 뗀 나머지를 쓴다.
+
+| 기준 브랜치 | `<기준표식>` | 작업 브랜치 예 |
+| --- | --- | --- |
+| `develop_he1i` | `he1i` | `devel_LP2_jdlee_he1i_FBL_patch_Update` |
+| `develop_bj1` | `bj1` | `devel_LP2_jdlee_bj1_R44_DeliveryPatch` |
+| `develop` | `dev` | `devel_LP2_jdlee_dev_R44_DeliveryPatch` |
+| `main` | `main` | `devel_LP2_jdlee_main_R44_DeliveryPatch` |
+
+표식은 `<로그인ID>` **뒤**에 온다. Branch Specifier가 `*/devel_<단계>_<ID>_*`로 앞 3칸만 고정하므로 매칭에는 영향이 없다. 사용자가 표식을 빼고 싶어 하면 그대로 따른다 — 강제하지 않는다.
 
 #### 로컬 폴더 확인
 
@@ -141,7 +152,7 @@ Job이 이미 있으면(`exists: true`) 입력 단계에서 알리고, 이름을
 Fork           jdlee/psu_master (개인)
 공동작업자      build(쓰기) [+ 추가 인원]
 로컬 경로       D:\Mobase\psu_master (CLI 위치: <cwd>)
-작업 브랜치     devel_LP2_jdlee_R44_DeliveryPatch
+작업 브랜치     devel_LP2_jdlee_dev_R44_DeliveryPatch
 커밋 작성자     jdlee / jdlee@…
 Jenkins Job    HE1I_PSU_AUTOSAR_jdlee (뷰 PSU, 비활성 생성)
 진행 방식       Gitea: API|Chrome, Jenkins: API|Chrome
