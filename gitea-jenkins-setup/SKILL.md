@@ -56,6 +56,7 @@ python gjsetup.py preflight
 | 결과 | 진행 |
 | --- | --- |
 | `git: false` | git 설치 안내 후 **중단** |
+| `git_identity`의 `user.name`/`user.email`이 false | **중단하지 않는다.** 4단계 커밋은 `--commit-name`/`--email`을 그 커밋에만 적용하므로 진행에 지장이 없다. 다만 사용자가 앞으로 이 PC에서 직접 커밋할 때 걸리므로 보고에 한 줄 남긴다 |
 | `mode.gitea = api`, `mode.jenkins = api` | API 모드 |
 | 한쪽 또는 둘 다 `chrome` | 사용자에게 알린다: "토큰이 없어 ○○는 Chrome 연동으로 진행합니다. 토큰을 등록하면 더 빠르고 정확합니다(`references/token_guide.md`)." 그다음 Chrome 도구(`mcp__claude-in-chrome__*`) 사용 가능 여부를 확인한다 |
 | Chrome 모드가 필요한데 Chrome 도구도 없음 | 토큰 발급·등록 방법(`token_guide.md`)과 Chrome 연동(`/chrome`) 방법을 안내하고 **중단** |
@@ -170,10 +171,11 @@ python gjsetup.py collab --repo <소유자>/<repo> --user build --perm write
 
 ```
 python gjsetup.py clone --repo <소유자>/<repo> --dest <resolve-path의 target> [--gitea-url <URL>]
-python gjsetup.py detect-project --path <target>
 python gjsetup.py branch --path <target> --base <기준 브랜치> --name <작업 브랜치>
+python gjsetup.py detect-project --path <target>
 ```
 
+- **순서를 지킨다: `branch`가 `detect-project`보다 먼저다.** `clone`은 기준 브랜치가 아니라 저장소 **기본 브랜치**를 받는다(기준 브랜치는 `branch`가 `origin/<기준 브랜치>`에서 새 브랜치를 만들 때 쓴다). `detect-project`는 현재 체크아웃된 트리를 훑으므로, 기본 브랜치가 비어 있는 저장소(예: `main`에 README만 있는 `psu_fbl_master`)에서 `branch`보다 먼저 돌면 `not_found`가 난다.
 - 이후 모든 명령의 `--path`에는 `resolve-path`가 돌려준 **`target` 절대경로**를 그대로 쓴다.
 - `clone`의 `warnings`에 서브모듈 실패가 있으면 사용자에게 알린다. 빌드에 필요한지는 `troubleshooting.md` 로컬 git 표를 따라 판단해 보고한다(중단하지 않는다).
 - `detect-project` 후보에서 프로젝트 폴더를 확정한다. 후보가 1개면 그대로, 여럿이면 사용자에게 고르게 한다.

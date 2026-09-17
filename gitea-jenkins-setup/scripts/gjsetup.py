@@ -176,6 +176,13 @@ def c_preflight(a):
     for n in ["GITEA_URL", "GITEA_TOKEN", "JENKINS_URL", "JENKINS_USER", "JENKINS_TOKEN"]:
         res["env"][n] = bool(env(n))
     res["git"] = shutil.which("git") is not None
+    if res["git"]:
+        gn = git(["config", "--get", "user.name"], check=False).stdout.strip()
+        ge = git(["config", "--get", "user.email"], check=False).stdout.strip()
+        res["git_identity"] = {"user.name": bool(gn), "user.email": bool(ge)}
+        if not (gn and ge):
+            res["git_identity"]["hint"] = ("git 작성자 설정 없음 - add-bat이 --commit-name/--email로 "
+                                           "그 커밋에만 적용하므로 진행에는 지장 없음")
 
     if res["env"]["GITEA_URL"] and res["env"]["GITEA_TOKEN"]:
         st, js, txt = gitea("GET", "/user")
@@ -409,11 +416,15 @@ def c_add_bat(a):
     if conflict:
         out(False, "conflict", "같은 이름의 bat이 이미 있고 내용이 다름 - 덮어쓰지 않음", conflict=conflict,
             added=added, same=same, build_dir=build_dir)
-    if not added:
-        out(True, "exists", "표준 bat이 이미 있음", same=same)
-    rel = [os.path.relpath(os.path.join(build_dir, f), root).replace("\\", "/") for f in added]
+    rel_all = [os.path.relpath(os.path.join(build_dir, f), root).replace("\\", "/") for f in files]
+    tracked = [l for l in git(["ls-files", "--"] + rel_all, cwd=root).stdout.splitlines() if l.strip()]
+    dirty = git(["status", "--porcelain", "--"] + rel_all, cwd=root).stdout.strip()
+    if not added and len(tracked) == len(rel_all) and not dirty:
+        out(True, "exists", "표준 bat이 이미 커밋되어 있음", same=same)
+    rel = rel_all
     git(["add", "--"] + rel, cwd=root)
-    git(["commit", "-m", "[Build] Add Jenkins build scripts (Build_Hook_GIT_ASEC.bat, GitPush.bat)"], cwd=root)
+    git(["-c", "user.name=" + a.commit_name, "-c", "user.email=" + a.email,
+         "commit", "-m", "[Build] Add Jenkins build scripts (Build_Hook_GIT_ASEC.bat, GitPush.bat)"], cwd=root)
     git(["push", "origin", a.name], cwd=root, auth=True)
     head = git(["rev-parse", "--short", "HEAD"], cwd=root).stdout.strip()
     out(True, "created", "표준 bat 추가·커밋·push", added=rel, head=head)
