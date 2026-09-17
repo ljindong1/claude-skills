@@ -29,9 +29,11 @@ Commands
   job-create  --name J --xml FILE [--view V]
   job-verify  --name J --repo-url URL --branch-spec S --project P --user U
   job-enable  --name J
+  job-match   --repo-url URL --branch B   이 브랜치를 이미 받아주는 Job이 있는지 (읽기 전용)
 """
 import argparse
 import base64
+import fnmatch
 import json
 import os
 import re
@@ -236,6 +238,9 @@ def c_repo_info(a):
     info["submodules"] = re.findall(r"url\s*=\s*(\S+)", sm) if st == 200 else []
     me = gitea_login()
     info["me"] = me
+    info["owner_is_me"] = bool(me) and owner.lower() == me.lower()
+    # 내 Fork를 직접 준 경우: 원본은 parent
+    info["upstream"] = info["parent"] if (info["owner_is_me"] and info["is_fork"]) else None
     if me:
         st, mine, _ = gitea("GET", "/repos/%s/%s" % (me, repo))
         info["my_repo_same_name"] = None if st != 200 else {
@@ -443,6 +448,53 @@ def c_job_info(a):
     out(True, "job_info", "", exists=exists, views=views, credential_ids_from_ref=creds)
 
 
+def _norm_url(u):
+    u = (u or "").strip().rstrip("/")
+    if u.lower().endswith(".git"):
+        u = u[:-4]
+    return u.lower()
+
+
+def _spec_matches(spec, branch):
+    """Jenkins Branch Specifier가 이 브랜치를 잡는가 (단순화 규칙)."""
+    sp = (spec or "").strip()
+    if not sp or sp in ("**", "*"):
+        return True
+    for pre in ("refs/heads/", "refs/remotes/", "*/", "origin/"):
+        if sp.startswith(pre):
+            sp = sp[len(pre):]
+            break
+    return fnmatch.fnmatch(branch, sp)
+
+
+def c_job_match(a):
+    """이 저장소·브랜치를 이미 받아주는 Job이 있는지 (읽기 전용)."""
+    st, txt = jenkins("GET", "/api/json?tree=jobs[name,disabled,"
+                             "scm[userRemoteConfigs[url],branches[name]]]")
+    if st != 200:
+        out(False, "api_error", "Job 목록 조회 실패 (HTTP %s)" % st, detail=txt[:300])
+    try:
+        jobs = json.loads(txt).get("jobs", [])
+    except ValueError:
+        out(False, "api_error", "Job 목록 파싱 실패")
+    want = _norm_url(a.repo_url)
+    matched, same_repo = [], []
+    for j in jobs:
+        scm = j.get("scm") or {}
+        urls = [c.get("url") for c in (scm.get("userRemoteConfigs") or [])]
+        if not any(_norm_url(u) == want for u in urls):
+            continue
+        specs = [b.get("name") for b in (scm.get("branches") or [])]
+        row = {"name": j.get("name"), "specs": specs, "disabled": j.get("disabled")}
+        same_repo.append(row)
+        if any(_spec_matches(sp, a.branch) for sp in specs):
+            matched.append(row)
+    out(True, "matched" if matched else "no_match",
+        "이 브랜치를 받아주는 Job 있음" if matched else "받아주는 Job 없음 - 새로 만들어야 함",
+        repo_url=a.repo_url, branch=a.branch, matched=matched, same_repo_jobs=same_repo,
+        total_jobs=len(jobs))
+
+
 def c_render_job(a):
     tpl = open(os.path.join(ASSETS, "job_config_template.xml"), encoding="utf-8").read()
     proj = a.project.replace("/", "\\")
@@ -537,12 +589,14 @@ def main():
     for k in ["--name", "--repo-url", "--branch-spec", "--project", "--user"]:
         p.add_argument(k, required=True)
     p = sp.add_parser("job-enable"); p.add_argument("--name", required=True)
+    p = sp.add_parser("job-match"); p.add_argument("--repo-url", required=True)
+    p.add_argument("--branch", required=True)
     a = ap.parse_args()
 
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     needs_gitea = {"repo-info", "fork", "collab"}
-    needs_jenkins = {"job-info", "job-create", "job-verify", "job-enable"}
+    needs_jenkins = {"job-info", "job-create", "job-verify", "job-enable", "job-match"}
     if a.cmd in needs_gitea and not (env("GITEA_URL") and env("GITEA_TOKEN")):
         out(False, "no_api", "GITEA_URL/GITEA_TOKEN 없음 - Chrome 모드로 진행 (references/chrome_mode.md)")
     if a.cmd in needs_jenkins and not (env("JENKINS_URL") and env("JENKINS_USER") and env("JENKINS_TOKEN")):
@@ -551,7 +605,7 @@ def main():
         "preflight": c_preflight, "repo-info": c_repo_info, "fork": c_fork, "collab": c_collab,
         "clone": c_clone, "resolve-path": c_resolve_path, "detect-project": c_detect_project, "branch": c_branch, "add-bat": c_add_bat,
         "job-info": c_job_info, "render-job": c_render_job, "job-create": c_job_create,
-        "job-verify": c_job_verify, "job-enable": c_job_enable,
+        "job-verify": c_job_verify, "job-enable": c_job_enable, "job-match": c_job_match,
     }[a.cmd](a)
 
 
