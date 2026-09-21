@@ -694,6 +694,74 @@ def cmd_note(args):
     print(issue_url(args.id))
 
 
+def find_journal(issue, journal_id):
+    """이슈에서 코멘트를 찾아 돌려준다. 번호를 잘못 준 경우가 흔해 후보를 함께 보여준다."""
+    journals = [j for j in issue.get("journals", []) if (j.get("notes") or "").strip()]
+    for j in journals:
+        if j["id"] == journal_id:
+            return j
+    lines = [f"#{issue['id']} 에 코멘트 id {journal_id} 가 없습니다.", "  이 이슈의 코멘트:"]
+    for j in journals:
+        head = (j.get("notes") or "").strip().splitlines()[0][:50]
+        lines.append(f"    {j['id']}  {field(j, 'user', 'name')}  {head}")
+    if not journals:
+        lines.append("    (본문 있는 코멘트가 없습니다)")
+    die("\n".join(lines))
+
+
+def diff_lines(old, new):
+    """무엇이 바뀌는지만 보여준다. 전체를 다시 읽게 하지 않는다."""
+    import difflib
+
+    d = [
+        ln for ln in difflib.unified_diff(
+            old.splitlines(), new.splitlines(), lineterm="", n=2,
+            fromfile="현재", tofile="수정본")
+    ]
+    return d or ["  (내용이 같습니다 — 바뀌는 것이 없습니다)"]
+
+
+def cmd_note_edit(args):
+    """이미 등록된 코멘트의 본문을 고친다.
+
+    Redmine 은 코멘트 편집 이력을 남기므로 되돌릴 수 있다. 그래도 남의 코멘트는
+    건드리지 않는다 - 이슈 등록자와 별개로 코멘트 작성자가 나인지 따로 확인한다.
+    """
+    issue = get(f"/issues/{args.id}.json", {"include": "journals"})["issue"]
+    journal = find_journal(issue, args.journal)
+
+    author = journal.get("user") or {}
+    if author.get("id") != me()["id"]:
+        die(
+            f"코멘트 {args.journal} 은 {author.get('name', '다른 사람')}(id={author.get('id')})님이 작성했습니다.\n"
+            f"  이 스킬은 내가 작성한 코멘트만 고칩니다. {issue_url(args.id)}"
+        )
+
+    old = journal.get("notes") or ""
+    text = read_text(args.text, args.file)
+    if text is None or not text.strip():
+        die("수정할 본문이 비어 있습니다. --text 또는 --file 로 내용을 주세요.\n"
+            "  (코멘트를 비우려면 Redmine 화면에서 하세요 — 실수로 지우는 것을 막기 위함입니다.)")
+    if text == old:
+        die("내용이 현재와 같습니다. 바뀌는 것이 없어 중단합니다.")
+
+    lines = [
+        f"대상     : #{issue['id']} {field(issue, 'subject')}",
+        f"코멘트   : {args.journal}  ({field(journal, 'user', 'name')}, {field(journal, 'created_on')})",
+        f"분량     : {len(old):,}자  ->  {len(text):,}자",
+        "",
+        "변경 내용:",
+    ]
+    lines += [f"  {ln}" for ln in diff_lines(old, text)]
+
+    confirm_gate(args.yes, "코멘트 수정 예정", lines)
+
+    request("PUT", f"/journals/{args.journal}.json", body={"journal": {"notes": text}})
+    print(f"코멘트 수정 완료: #{args.id} 의 코멘트 {args.journal}")
+    print("  Redmine 에 편집 이력이 남습니다.")
+    print(issue_url(args.id))
+
+
 # ---------------------------------------------------------------- 진입점
 
 
@@ -787,6 +855,14 @@ def main():
     s.add_argument("--file", help="코멘트 본문 파일 ('-' 는 stdin)")
     s.add_argument("--private", action="store_true", help="비공개 코멘트")
     s.set_defaults(func=cmd_note)
+
+    s = add_yes(sub.add_parser("note-edit", help="내가 작성한 코멘트의 본문 수정"))
+    s.add_argument("id", type=int, help="이슈 번호")
+    s.add_argument("--journal", type=int, required=True,
+                   help="코멘트 id (issue <번호> --json 의 journals[].id)")
+    s.add_argument("--text", help="짧은 본문")
+    s.add_argument("--file", help="본문 파일 ('-' 는 stdin). 본문 전체를 교체한다")
+    s.set_defaults(func=cmd_note_edit)
 
     args = p.parse_args()
     args.func(args)
