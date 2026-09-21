@@ -60,7 +60,7 @@ skills-repo/
 │   ├── SKILL.md
 │   ├── references/                     # 대시보드 HTML 형식 정본
 │   └── scripts/                        # 수집·델타 산출·조각 렌더링
-├── redmine-lookup/
+├── redmine-issue/
 │   ├── SKILL.md
 │   └── scripts/                        # Redmine REST 조회 CLI (읽기 전용)
 ├── skill-repo-sync/
@@ -175,7 +175,7 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `gitea-jenkins-setup` | 사내 Gitea 저장소를 Fork해 공동작업자·작업 브랜치·표준 배치 파일·Jenkins Job(비활성)까지 자동 빌드 환경을 한 번에 구축 (생성 전용) |
 | `gwantongsa-mock-exam` | 관광통역안내사 필기 모의고사(국사 25 + 관광자원해설 25)를 이력 기반 중복 방지·사실 검증을 거쳐 생성하고 인쇄용 2단 PDF로 전달 |
 | `redmine-daily-dashboard` | 매일 할당 일감을 수집해 어제 대비 변화·마감 임박·정체 건과 함께 Confluence 대시보드로 발행 |
-| `redmine-lookup` | 사내 Redmine 이슈·프로젝트를 REST API로 조회해 정리. 새 일감 생성과 내가 등록한 일감의 수정·코멘트까지 (미리보기 승인 후 전송) |
+| `redmine-issue` | 사내 Redmine 이슈·프로젝트를 REST API로 조회해 정리. 새 일감 생성과 내가 등록한 일감의 수정·코멘트까지 (미리보기 승인 후 전송) |
 | `skill-repo-sync` | 계정 스킬을 이 저장소에 반영하고 커밋·푸시를 안내 |
 | `slack-morning-briefing` | 직전 브리핑 이후의 슬랙 메시지를 정리해 매일 아침 대상 DM으로 전송 |
 | `slack-to-calendar` | 슬랙 공지·일정 메시지를 파싱해 구글 캘린더에 등록 |
