@@ -24,7 +24,7 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
 
 - `scripts/gjsetup.py` — 모든 API·git 작업. 명령마다 JSON 한 개를 출력한다 (`ok`, `status`, `message`, 추가 필드).
   실행: `python "<이 SKILL.md가 있는 폴더>\scripts\gjsetup.py" <명령> [옵션]`
-- `assets/` — 표준 bat 2개(CRLF·ASCII, 수정 금지), Job XML 템플릿
+- `assets/` — 배포용 bat 3개(CRLF·ASCII, 수정 금지: 표준 훅 `Build_Hook_GIT_ASEC.bat`, `GitPush.bat`, `PostPackage.bat`), Job XML 템플릿
 - `references/token_guide.md` — 토큰 발급·등록 (토큰이 없을 때 사용자에게 안내)
 - `references/chrome_mode.md` — 토큰이 없는 시스템을 Chrome으로 처리하는 절차
 - `references/troubleshooting.md` — 실패·conflict 대응
@@ -98,10 +98,18 @@ Chrome 모드 시스템의 모든 단계는 `references/chrome_mode.md`의 해�
 | 항목 | 받는 방법 |
 | --- | --- |
 | 로컬 폴더 | 아래 "로컬 폴더 확인" 절차로 **실행 폴더를 기본값으로 보여주고 선택**받는다 |
-| 개발 단계 | 사용자 입력 (예: `LP2`) |
+| **차종 코드** | 사용자 입력 (예: `HE1i`). 브랜치 이름과 **전용 훅 파일명**에 쓰인다 |
 | 작업 주제 | 사용자 입력 (예: `R44_DeliveryPatch`). 공백은 `_`로 바꿔 제안 |
-| 작업 브랜치 | 제안: `devel_<단계>_<로그인ID>_<기준표식>_<작업주제>` |
+| 작업 브랜치 | 제안: `devel_<차종>_<로그인ID>_<기준표식>_<작업주제>` |
 | 프로젝트 폴더 | Clone 후 `detect-project`로 찾아 제안 (예: `psu_app`). 후보가 여럿이면 선택. 입력 수집 시점에는 "Clone 후 자동 확인"으로 둔다 |
+
+**차종 코드는 브랜치 2번째 칸에 넣고, 전용 훅 이름(`Build_Hook_<차종>.bat`)에도 그대로 쓴다.** 기존 저장소에는 이 자리에 개발 단계(`LP2`)가 들어간 브랜치도 있다. 그런 저장소에 브랜치를 추가할 때는 **브랜치명에서 뽑은 값을 제안하되 차종이 맞는지 반드시 확인받는다** — 훅 이름은 단계가 아니라 차종이어야 한다.
+
+```
+차종 코드
+  브랜치명에서 추출 : HE1i   →  Build_Hook_HE1I.bat
+  이대로 진행할까요? (아니면 차종 코드를 입력)
+```
 
 **`<기준표식>`은 기준 브랜치를 이름에 남기기 위한 것이다.** 저장소에 `develop`·`develop_he1i`·`develop_bj1`처럼 비슷한 브랜치가 여럿이면, 브랜치 이름만 보고는 어디서 딴 것인지 알 수 없어 나중에 `git merge-base`로 캐야 한다. 기준 브랜치 이름에서 `develop_` 접두어를 뗀 나머지를 쓴다.
 
@@ -112,7 +120,7 @@ Chrome 모드 시스템의 모든 단계는 `references/chrome_mode.md`의 해�
 | `develop` | `dev` | `devel_LP2_jdlee_dev_R44_DeliveryPatch` |
 | `main` | `main` | `devel_LP2_jdlee_main_R44_DeliveryPatch` |
 
-표식은 `<로그인ID>` **뒤**에 온다. Branch Specifier가 `*/devel_<단계>_<ID>_*`로 앞 3칸만 고정하므로 매칭에는 영향이 없다. 사용자가 표식을 빼고 싶어 하면 그대로 따른다 — 강제하지 않는다.
+표식은 `<로그인ID>` **뒤**에 온다. Branch Specifier가 `*/devel_<차종>_<ID>_*`로 앞 3칸만 고정하므로 매칭에는 영향이 없다. 사용자가 표식을 빼고 싶어 하면 그대로 따른다 — 강제하지 않는다.
 
 #### 로컬 폴더 확인
 
@@ -146,13 +154,13 @@ A 묶음(원본 저장소)이 정해지면 바로 진행한다.
 
 | 항목 | 받는 방법 |
 | --- | --- |
-| 차종 · 제어기 | 사용자 입력 (예: `HE1I`, `PSU`) |
+| 제어기 | 사용자 입력 (예: `PSU`). 차종은 B 묶음에서 이미 받았다 |
 | Job 이름 | 제안: `<차종>_<제어기>_AUTOSAR_<로그인ID>` (대문자 차종·제어기) |
 | 조회 | `job-info --name <Job> --ref-job <참고 Job>` → Job 존재, 뷰 목록, 인증정보 ID 후보 |
 | 뷰 | 뷰 목록에서 선택 (예: `PSU`), 없으면 뷰 없이 생성 |
 | 참고 Job (인증정보 ID용) | 기본 `ASEC_BJ1_PSU`. 읽기만 한다. 후보가 1개면 그 값, 여럿·0개면 사용자에게 확인. 사내 `build` 계정 인증정보 ID 확인값: `4c818a67-cf87-405f-a290-c24aae743ac9` (2026-09 기준) |
 | 커밋 작성자 | 이름 제안: 로그인 ID. 이메일: 사용자 입력. **영문·숫자·기호만**(한글은 Jenkins 콘솔에서 깨짐) |
-| Job 설명 | 제안: `<차종> <제어기> <단계> <작업주제> - <로그인ID> Fork 빌드` |
+| Job 설명 | 제안: `<차종> <제어기> <작업주제> - <로그인ID> Fork 빌드` |
 
 Job이 이미 있으면(`exists: true`) 입력 단계에서 알리고, 이름을 바꿀지 사용자에게 묻는다(기존 Job은 수정하지 않는다).
 
@@ -231,10 +239,24 @@ python gjsetup.py detect-project --path <target>
 ## 4. 표준 배치 파일
 
 ```
-python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name <작업 브랜치> --commit-name <이름> --email <이메일>
+python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name <작업 브랜치> --model <차종> --commit-name <이름> --email <이메일>
 ```
 
-- `assets`의 bat 2개를 `<프로젝트 폴더>\Build\`에 **바이트 그대로**(CRLF) 복사하고 `GitPush.bat`의 `[USER]` 2줄만 채운 뒤, 두 파일만 커밋·push한다.
+`<프로젝트 폴더>\Build\`에 **4개**를 넣고 한 번에 커밋·push한다.
+
+| 파일 | 출처 | 역할 |
+| --- | --- | --- |
+| `Build_Hook_GIT_ASEC.bat` | `assets` 바이트 그대로 | 랩 표준 훅. **수정하지 않는다.** 전용 훅이 없는 브랜치를 위한 fallback |
+| `GitPush.bat` | `assets` + `[USER]` 2줄 치환 | 빌드 결과물 자동 커밋·push |
+| `Build_Hook_<차종>.bat` | 표준 훅에서 생성 | ⭐ **Job이 실제로 부르는 훅.** 표준 훅 + `PostPackage` 호출 1블록 |
+| `PostPackage.bat` | `assets` 바이트 그대로 | `Build_all.bat`의 `[Post-build] Archiving` 블록. `Debug\OEUK_xxxx\` 차종명 산출물과 `rom_<버전>\`(aSIMS 서명 입력) 생성 |
+
+> 💡 **왜 표준 훅을 고치지 않고 전용 훅을 따로 두는가**
+>
+> Jenkins 훅은 `Build.bat`을 직접 부르므로 `Build_all.bat`의 Post-build 단계를 거치지 않는다. 그래서 `rom_<버전>` 패키지(aSIMS 전자서명 입력)와 차종명 산출물이 생성되지 않는다. 이걸 메우려면 훅에 한 블록을 넣어야 하는데, **이름이 `Build_Hook_GIT_ASEC.bat`인 채로 내용만 고치면 다음 사람이 표준인 줄 알고 그냥 둔다.** 차종 이름을 달아 두면 "이 과제 전용이니 고쳐도 된다"가 파일명만으로 전달된다. 전용 훅 머리말에도 `Edit : ALLOWED`로 명시된다.
+>
+> 표준 훅을 함께 남기는 이유는 Branch Specifier가 `*/devel_<차종>_<ID>_*` **와일드카드**이기 때문이다. 전용 훅이 없는 브랜치가 같은 Job에 걸려도 빌드 명령의 `if exist` 분기가 표준 훅으로 넘겨 **빌드가 깨지지 않는다**(패키징만 빠진다).
+
 - 기존 `Build.bat`, `Build_Hook.bat`, `Build_all.bat` 등은 건드리지 않는다. 다른 개발자와 공유하는 파일이라 PR로 원본에 들어가면 남의 빌드가 바뀌기 때문이다.
 - `conflict`(같은 이름, 다른 내용) → 덮어쓰지 않고 보고 후 중단.
 - bat 파일을 직접 편집하지 않는다. `sed` 등은 CRLF를 LF로 바꿔 bat 동작이 깨질 수 있다.
@@ -245,7 +267,7 @@ python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name
 python gjsetup.py job-match --repo-url <GITEA_URL>/<소유자>/<repo>.git --branch <작업 브랜치>
 ```
 
-Job은 브랜치 단위가 아니라 **(저장소 × Branch Specifier)** 단위다. Branch Specifier가 `*/devel_<단계>_<ID>_*`라 같은 저장소·같은 단계·같은 사람의 브랜치는 **기존 Job이 이미 받는다.**
+Job은 브랜치 단위가 아니라 **(저장소 × Branch Specifier)** 단위다. Branch Specifier가 `*/devel_<차종>_<ID>_*`라 같은 저장소·같은 차종·같은 사람의 브랜치는 **기존 Job이 이미 받는다.**
 
 | 결과 | 처리 |
 | --- | --- |
@@ -257,7 +279,7 @@ Job은 브랜치 단위가 아니라 **(저장소 × Branch Specifier)** 단위�
 이 확인은 모드 A에서도 한다 — 모드 A는 대개 `no_match`가 나온다.
 
 ```
-python gjsetup.py render-job --name <Job> --repo-url <GITEA_URL>/<소유자>/<repo>.git --branch-spec "*/devel_<단계>_<로그인ID>_*" --project <프로젝트 폴더> --user <Jenkins ID> --cred-id <인증정보 ID> --description "<설명>" --out <임시폴더>\<Job>.xml
+python gjsetup.py render-job --name <Job> --repo-url <GITEA_URL>/<소유자>/<repo>.git --branch-spec "*/devel_<차종>_<로그인ID>_*" --project <프로젝트 폴더> --model <차종> --user <Jenkins ID> --cred-id <인증정보 ID> --description "<설명>" --out <임시폴더>\<Job>.xml
 python gjsetup.py job-create --name <Job> --xml <임시폴더>\<Job>.xml [--view <뷰>]
 ```
 
@@ -269,10 +291,10 @@ python gjsetup.py job-create --name <Job> --xml <임시폴더>\<Job>.xml [--view
 | 권한 | 본인: Job Build·Cancel·Configure·Read·Workspace, Run Delete·Update | 본인이 빌드·설정 가능 |
 | 매개변수 `BuildType` | Hook(기본)·Build·Compile·GenerateAll·Rebuild·Clean | 첫 줄이 기본값, 자동 빌드는 커밋 메시지로 동작 결정 |
 | Repository URL · Credentials | Fork 주소 · `build` 인증정보 | |
-| Branch Specifier | `*/devel_<단계>_<ID>_*` | 같은 사람의 작업 브랜치를 한 Job으로. `GitPush.bat`이 브랜치를 자동으로 따라감 |
+| Branch Specifier | `*/devel_<차종>_<ID>_*` | 같은 사람의 작업 브랜치를 한 Job으로. `GitPush.bat`이 브랜치를 자동으로 따라감 |
 | 제외 메시지 필터 | `(?s).*Auto commit from Jenkins.*` | 결과물 커밋에 반응한 연속 빌드 방지. `(?s)`는 메시지 끝 줄바꿈 대응 |
 | Poll SCM | `* * * * *` | push 후 1분 안에 빌드 |
-| 빌드 명령 | `<프로젝트 폴더>\Build\Build_Hook_GIT_ASEC.bat %BuildType% -j8` | |
+| 빌드 명령 | `if exist` 분기 — 전용 훅 `<프로젝트 폴더>\Build\Build_Hook_<차종>.bat`이 있으면 그것을, 없으면 표준 훅을 호출 | 전용 훅이 없는 브랜치가 같은 Job에 걸려도 빌드가 깨지지 않게 |
 | 서브모듈 · 빌드 후 조치 · 동시 빌드 | 없음 · 없음 · 끔 | |
 
 `job-create` 결과가 `conflict`면 기존 Job은 수정하지 않고 중단한다. HTTP 오류는 `detail`을 보여주고 `troubleshooting.md` Jenkins 표를 따른다.
@@ -282,7 +304,7 @@ python gjsetup.py job-create --name <Job> --xml <임시폴더>\<Job>.xml [--view
 ```
 python gjsetup.py repo-info --repo <원본 owner/repo>          # my_repo_same_name이 Fork로 보이는지
 python gjsetup.py collab --repo <소유자>/<repo> --user build   # exists / write
-python gjsetup.py job-verify --name <Job> --repo-url <…> --branch-spec "<…>" --project <…> --user <Jenkins ID>
+python gjsetup.py job-verify --name <Job> --repo-url <…> --branch-spec "<…>" --project <…> --model <차종> --user <Jenkins ID>
 ```
 
 `job-verify`의 `checks`가 모두 true여야 한다. 특히 `exclusion_exact`(필터가 정확히 일치, 공백 없음). false 항목이 있으면 **수정하지 않고** 사용자에게 보고한다(skill이 방금 만든 Job이므로 원인은 템플릿·플러그인 형식 차이일 가능성이 크다).

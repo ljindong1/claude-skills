@@ -396,6 +396,81 @@ def _render_gitpush(name, email):
     return raw
 
 
+# 전용 훅에 끼워 넣는 패키징 호출 블록 (표준 훅의 :skip_check 라벨 바로 뒤)
+_PACK_BLOCK = (
+    b"\r\n"
+    b"rem ---- 3-1) package artifacts (OEUK folder / rom_<version>) -----------------\r\n"
+    b"rem  Build_all.bat runs its [Post-build] archiving block only on local runs.\r\n"
+    b"rem  Jenkins calls Build.bat directly, so the packaging is done here instead,\r\n"
+    b"rem  before GitPush so that the artifacts are included in the auto commit.\r\n"
+    b'if not "!BUILD_RC!"=="0"        goto :skip_pack\r\n'
+    b'if /i "!result!"=="Build -c"    goto :skip_pack\r\n'
+    b'if /i "!result!"=="GenerateAll" goto :skip_pack\r\n'
+    b'if exist "%HOOK_DIR%PostPackage.bat" (\r\n'
+    b"    echo [HOOK] Packaging artifacts...\r\n"
+    b'    call "%HOOK_DIR%PostPackage.bat"\r\n'
+    b") else (\r\n"
+    b"    echo [HOOK] PostPackage.bat not found in %HOOK_DIR% - packaging skipped.\r\n"
+    b")\r\n"
+    b":skip_pack\r\n"
+)
+
+
+def hook_name(model):
+    """차종 코드로 전용 훅 파일명을 만든다. 예: HE1i -> Build_Hook_HE1I.bat"""
+    return "Build_Hook_%s.bat" % model.upper()
+
+
+def _render_project_hook(model):
+    """표준 훅을 읽어 차종 전용 훅을 만든다. 표준 훅 자체는 건드리지 않는다.
+
+    차이는 두 가지뿐이다 - 머리말(이 파일이 랩 표준이 아니라 과제 전용임을 명시)과
+    :skip_check 뒤에 들어가는 PostPackage 호출 블록.
+    """
+    if not re.fullmatch(r"[A-Za-z0-9]+", model or ""):
+        out(False, "invalid", "차종 코드는 영문·숫자만 가능: " + str(model))
+    mu, hk = model.upper(), hook_name(model).encode()
+    raw = open(os.path.join(ASSETS, "Build_Hook_GIT_ASEC.bat"), "rb").read()
+    reps = [
+        (b"rem  Build_Hook_GIT_ASEC.bat  -  Jenkins entry batch (SW Platform LAB standard)",
+         b"rem  " + hk + b"  -  Jenkins entry batch (" + mu.encode() + b" project)"),
+        (b"Build_Hook_GIT_ASEC.bat %BuildType% -j8", hk + b" %BuildType% -j8"),
+        (b"rem             4) push outputs via GitPush.bat  5) return exit code",
+         b"rem             3-1) package artifacts via PostPackage.bat\r\n"
+         b"rem             4) push outputs via GitPush.bat  5) return exit code"),
+        (b"rem  Edit     : NOT required (paths and branch are detected automatically)",
+         b"rem  Edit     : ALLOWED - project specific hook, not the LAB standard.\r\n"
+         b"rem             Modify freely for this project. The standard file\r\n"
+         b"rem             Build_Hook_GIT_ASEC.bat is kept untouched as a fallback.\r\n"
+         b"rem  Base     : copy of Build_Hook_GIT_ASEC.bat + step 3-1 packaging call"),
+        (b"\r\n:skip_check\r\n", b"\r\n:skip_check\r\n" + _PACK_BLOCK),
+    ]
+    for old, new in reps:
+        if raw.count(old) != 1:
+            out(False, "invalid", "표준 훅에서 치환 지점을 찾지 못함 (%d건): %s"
+                % (raw.count(old), old.decode("ascii", "replace")[:60]))
+        raw = raw.replace(old, new, 1)
+    return raw
+
+
+def build_command(project, model):
+    """Job 빌드 명령. 전용 훅이 있으면 그것을, 없으면 표준 훅을 부른다.
+
+    Branch Specifier 가 */devel_<차종>_<ID>_* 와일드카드라 전용 훅이 없는 브랜치도
+    같은 Job 이 잡는다. if exist 분기가 없으면 그런 브랜치에서 빌드가 통째로 깨진다.
+    """
+    proj = project.replace("/", "\\")
+    base = "Build" if proj == "." else proj + "\\Build"
+    hk, std = base + "\\" + hook_name(model), base + "\\Build_Hook_GIT_ASEC.bat"
+    return ("@echo off\n"
+            'if exist "{h}" (\n'
+            '    call "{h}" %BuildType% -j8\n'
+            ') else (\n'
+            '    call "{s}" %BuildType% -j8\n'
+            ')\n'
+            'exit /b %ERRORLEVEL%').format(h=hk, s=std)
+
+
 def c_add_bat(a):
     root = os.path.abspath(a.path)
     cur = git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=root).stdout.strip()
@@ -407,6 +482,8 @@ def c_add_bat(a):
     files = {
         "Build_Hook_GIT_ASEC.bat": open(os.path.join(ASSETS, "Build_Hook_GIT_ASEC.bat"), "rb").read(),
         "GitPush.bat": _render_gitpush(a.commit_name, a.email),
+        hook_name(a.model): _render_project_hook(a.model),
+        "PostPackage.bat": open(os.path.join(ASSETS, "PostPackage.bat"), "rb").read(),
     }
     added, same, conflict = [], [], []
     norm = lambda b: b.replace(b"\r\n", b"\n")
@@ -429,7 +506,7 @@ def c_add_bat(a):
     rel = rel_all
     git(["add", "--"] + rel, cwd=root)
     git(["-c", "user.name=" + a.commit_name, "-c", "user.email=" + a.email,
-         "commit", "-m", "[Build] Add Jenkins build scripts (Build_Hook_GIT_ASEC.bat, GitPush.bat)"], cwd=root)
+         "commit", "-m", "[Build] Add Jenkins build scripts (%s)" % ", ".join(sorted(files))], cwd=root)
     git(["push", "origin", a.name], cwd=root, auth=True)
     head = git(["rev-parse", "--short", "HEAD"], cwd=root).stdout.strip()
     out(True, "created", "표준 bat 추가·커밋·push", added=rel, head=head)
@@ -497,9 +574,7 @@ def c_job_match(a):
 
 def c_render_job(a):
     tpl = open(os.path.join(ASSETS, "job_config_template.xml"), encoding="utf-8").read()
-    proj = a.project.replace("/", "\\")
-    cmd = ("Build\\Build_Hook_GIT_ASEC.bat" if proj == "." else proj + "\\Build\\Build_Hook_GIT_ASEC.bat") \
-        + " %BuildType% -j8"
+    cmd = build_command(a.project, a.model)
     perms = "\n".join("      <permission>USER:%s:%s</permission>" % (p, xml_escape(a.user)) for p in JOB_PERMS)
     vals = {"DESCRIPTION": a.description or "", "PERMISSIONS": perms, "REPO_URL": a.repo_url,
             "CREDENTIALS_ID": a.cred_id, "BRANCH_SPEC": a.branch_spec, "BUILD_COMMAND": cmd}
@@ -530,9 +605,9 @@ def c_job_verify(a):
         out(False, "not_found", "Job config.xml 조회 실패 (HTTP %s)" % st)
     x = ET.fromstring(cx.encode("utf-8"))
     get = lambda p: [e.text or "" for e in x.iter() if e.tag == p]
-    proj = a.project.replace("/", "\\")
-    exp_cmd = ("Build\\Build_Hook_GIT_ASEC.bat" if proj == "." else proj + "\\Build\\Build_Hook_GIT_ASEC.bat") \
-        + " %BuildType% -j8"
+    exp_cmd = build_command(a.project, a.model)
+    # 빌드 명령이 여러 줄이라 CRLF·들여쓰기 차이를 무시하고 비교한다
+    flat = lambda s: re.sub(r"\s+", " ", (s or "").replace("\r", "")).strip()
     choices = [e.text for e in x.iter("string")]
     perms = get("permission")
     checks = {
@@ -540,7 +615,7 @@ def c_job_verify(a):
         "branch_spec": a.branch_spec in get("name"),
         "exclusion_exact": get("excludedMessage") == [EXCLUSION],
         "poll_scm": get("spec") == ["* * * * *"],
-        "build_command": [c.strip() for c in get("command")] == [exp_cmd],
+        "build_command": [flat(c) for c in get("command")] == [flat(exp_cmd)],
         "param_default_hook": bool(choices) and choices[0] == "Hook",
         "user_permissions": all(("USER:%s:%s" % (p, a.user) in perms) or (p + ":" + a.user in perms)
                                 for p in ["hudson.model.Item.Build", "hudson.model.Item.Read",
@@ -578,15 +653,16 @@ def main():
     p = sp.add_parser("add-bat"); p.add_argument("--path", required=True); p.add_argument("--project", required=True)
     p.add_argument("--name", required=True); p.add_argument("--commit-name", required=True)
     p.add_argument("--email", required=True)
+    p.add_argument("--model", required=True, help="차종 코드 (예: HE1i). 전용 훅 이름에 쓰인다")
     p = sp.add_parser("job-info"); p.add_argument("--name", required=True); p.add_argument("--ref-job")
     p = sp.add_parser("render-job")
-    for k in ["--name", "--repo-url", "--branch-spec", "--project", "--user", "--cred-id", "--out"]:
+    for k in ["--name", "--repo-url", "--branch-spec", "--project", "--user", "--cred-id", "--out", "--model"]:
         p.add_argument(k, required=True)
     p.add_argument("--description", default="")
     p = sp.add_parser("job-create"); p.add_argument("--name", required=True); p.add_argument("--xml", required=True)
     p.add_argument("--view")
     p = sp.add_parser("job-verify")
-    for k in ["--name", "--repo-url", "--branch-spec", "--project", "--user"]:
+    for k in ["--name", "--repo-url", "--branch-spec", "--project", "--user", "--model"]:
         p.add_argument(k, required=True)
     p = sp.add_parser("job-enable"); p.add_argument("--name", required=True)
     p = sp.add_parser("job-match"); p.add_argument("--repo-url", required=True)
