@@ -30,6 +30,18 @@ SEP = b';' + b'#' * 128
 GRID = [(2.0, 14.0), (17.0, 14.0), (32.0, 18.0), (51.0, 18.0)]
 ROWS = [1.0, 2.0, 3.0, 4.0, 5.0]
 TOKENS = ("@@APP_ELF@@", "@@SRC_PATH@@", "@@FBL@@", "@@APP_WRITING@@", "@@HSM@@")
+README_NAME = "읽어보세요.txt"
+
+
+def label(project):
+    """Project Select 에 찍힐 이름. 차종 표기는 그대로 두고 마지막 칸만 대문자.
+
+    HE1i_PSU_Dual -> HE1i_PSU_DUAL   (HE1I_PSU_DUAL 이 아니다)
+    """
+    if "_" in project:
+        head, tail = project.rsplit("_", 1)
+        return head + "_" + tail.upper()
+    return project.upper()
 
 
 def die(msg):
@@ -258,24 +270,60 @@ def fill_tokens(dst, info):
     return left
 
 
-def register(project, slot):
+def find_ref_block(parts, cpu_prefix):
+    """구조가 온전하고 CPU 계열이 맞는 블록을 참조로 고른다.
+
+    이름으로 찾으면 그 프로젝트가 지워졌을 때 스킬이 멈춘다. 그래서 조건으로
+    찾는다.
+
+      - Path Set / Program DownLoad 툴버튼이 있을 것
+        (Path Set 이 빠진 블록을 복제하면 Path.cmm 을 호출할 수 없다)
+      - sys.CPU 가 대상 MCU 계열과 같을 것
+        (CYT2B9 블록을 복제하면 CPU 가 엉뚱하게 잡힌다)
+
+    반환: (인덱스, 블록내용, 그 블록이 쓰는 폴더명, 그 블록의 라벨)
+    """
+    pref = ('"%s"' % REF_BLOCK).encode('latin-1')
+    cands = []
+    for i, c in enumerate(parts):
+        if b'"Path Set"' not in c or b'"Program DownLoad"' not in c:
+            continue
+        cpu = re.search(rb'sys\.CPU\s+([A-Za-z0-9_+-]+)', c)
+        if not cpu or not cpu.group(1).decode('latin-1').upper().startswith(cpu_prefix.upper()):
+            continue
+        m = re.search(rb'S32_Config\\([^\\"]+)\\loadimage\.cmm', c)
+        n = re.search(rb'CHOOSEBOX\s+"([^"]+)"', c)
+        if m and n:
+            cands.append((i, c, m.group(1).decode('latin-1'), n.group(1).decode('latin-1')))
+    if not cands:
+        die("loadfile.cmm 에서 %s 계열이고 Path Set 툴버튼을 갖춘 참조 블록을 "
+            "찾지 못했습니다. --donor 로 쓸 만한 설정이 등록되어 있어야 합니다." % cpu_prefix)
+    for cand in cands:
+        if pref in cand[1]:
+            return cand
+    return cands[0]
+
+
+def register(project, slot, cpu_prefix):
     p = loadfile_path()
     raw = rb(p)
-    upper = project.upper()
+    upper = label(project)
     if ('"%s"' % upper).encode('latin-1') in raw:
         die("loadfile.cmm 에 %s 가 이미 등록되어 있습니다." % upper)
 
     parts = raw.split(SEP)
-    idx = [i for i, c in enumerate(parts) if ('"%s"' % REF_BLOCK).encode('latin-1') in c]
-    if not idx:
-        die("loadfile.cmm 에서 참조 블록 %s 를 찾지 못했습니다." % REF_BLOCK)
-    src = parts[idx[0]]
+    i, src, ref_folder, ref_label = find_ref_block(parts, cpu_prefix)
+    idx = [i]
 
-    new = src.replace(REF_FOLDER.encode('latin-1'), project.encode('latin-1'))
-    new = new.replace(('"%s"' % REF_BLOCK).encode('latin-1'),
+    # 라벨을 먼저 바꾼다. 라벨과 폴더명이 같은 블록(SX2_MKBD_Dual 등)에서
+    # 폴더를 먼저 치환하면 라벨까지 덩달아 바뀌어 대소문자가 어긋난다.
+    new = src.replace(('"%s"' % ref_label).encode('latin-1'),
                       ('"%s"' % upper).encode('latin-1'))
+    new = new.replace(ref_folder.encode('latin-1'), project.encode('latin-1'))
+    # 파일의 기존 표기와 같은 형식으로 쓴다.  51.0 이 아니라 51.
+    fmt = lambda v: ("%d." % v) if float(v).is_integer() else ("%s" % v)
     new = re.sub(rb'POS\s+[\d.]+\s+[\d.]+\s+[\d.]+\s+1\.',
-                 ("POS %s %s %s 1." % (slot[0], slot[1], slot[2])).encode('latin-1'),
+                 ("POS %s %s %s 1." % (fmt(slot[0]), fmt(slot[1]), fmt(slot[2]))).encode('latin-1'),
                  new, count=1)
 
     bak = p + ".bak_" + time.strftime("%Y%m%d_%H%M%S")
@@ -295,7 +343,7 @@ def write_readme(dst, info, donor, assets):
     def rel(p):
         return os.path.relpath(p, info["repo"])
     pairs = {
-        "{PROJECT}": info["project"], "{UPPER}": info["project"].upper(),
+        "{PROJECT}": info["project"], "{UPPER}": label(info["project"]),
         "{MODEL}": info["model"], "{CTRL}": info["ctrl"], "{MCU}": info["mcu"],
         "{DONOR}": donor, "{FOLDER}": os.path.join(S32, info["project"]),
         "{REPO}": info["repo"], "{DATE}": time.strftime("%Y-%m-%d"),
@@ -304,7 +352,7 @@ def write_readme(dst, info, donor, assets):
     }
     for k, v in pairs.items():
         t = t.replace(k, v)
-    out = os.path.join(dst, "읽어보세요.txt")
+    out = os.path.join(dst, README_NAME)
     with open(out, "w", encoding="cp949", errors="replace", newline="") as f:
         f.write(t.replace("\n", "\r\n"))
     return out
@@ -319,10 +367,12 @@ def verify(project, donor=None):
         die("폴더가 없습니다: " + dst)
 
     if donor:
+        # 안내문은 도너 이름을 일부러 기록하므로 제외한다.
         left = 0
         for fn in os.listdir(dst):
-            if fn.lower().endswith(TEXT_EXT):
-                left += rb(os.path.join(dst, fn)).count(donor.encode('latin-1'))
+            if fn == README_NAME or not fn.lower().endswith(TEXT_EXT):
+                continue
+            left += rb(os.path.join(dst, fn)).count(donor.encode('latin-1'))
         print("  %-40s %s" % ("도너명 잔여 참조", "0건" if left == 0 else "%d건  <-- 문제" % left))
         ok = ok and (left == 0)
 
@@ -372,7 +422,7 @@ def verify(project, donor=None):
         print("      " + b)
     ok = ok and bool(loaders) and not bad
 
-    n = registered_projects().count(project.upper())
+    n = registered_projects().count(label(project))
     print("  %-40s %s" % ("loadfile.cmm 등록", "1건" if n == 1 else "%d건  <-- 문제" % n))
     ok = ok and (n == 1)
 
@@ -421,7 +471,7 @@ def cmd_plan(a):
     print("  1. %s  ->  %s   복제" % (donor, d["project"]))
     print("  2. 폴더명 치환 (.cmm/.csf/.txt)")
     print("  3. 토큰 5종 채움 (ELF/소스경로/FBL/APP/HSM)")
-    print("  4. loadfile.cmm 에 %s 블록 추가 (백업 후, 추가만)" % d["project"].upper())
+    print("  4. loadfile.cmm 에 %s 블록 추가 (백업 후, 추가만)" % label(d["project"]))
     print("  5. 읽어보세요.txt 생성")
     print()
     print("  기존 폴더 존재 : %s" % ("예  <-- create 는 중단됩니다"
@@ -460,14 +510,14 @@ def cmd_create(a):
     left = fill_tokens(dst, d)
     if left:
         die("채우지 못한 토큰: " + ", ".join(left))
-    bak = register(d["project"], slot)
+    bak = register(d["project"], slot, d["mcu"][:6])
     rd = write_readme(dst, d, donor, a.assets)
 
     print("### 생성 완료")
     print("  폴더          %s" % dst)
     print("  폴더명 치환   %d곳" % n)
     print("  로더 경로     %d곳을 이 폴더 기준으로 재지정" % ln)
-    print("  loadfile.cmm  %s 등록 / 백업 %s" % (d["project"].upper(), os.path.basename(bak)))
+    print("  loadfile.cmm  %s 등록 / 백업 %s" % (label(d["project"]), os.path.basename(bak)))
     if rd:
         print("  안내문        %s" % os.path.basename(rd))
     print()
