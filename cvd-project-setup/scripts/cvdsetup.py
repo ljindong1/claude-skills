@@ -658,14 +658,19 @@ def cmd_run(a):
         die("설정 폴더가 없습니다: %s  (먼저 create 를 실행하세요)" % dst)
 
     if a.mode == "auto":
-        print("[미구현] --mode auto 는 아직 없습니다.")
+        print("[설계상 제외] --mode auto 는 제공하지 않습니다.")
         print()
-        print("  벤더 스크립트(cyt2blx_*_HAE_release.csf)의 eraseFlash 안에")
-        print('  DIALOG.YESNO "Erase flash memory?" 가 있어 무인 실행이 거기서 멈춘다.')
-        print("  우회하려면 벤더 스크립트의 파생본을 만들어야 하므로,")
-        print("  --mode check 가 실기에서 충분히 검증된 뒤에 별도로 만든다.")
+        print("  벤더 스크립트가 지우기 직전에 사람의 확인을 받도록 되어 있습니다.")
+        print("  그 확인을 건너뛰게 만드는 것은 스킬이 하지 않습니다 —")
+        print("  플래시를 지우고 쓰는 단계라 사람이 판단을 소유해야 합니다.")
         print()
-        print("  지금은  --mode check (읽기 전용)  또는  --mode guide  를 쓴다.")
+        print("  대신 앞뒤를 자동화했습니다. 실제로 줄어드는 수고는 여기에 있습니다.")
+        print("    라이팅 전   run --mode check   보드가 붙나 / 지금 뭐가 올라가 있나")
+        print("    라이팅      사람이 GUI 에서    run --mode guide 가 단계를 짚어줌")
+        print("    라이팅 후   run --mode check   새로 써진 게 맞나")
+        print()
+        print("  무인 라이팅이 꼭 필요하다면 벤더 스크립트 사용법을 직접 확인해")
+        print("  사람이 구성하십시오. 스킬은 그 구성을 만들지도 안내하지도 않습니다.")
         return
 
     work = os.path.join(dst, "_autorun")
