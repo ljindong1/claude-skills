@@ -104,6 +104,34 @@ troubleshooting.md 참조.
 
 ---
 
+## 무인 확인 — `run --mode check`
+
+CVD 는 `.cmm` 을 인자로 받아 실행하고 `QUIT` 으로 스스로 종료한다. 그래서
+연결 상태를 GUI 없이 확인할 수 있다.
+
+```
+python scripts\cvdsetup.py run --mode check --repo "D:\...\psu_app"
+```
+
+보드에 아무것도 쓰지 않는다. 5초 안에 끝난다. 확인되는 것은 두 가지다.
+
+  1. 타겟에 붙는가          Path.cmm 을 그대로 호출해 검증
+  2. FBL 이 올라가 있는가   0x10028000 의 벡터 테이블을 읽어 판정
+
+정상이면 이런 값이 나온다.
+
+```
+FBL_SP=0x800D000       초기 스택 포인터 — SRAM 영역
+FBL_RESET=0x10028D01   리셋 벡터 — FBL 영역 + Thumb 비트
+```
+
+`0xFFFFFFFF` 면 플래시가 비어 있는 것이고, `STEP=start` 에서 끝났으면
+연결 자체가 안 된 것이다. 후자는 전원 / IGN / 케이블 / JTAG 클럭 순으로 본다.
+
+**라이팅(쓰기)은 아직 자동화되지 않았다.** 벤더 스크립트의
+`DIALOG.YESNO "Erase flash memory?"` 가 무인 실행을 막는다. 쓰기는 위
+절차대로 사람이 한다.
+
 ## 빌드가 새로 나왔을 때
 
 APP 파일명이 바뀌므로 목록만 갱신한다. 설정을 다시 만들 필요 없다.

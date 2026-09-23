@@ -556,6 +556,183 @@ def cmd_images(a):
     verify(project)
 
 
+# ---------------------------------------------------------------- run
+CVD_EXE = os.environ.get("CVD_EXE", r"C:\JnDTech\CVI\CVD\Bin\CVD.exe")
+
+GUIDE_STEPS = [
+    ("0", "전원 · IGN 인가",
+     "B+ 만으로는 슬립에 머문다. CVD 포드는 타겟에 전원을 주지 않는다"),
+    ("1", "툴바 빨간 PS → 프로젝트 선택",
+     "버튼에는 2글자만 찍힌다. 툴바가 없으면 명령창에 CD.DO <S32>\\loadfile.cmm"),
+    ("2", "빨간 PD → Image&Hsm → file load start",
+     "Image&Hsm 을 눌러야 세 칸이 산다. APP 이 _Writing.s19 인지 확인"),
+    ("3", "Erase flash memory? 확인창",
+     "두 번 뜬다. 보드 이력을 모르면 둘 다 Yes (DTC·학습값 초기화)"),
+    ("4", "결과 확인",
+     "Reset Target 이 두 번. SYSDOWN 은 정상 종료이지 실패가 아니다"),
+    ("5", "PA → RE 순서로 동작 확인",
+     "순서를 바꾸면 심볼이 없어 실패한다. main 에서 멈추면 정상"),
+    ("6", "디버거를 떼고 전원만으로 확인",
+     "RE 로 멈춘 상태는 CPU 정지 상태라 CAN 이 나가지 않는다"),
+]
+
+CHECK_CMM = '''; 자동 생성 (cvd-project-setup) - 읽기 전용 연결 확인
+; 보드에 아무것도 쓰지 않는다. 플래시를 지우지도 기록하지도 않는다.
+local &log
+&log="@@LOG@@"
+
+OPEN #1 &log /CREATE
+WRITE #1 "STEP=start"
+WRITE #1 "PROJECT=@@PROJECT@@"
+CLOSE #1
+
+; 프로젝트의 Path.cmm 을 그대로 호출한다.
+; CPU 설정 / 연결 / 심볼 로드까지 사람이 PA 로 검증한 경로다.
+do @@DST@@\\Path.cmm
+
+OPEN #1 &log /APPEND
+WRITE #1 "STEP=connected"
+CLOSE #1
+
+; FBL 벡터 테이블을 읽는다. 0x10028000 = 초기 SP, 0x10028004 = 리셋 벡터.
+; HSM 영역(0x10000000)은 CM4 에서 접근되지 않으므로 읽지 않는다.
+local &sp &rv
+&sp=Data.Long(AD:0x10028000)
+&rv=Data.Long(AD:0x10028004)
+
+OPEN #1 &log /APPEND
+WRITE #1 "FBL_SP=&sp"
+WRITE #1 "FBL_RESET=&rv"
+WRITE #1 "STEP=done"
+CLOSE #1
+
+QUIT
+'''
+
+
+def _run_cvd(cmm_path, log_path, timeout):
+    """CVD 를 스크립트와 함께 띄우고 로그 완성 또는 종료까지 기다린다."""
+    import subprocess
+    if not os.path.isfile(CVD_EXE):
+        die("CVD 실행 파일이 없습니다: " + CVD_EXE)
+    if os.path.isfile(log_path):
+        os.remove(log_path)
+    proc = subprocess.Popen([CVD_EXE, cmm_path], cwd=os.path.dirname(CVD_EXE))
+    t0 = time.time()
+    why = "timeout"
+    while time.time() - t0 < timeout:
+        if proc.poll() is not None:
+            why = "exited"
+            break
+        if os.path.isfile(log_path):
+            try:
+                with open(log_path, encoding='cp949', errors='replace') as f:
+                    if "STEP=done" in f.read():
+                        why = "done"
+                        break
+            except Exception:
+                pass
+        time.sleep(1.0)
+    if proc.poll() is None:
+        try:
+            proc.terminate()      # QUIT 이 늦거나 안 돌 때를 대비해 정리
+        except Exception:
+            pass
+    return why, int(time.time() - t0)
+
+
+def cmd_run(a):
+    if a.mode == "guide":
+        print("### 첫 라이팅 안내 (사람이 GUI 에서 수행)")
+        for n, what, why in GUIDE_STEPS:
+            print("  %s) %s" % (n, what))
+            print("       %s" % why)
+        print()
+        print("  자동 연결 확인은  run --mode check  로 한다.")
+        return
+
+    d = discover(a.repo)
+    project = a.name or d["project"]
+    dst = os.path.join(S32, project)
+    if not os.path.isdir(dst):
+        die("설정 폴더가 없습니다: %s  (먼저 create 를 실행하세요)" % dst)
+
+    if a.mode == "auto":
+        print("[미구현] --mode auto 는 아직 없습니다.")
+        print()
+        print("  벤더 스크립트(cyt2blx_*_HAE_release.csf)의 eraseFlash 안에")
+        print('  DIALOG.YESNO "Erase flash memory?" 가 있어 무인 실행이 거기서 멈춘다.')
+        print("  우회하려면 벤더 스크립트의 파생본을 만들어야 하므로,")
+        print("  --mode check 가 실기에서 충분히 검증된 뒤에 별도로 만든다.")
+        print()
+        print("  지금은  --mode check (읽기 전용)  또는  --mode guide  를 쓴다.")
+        return
+
+    work = os.path.join(dst, "_autorun")
+    os.makedirs(work, exist_ok=True)
+    cmm = os.path.join(work, "check.cmm")
+    log = os.path.join(work, "check_log.txt")
+    body = (CHECK_CMM.replace("@@LOG@@", log)
+                     .replace("@@PROJECT@@", project)
+                     .replace("@@DST@@", dst))
+    with open(cmm, "w", encoding="cp949", errors="replace", newline="") as f:
+        f.write(body.replace("\n", "\r\n"))
+
+    print("### 읽기 전용 연결 확인 : %s" % project)
+    print("  스크립트  %s" % cmm)
+    print("  CVD       %s" % CVD_EXE)
+    print("  보드에 아무것도 쓰지 않습니다. 기다리는 중...")
+    print()
+    why, secs = _run_cvd(cmm, log, a.timeout)
+    tail = {"done": "", "exited": "   (CVD 가 스스로 종료)",
+            "timeout": "   <-- 시간 초과로 CVD 를 강제 종료함"}[why]
+
+    lines = []
+    if os.path.isfile(log):
+        with open(log, encoding='cp949', errors='replace') as f:
+            lines = [x.strip() for x in f if x.strip()]
+    kv = dict(x.split("=", 1) for x in lines if "=" in x)
+    step = kv.get("STEP", "")
+
+    print("  경과 %d초%s" % (secs, tail))
+    print()
+    print("### 로그")
+    for x in lines:
+        print("  " + x)
+    if not lines:
+        print("  (비어 있음)")
+    print()
+    print("### 판정")
+    if not lines:
+        print("  실패 — 스크립트가 실행되지 않았습니다. CVD 경로와 .cmm 문법을 확인하세요.")
+    elif step == "start":
+        print("  실패 — Path.cmm 에서 멈췄습니다. 타겟 연결 단계입니다.")
+        print("  전원 / IGN / 포드 케이블 / JTAG 클럭 순으로 확인하세요.")
+        print("  (references/troubleshooting.md 의 0xEC2 항목)")
+    elif step in ("connected", "done"):
+        print("  연결 성공 — CPU 설정과 심볼 로드까지 통과했습니다.")
+        if step == "done":
+            sp, rv = kv.get("FBL_SP", ""), kv.get("FBL_RESET", "")
+            print("  FBL 벡터 테이블 (0x10028000)")
+            print("    초기 SP    %s" % (sp or "-"))
+            print("    리셋 벡터  %s" % (rv or "-"))
+            try:
+                spv = int(sp, 16)
+                rvv = int(rv, 16)
+            except Exception:
+                spv = rvv = 0
+            if spv in (0, 0xFFFFFFFF) or rvv in (0, 0xFFFFFFFF):
+                print("  => 플래시가 비어 있습니다. FBL 이 올라가 있지 않습니다.")
+            elif 0x08000000 <= spv < 0x09000000 and 0x10028000 <= (rvv & ~1) < 0x10200000 and (rvv & 1):
+                print("  => 정상. SP 는 SRAM, 리셋 벡터는 FBL 영역을 가리키는 Thumb 주소입니다.")
+            else:
+                print("  => 값이 예상 범위를 벗어납니다. 라이팅 상태를 확인하세요.")
+        else:
+            print("  메모리 읽기 단계에서 멈췄습니다. 주소나 접근 권한을 확인하세요.")
+    else:
+        print("  판정 불가 — STEP=%s" % (step or "없음"))
+
+
 def main():
     ap = argparse.ArgumentParser(prog="cvdsetup")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -585,6 +762,14 @@ def main():
     p.add_argument("--repo", required=True)
     p.add_argument("--name")
     p.set_defaults(func=cmd_images)
+
+    p = sub.add_parser("run")
+    p.add_argument("--mode", choices=["guide", "check", "auto"], default="guide",
+                   help="guide=사람이 GUI 에서 / check=읽기 전용 자동 연결 확인 / auto=미구현")
+    p.add_argument("--repo", help="psu_app 경로 (check/auto 에 필요)")
+    p.add_argument("--name", help="프로젝트 폴더명")
+    p.add_argument("--timeout", type=int, default=180)
+    p.set_defaults(func=cmd_run)
 
     a = ap.parse_args()
     a.func(a)

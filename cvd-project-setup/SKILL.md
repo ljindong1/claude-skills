@@ -1,6 +1,6 @@
 ---
 name: cvd-project-setup
-description: CVD(CodeViser, JnDTech) 디버거에 차종별 보드 라이팅 설정을 만들어 주는 스킬. AUTOSAR 저장소(psu_app) 경로 하나만 주면 차종·제어기·MCU·FBL/APP/HSM 바이너리를 자동으로 읽어내고, 검증된 템플릿(_BASE_CYT2BL_Dual)을 복제해 `<차종>_<제어기>_Dual` 설정 폴더를 만들고 loadfile.cmm 의 Project Select 에 등록한다. 사용자가 "CVD 설정 만들어줘", "코드바이저 설정", "새 차종 라이팅 설정", "보드 라이팅 환경 만들어줘", "CVD 프로젝트 추가", "디버거 설정 추가", "Project Select 에 등록해줘", "라이팅 이미지 경로 갱신", "loadimage 갱신", "빌드 새로 나왔으니 CVD 경로 바꿔줘", "CVD 설정 검증해줘", "SFlash 지워도 되나", "Erase All 해도 되나", "SYSDOWN 이 뜨는데", "0xEC2 에러", "CVD 로 다운로드가 안 돼" 등을 말하거나, 새 차종 보드를 CVD 로 라이팅할 환경이 필요하면 반드시 이 스킬을 사용하라. Claude Code CLI(사용자 PC) 전용이다 — 로컬 CVD 설치 폴더와 저장소를 직접 읽고 쓴다. 생성·등록만 하고 기존 프로젝트 폴더와 loadfile.cmm 의 기존 블록은 절대 수정·삭제하지 않는다. T32(Lauterbach) 설정, CANoe 설정, 실기 검증 수행은 범위가 아니다.
+description: CVD(CodeViser, JnDTech) 디버거에 차종별 보드 라이팅 설정을 만들어 주는 스킬. AUTOSAR 저장소(psu_app) 경로 하나만 주면 차종·제어기·MCU·FBL/APP/HSM 바이너리를 자동으로 읽어내고, 검증된 템플릿(_BASE_CYT2BL_Dual)을 복제해 `<차종>_<제어기>_Dual` 설정 폴더를 만들고 loadfile.cmm 의 Project Select 에 등록한다. 사용자가 "CVD 설정 만들어줘", "코드바이저 설정", "새 차종 라이팅 설정", "보드 라이팅 환경 만들어줘", "CVD 프로젝트 추가", "디버거 설정 추가", "Project Select 에 등록해줘", "라이팅 이미지 경로 갱신", "loadimage 갱신", "빌드 새로 나왔으니 CVD 경로 바꿔줘", "CVD 설정 검증해줘", "SFlash 지워도 되나", "Erase All 해도 되나", "SYSDOWN 이 뜨는데", "0xEC2 에러", "CVD 로 다운로드가 안 돼", "CVD 자동으로 실행해줘", "연결만 자동으로 확인해줘", "보드 붙었는지 확인해줘", "플래시 비어 있는지 봐줘" 등을 말하거나, 새 차종 보드를 CVD 로 라이팅할 환경이 필요하면 반드시 이 스킬을 사용하라. Claude Code CLI(사용자 PC) 전용이다 — 로컬 CVD 설치 폴더와 저장소를 직접 읽고 쓴다. 생성·등록만 하고 기존 프로젝트 폴더와 loadfile.cmm 의 기존 블록은 절대 수정·삭제하지 않는다. T32(Lauterbach) 설정, CANoe 설정, 실기 검증 수행은 범위가 아니다.
 ---
 
 # cvd-project-setup
@@ -37,6 +37,7 @@ plan   --repo <psu_app>         저장소 인식 결과 + 변경 예정 (파일 
 create --repo <psu_app> --yes   생성 + 등록 + 검증
 verify --name <프로젝트> [--donor <도너>]
 images --repo <psu_app>         loadimage.txt / Path.cmm ELF 경로만 갱신
+run    --mode guide|check|auto  라이팅 진행 방식 (아래 7절)
 ```
 
 옵션: `--name` 폴더명 지정, `--donor` 도너 지정, `--bank dual|single`.
@@ -181,6 +182,51 @@ CPU 가 정지해 있어 CAN 도 안 나간다. CAN 이 안 나온다는 문의�
 
 막히면 `references/troubleshooting.md` 를 읽고 원인을 좁힌다. 사용자가
 "익숙하다"고 하면 0~6 을 건너뛰고 요약만 준다.
+
+## 7. 진행 방식 — `run` 의 세 모드
+
+`CVD.exe` 는 **`.cmm` 스크립트를 인자로 받아 실행하고 `QUIT` 으로 스스로
+종료**한다. 그래서 CLI 에서 무인 실행이 가능하다. 다만 쓰기 작업까지
+자동화하는 것은 별개 문제라 모드를 나눴다.
+
+| 모드 | 하는 일 | 보드에 쓰나 |
+|---|---|---|
+| `guide` (기본) | 6절 단계를 출력. 사람이 GUI 에서 수행 | 아니오 |
+| `check` | CVD 를 무인 실행해 **연결·플래시 상태만 확인** | **아니오** |
+| `auto` | 라이팅까지 자동 | 미구현 |
+
+### `check` — 읽기 전용 자동 확인
+
+```
+python scripts\cvdsetup.py run --mode check --repo "D:\...\psu_app"
+```
+
+생성한 `.cmm` 이 프로젝트의 **`Path.cmm` 을 그대로 호출**한다. 사람이 `PA` 로
+검증한 경로라 따로 연결 시퀀스를 짜지 않는다. 그다음 FBL 벡터 테이블
+(`0x10028000` = 초기 SP, `0x10028004` = 리셋 벡터)만 읽고 끝낸다.
+
+HSM 영역(`0x10000000`)은 CM4 에서 접근되지 않으므로 읽지 않는다.
+
+로그는 단계마다 덧붙여 쓰므로 **실패해도 어디까지 갔는지 남는다.**
+
+| 로그 마지막 | 뜻 |
+|---|---|
+| 로그 없음 | 스크립트가 실행되지 않음 |
+| `STEP=start` | `Path.cmm` 에서 멈춤 — **타겟 연결 실패** |
+| `STEP=connected` | 연결은 됐고 메모리 읽기에서 멈춤 |
+| `STEP=done` | 전부 통과. SP·리셋 벡터로 라이팅 상태를 판정 |
+
+판정은 값의 범위로 한다 — SP 가 SRAM(`0x08…`), 리셋 벡터가 FBL 영역을
+가리키는 홀수(Thumb) 주소면 정상. `0xFFFFFFFF` 면 플래시가 비어 있다.
+
+산출물은 `<설정폴더>\_autorun\` 에 남는다 (`check.cmm`, `check_log.txt`).
+
+### `auto` 가 아직 없는 이유
+
+벤더 스크립트(`cyt2blx_*_HAE_release.csf`)의 `eraseFlash` 안에
+`DIALOG.YESNO "Erase flash memory?"` 가 있어 **무인 실행이 그 지점에서
+멈춘다.** 우회하려면 벤더 스크립트의 파생본을 만들어야 하므로, `check` 가
+실기에서 충분히 검증된 뒤에 별도로 만든다. 그 전까지는 `guide` 로 한다.
 
 ## 빌드가 새로 나왔을 때
 

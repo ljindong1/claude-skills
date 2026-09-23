@@ -88,6 +88,25 @@ loadimage.txt 에 적혀 있다. 모두 {REPO} 기준.
       python scripts\cvdsetup.py images --repo "{REPO}"
 
 
+[무인 연결 확인]
+---------------------------------------------------------------------
+보드에 아무것도 쓰지 않고 연결 상태만 자동으로 확인할 수 있다.
+
+    python scripts\cvdsetup.py run --mode check --repo "{REPO}"
+
+CVD 가 스스로 떴다가 5초 안에 종료하고, 결과를 판정해 보여준다.
+확인하는 것은 두 가지다.
+
+  1. 타겟에 붙는가          Path.cmm 을 그대로 호출
+  2. FBL 이 올라가 있는가   0x10028000 벡터 테이블 (초기 SP / 리셋 벡터)
+
+산출물은 이 폴더의 _autorun\ 에 남는다 (check.cmm, check_log.txt).
+지워도 되고, 다시 실행하면 새로 만들어진다.
+
+라이팅(쓰기)은 아직 자동화되지 않았다. 벤더 스크립트의
+DIALOG.YESNO "Erase flash memory?" 가 무인 실행을 막는다.
+
+
 [하지 말 것]
 ---------------------------------------------------------------------
 cyt2blx_flash_erase_all.CSF 는 실행하지 않는다.
