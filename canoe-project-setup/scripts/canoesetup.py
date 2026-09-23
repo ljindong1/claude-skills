@@ -977,6 +977,13 @@ try {
 
     $app.Open($cfg, $false, $false)
     W ("CFG=" + $app.Configuration.FullName)
+
+    # 실버스인가 시뮬레이션인가. 시뮬레이션이면 장비로 아무것도 안 나가므로
+    # 통계가 전부 0 이 되는데, 그것은 "버스가 조용한 것"과 전혀 다른 상황이다.
+    try { W ("MODE=" + $app.Configuration.mode) } catch {}
+    try { W ("WORKMODE=" + $app.Configuration.OnlineSetup.WorkingMode) } catch {}
+    try { W ("CHMAP=" + $app.ChannelMappingName) } catch {}
+
     $dbs = $app.Configuration.GeneralSetup.DatabaseSetup.Databases
     W ("DB_COUNT=" + $dbs.Count)
     for ($i = 1; $i -le $dbs.Count; $i++) {
@@ -1099,6 +1106,11 @@ def report_traffic(lines, nets):
     for l in lines:
         if l.startswith("DB="):
             print("   DB  %s" % l[3:].split(" | ")[0])
+    chmap = d.get("CHMAP")
+    if chmap:
+        # Vector 는 채널 배정을 애플리케이션 단위로 한다. 이 이름의 항목에
+        # 채널이 안 물려 있으면 측정은 돌아도 장비로 아무것도 안 나간다.
+        print("   하드웨어 애플리케이션 이름  [%s]" % chmap)
 
     if last not in ("stats_ok", "done"):
         print("\n   --- 판정 ---")
@@ -1170,8 +1182,13 @@ def report_traffic(lines, nets):
             ok = False
             print("   채널 %d (%s)  [이상] 프레임 0, 에러 0, 버스로드 0 — 버스가 조용하다."
                   % (ch, nm))
-            print("      => 1. 이 채널이 실제 장비에 배정돼 있나 (Hardware Manager).")
-            print("            배정이 없으면 시뮬레이션만 돌고 버스로 나가지 않는다.")
+            app = d.get("CHMAP") or "CANoe"
+            print("      => 1. Vector Hardware Manager 에서 애플리케이션 [%s] 의" % app)
+            print("            채널 %d 가 실제 장비(VN1640A 등)에 배정돼 있나." % ch)
+            print("            **채널 배정은 애플리케이션 단위다.** 파이썬(XL API)이나")
+            print("            다른 도구로 같은 장비를 쓴 적이 있으면 그쪽 이름에만")
+            print("            물려 있고 [%s] 는 비어 있을 수 있다. 그래도 측정은" % app)
+            print("            정상으로 돌기 때문에 이렇게 전부 0 으로만 보인다.")
             print("         2. 보드 전원과 IGN — B+ 만으로는 슬립에 머문다.")
             print("         3. 디버거로 main 에 세워 둔 상태는 아닌가 (CPU 정지 = 송신 없음).")
             print("         4. 결선과 종단저항.")
