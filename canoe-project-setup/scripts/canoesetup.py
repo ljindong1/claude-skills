@@ -959,7 +959,10 @@ def cmd_check(a):
         print("   [실패] 로그가 없다. PowerShell 이 스크립트를 실행하지 못했다.")
         sys.exit(2)
 
-    lines = [l.rstrip() for l in open(log, encoding="utf-8").read().splitlines() if l.strip()]
+    # utf-8-sig — PowerShell 의 -Encoding utf8 이 BOM 을 붙인다. 그냥 utf-8 로
+    # 읽으면 첫 줄 앞에 보이지 않는 문자가 달려 나온다.
+    with open(log, encoding="utf-8-sig") as fh:
+        lines = [l.rstrip() for l in fh.read().splitlines() if l.strip()]
     print("   --- 로그 ---")
     for l in lines:
         print("   %s" % l)
