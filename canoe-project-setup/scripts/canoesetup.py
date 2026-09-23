@@ -171,6 +171,36 @@ def cfg_generation(txt):
     return m.group(1) if m else None
 
 
+#: 네트워크-채널 배정. 두 세대(V7/V9) 모두 같은 모양이다.
+#:
+#:     ILConfiguration::VNetwork 4 Begin_Of_Object
+#:     2            블록 버전
+#:     CAN          네트워크 이름
+#:     1            채널 번호      <- 이것
+#:     1 1 1 1      플래그
+#:     Vector       드라이버
+#:     HS_B2        DB 별칭
+NETBLK = re.compile(
+    r"ILConfiguration::VNetwork \d+ Begin_Of_Object\r?\n"
+    r"\d+\r?\n"
+    r"([^\r\n]*)\r?\n"
+    r"(\d+)\r?\n"
+    r"(?:[^\r\n]*\r?\n){5}"
+    r"([^\r\n]*)\r?\n"
+)
+
+
+def networks(txt):
+    """[(채널번호, 네트워크 이름, DB 별칭)]. 측정 결과를 채널별로 붙일 때 쓴다."""
+    out = []
+    for name, ch, db in NETBLK.findall(txt):
+        try:
+            out.append((int(ch), dec(name).strip(), dec(db).strip()))
+        except ValueError:
+            continue
+    return out
+
+
 def cdd_refs(rs):
     """컨피그가 참조하는 진단 기술(.cdd). 없으면 진단을 못 쓴다.
 
@@ -660,7 +690,8 @@ def cmd_create(a):
     print("   안내문    읽어보세요.txt")
 
     print()
-    run_verify(p.out, a.repo, target=p.target)
+    ok = run_verify(p.out, a.repo, target=p.target)
+    return p.out, p.target, ok
 
 
 def write_readme(p, provenance, donors, db_changes, a):
@@ -922,6 +953,281 @@ finally {
 """
 
 
+RUN_PS1 = r"""
+# canoe-project-setup — 연결 + 측정 + 채널별 통신 통계.
+#
+# check 와 달리 측정을 시작한다. 시뮬레이션 노드가 버스로 송신한다.
+# 정해진 시간만 돌리고 반드시 Stop / Quit 한다.
+$ErrorActionPreference = "Stop"
+$cfg     = "__CFG__"
+$log     = "__LOG__"
+$seconds = __SECONDS__
+$chans   = @(__CHANS__)
+
+function W($s) { Add-Content -Path $log -Value $s -Encoding utf8 }
+function P($o, $n) { try { return $o.$n } catch { return "?" } }
+
+Set-Content -Path $log -Value ("STEP=start  " + (Get-Date -Format "s")) -Encoding utf8
+$app = $null
+try {
+    $app = New-Object -ComObject CANoe.Application
+    try { $app.Visible = $false } catch {}
+    W ("CANoe=" + $app.Version.major + "." + $app.Version.minor + "." + $app.Version.Build)
+    W "STEP=com_ok"
+
+    $app.Open($cfg, $false, $false)
+    W ("CFG=" + $app.Configuration.FullName)
+    $dbs = $app.Configuration.GeneralSetup.DatabaseSetup.Databases
+    W ("DB_COUNT=" + $dbs.Count)
+    for ($i = 1; $i -le $dbs.Count; $i++) {
+        W ("DB=" + $dbs.Item($i).Name + " | " + $dbs.Item($i).FullName)
+    }
+    W "STEP=opened"
+
+    $m = $app.Measurement
+    $m.Start()
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    while (-not $m.Running -and $sw.Elapsed.TotalSeconds -lt 30) {
+        Start-Sleep -Milliseconds 200
+    }
+    if (-not $m.Running) { throw "측정이 시작되지 않았다 (30초 대기)" }
+    W "STEP=measuring"
+
+    Start-Sleep -Seconds $seconds
+    W ("ELAPSED=" + [math]::Round($sw.Elapsed.TotalSeconds, 1))
+
+    # 통계는 Bus("CAN").Statistics() 가 아니다 — 그런 멤버는 없다.
+    # Configuration.OnlineSetup.BusStatistics.BusStatistic(버스종류, 채널) 이고,
+    # 버스 종류는 문자열 "CAN" 이 아니라 정수 1 을 받는다.
+    $stats = $app.Configuration.OnlineSetup.BusStatistics
+    foreach ($ch in $chans) {
+        try {
+            $st = $stats.BusStatistic(1, $ch)
+            W ("CH" + $ch + "_STD="   + (P $st "Standard"))
+            W ("CH" + $ch + "_EXT="   + (P $st "Extended"))
+            W ("CH" + $ch + "_ERR="   + (P $st "Error"))
+            W ("CH" + $ch + "_LOAD="  + (P $st "BusLoad"))
+            W ("CH" + $ch + "_PEAK="  + (P $st "PeakLoad"))
+            W ("CH" + $ch + "_CHIP="  + (P $st "ChipState"))
+            W ("CH" + $ch + "_RXERR=" + (P $st "RxErrorCount"))
+            W ("CH" + $ch + "_TXERR=" + (P $st "TxErrorCount"))
+        } catch {
+            W ("CH" + $ch + "_STATERR=" + $_.Exception.Message)
+        }
+    }
+    W "STEP=stats_ok"
+
+    $m.Stop()
+    $sw2 = [Diagnostics.Stopwatch]::StartNew()
+    while ($m.Running -and $sw2.Elapsed.TotalSeconds -lt 30) {
+        Start-Sleep -Milliseconds 200
+    }
+    W "STEP=done"
+}
+catch {
+    W ("ERROR=" + $_.Exception.Message)
+}
+finally {
+    if ($app -ne $null) {
+        try { if ($app.Measurement.Running) { $app.Measurement.Stop() } } catch {}
+        try { $app.Quit() } catch { W ("QUIT_ERR=" + $_.Exception.Message) }
+    }
+}
+"""
+
+#: CANoe 칩 상태 코드. BusOff 면 배선 / 종단 / 보율을 본다.
+CHIPSTATE = {"0": "ErrorActive", "1": "ErrorPassive", "2": "BusOff", "3": "Unknown"}
+
+
+def one_cfg(folder):
+    cfgs = [f for f in sorted(os.listdir(folder)) if f.lower().endswith(".cfg")]
+    if len(cfgs) != 1:
+        die(".cfg 가 %d개다. 1개여야 한다: %s" % (len(cfgs), folder))
+    return cfgs[0]
+
+
+def ps_run(folder, ps1_name, body, timeout):
+    """PowerShell 스크립트를 만들어 돌리고 로그 줄을 돌려준다."""
+    work = os.path.join(folder, "_autorun")
+    if not os.path.isdir(work):
+        os.makedirs(work)
+    ps1 = os.path.join(work, ps1_name)
+    log = os.path.join(work, os.path.splitext(ps1_name)[0] + "_log.txt")
+    if os.path.isfile(log):
+        os.remove(log)
+    with open(ps1, "wb") as fh:
+        fh.write(body.encode("utf-8-sig"))
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1],
+            timeout=timeout, capture_output=True, text=True)
+    except subprocess.TimeoutExpired:
+        print("   [시간초과] %d초 안에 안 끝났다." % timeout)
+    if not os.path.isfile(log):
+        return None, log
+    with open(log, encoding="utf-8-sig") as fh:
+        return [l.rstrip() for l in fh.read().splitlines() if l.strip()], log
+
+
+def kv(lines):
+    out = {}
+    for l in lines:
+        if "=" in l:
+            k, v = l.split("=", 1)
+            out.setdefault(k.strip(), v.strip())
+    return out
+
+
+def num(s, default=None):
+    try:
+        return float(str(s).replace(",", ""))
+    except (TypeError, ValueError):
+        return default
+
+
+def report_traffic(lines, nets):
+    """채널별 통계를 표로 내고 판정한다.
+
+    판정 규칙은 HE1i 작업에서 실제로 겪은 것을 그대로 옮겼다.
+    """
+    d = kv(lines)
+    steps = [l.split("=", 1)[1] for l in lines if l.startswith("STEP=")]
+    last = steps[-1] if steps else None
+
+    print("   --- 측정 ---")
+    print("   CANoe %s, %s초" % (d.get("CANoe", "?"), d.get("ELAPSED", "?")))
+    for l in lines:
+        if l.startswith("DB="):
+            print("   DB  %s" % l[3:].split(" | ")[0])
+
+    if last not in ("stats_ok", "done"):
+        print("\n   --- 판정 ---")
+        meaning = {
+            None: "로그가 없다. PowerShell 이 스크립트를 실행하지 못했다.",
+            "start": "COM 객체를 못 만들었다. CANoe 설치 / 라이선스를 본다.",
+            "com_ok": "컨피그를 못 열었다. 경로 / 다른 CANoe 인스턴스를 본다.",
+            "opened": "측정이 시작되지 않았다. 하드웨어 배정(Hardware Manager)을 본다.",
+            "measuring": "통계를 못 읽었다.",
+        }
+        print("   %s" % meaning.get(last, "로그를 직접 보라 (마지막 STEP=%s)" % last))
+        for e in [l for l in lines if l.startswith("ERROR=")]:
+            print("   %s" % e)
+        return False
+
+    netmap = {ch: (nm, db) for ch, nm, db in nets}
+    chans = sorted(netmap) or [1, 2]
+
+    print()
+    print("   채널  네트워크      수신프레임   에러프레임   버스로드   칩상태")
+    rows = []
+
+    def fmt(v):
+        return "{:,}".format(int(v)) if v is not None else "못읽음"
+
+    for ch in chans:
+        std = num(d.get("CH%d_STD" % ch))
+        ext = num(d.get("CH%d_EXT" % ch))
+        err = num(d.get("CH%d_ERR" % ch))
+        load = num(d.get("CH%d_LOAD" % ch))
+        raw = str(d.get("CH%d_CHIP" % ch, "")).strip()
+        chip = CHIPSTATE.get(raw, raw or "?")
+        nm = netmap.get(ch, ("?", "?"))[0]
+        # 셋 다 못 읽었으면 "0" 이 아니라 "못 읽음"이다. 이걸 0 으로 보고하면
+        # 멀쩡한 버스를 "아무도 없다"고 단정하게 된다.
+        rx = None if (std is None and ext is None) else (std or 0) + (ext or 0)
+        rows.append((ch, nm, rx, err, load, chip))
+        print("   %-5d %-13s %10s   %10s   %7s   %s"
+              % (ch, nm[:13], fmt(rx), fmt(err),
+                 ("%.1f%%" % load) if load is not None else "?", chip))
+
+    staterr = [l for l in lines if "_STATERR=" in l]
+    print("\n   --- 판정 ---")
+    ok = True
+    for ch, nm, rx, err, load, chip in rows:
+        if rx is None and err is None:
+            ok = False
+            print("   채널 %d (%s)  [판정 불가] 통계를 읽지 못했다." % (ch, nm))
+            print("      => 버스 상태를 알 수 없다. 수신 0 이라는 뜻이 아니다.")
+            for e in staterr[:1]:
+                print("      %s" % e.split("=", 1)[1][:110])
+        elif chip == "BusOff":
+            ok = False
+            print("   채널 %d (%s)  [BusOff] 배선 / 종단저항 / 보율을 본다." % (ch, nm))
+        elif rx is None or err is None:
+            # 한쪽만 읽힌 경우. 있는 값만 말하고 단정하지 않는다.
+            print("   채널 %d (%s)  [부분] 수신 %s / 에러 %s — 한쪽을 못 읽었다."
+                  % (ch, nm, fmt(rx), fmt(err)))
+        elif err > 0 and rx == 0:
+            ok = False
+            print("   채널 %d (%s)  [이상] 에러 프레임만 쏟아진다." % (ch, nm))
+            print("      => 채널이 CAN FD 가 아니라 Classic CAN 으로 잡혀 있을 확률이 높다.")
+            print("         Vector Hardware Manager 에서 해당 채널을 CAN FD 로 바꾼다.")
+            print("         이 설정은 .cfg 안에 없어서 파일 검사로는 안 잡힌다.")
+        elif err > 0:
+            print("   채널 %d (%s)  [주의] 수신은 되는데 에러 프레임 %d건." % (ch, nm, int(err)))
+            print("      => 종단저항 / 배선 / 다른 노드의 보율을 본다.")
+        elif rx == 0:
+            ok = False
+            print("   채널 %d (%s)  [이상] 프레임 0, 에러 0, 버스로드 0 — 버스가 조용하다."
+                  % (ch, nm))
+            print("      => 1. 이 채널이 실제 장비에 배정돼 있나 (Hardware Manager).")
+            print("            배정이 없으면 시뮬레이션만 돌고 버스로 나가지 않는다.")
+            print("         2. 보드 전원과 IGN — B+ 만으로는 슬립에 머문다.")
+            print("         3. 디버거로 main 에 세워 둔 상태는 아닌가 (CPU 정지 = 송신 없음).")
+            print("         4. 결선과 종단저항.")
+        else:
+            print("   채널 %d (%s)  정상 — 수신 %s프레임, 에러 0."
+                  % (ch, nm, "{:,}".format(int(rx))))
+    return ok
+
+
+def cmd_run(a):
+    target = a.model
+    if a.init:
+        if not (a.pool and a.cfg):
+            die("--init 에는 --pool 과 --cfg 가 필요하다.")
+        print("== 1단계: 설정 생성 ==\n")
+        folder, target, vok = cmd_create(a)
+        if not vok:
+            die("검증이 통과하지 않아 측정으로 넘어가지 않는다. 위 [실패] 항목을 보라.")
+        print("\n== 2단계: 연결 + 측정 ==")
+    else:
+        if not a.dir:
+            die("--dir 로 설정 폴더를 주거나 --init 으로 새로 만들라.")
+        folder = os.path.abspath(a.dir)
+        if not os.path.isdir(folder):
+            die("폴더가 없다: %s" % folder)
+        print("== 기존 설정으로 연결 + 측정 ==")
+        print("   (설정은 그대로 쓴다. 파일을 건드리지 않는다.)\n")
+        if a.repo:
+            run_verify(folder, a.repo, target)
+            print()
+
+    cfg = os.path.join(folder, one_cfg(folder))
+    txt = load(cfg)
+    nets = networks(txt)
+
+    print("   컨피그 %s" % cfg)
+    for ch, nm, db in nets:
+        print("   채널 %d  %s  (DB %s)" % (ch, nm, db))
+    print("   측정 %d초 — 시뮬레이션 노드가 버스로 송신한다.\n" % a.seconds)
+
+    chans = ",".join(str(c) for c, _n, _d in nets) or "1,2"
+    body = (RUN_PS1
+            .replace("__CFG__", cfg.replace('"', '`"'))
+            .replace("__LOG__", os.path.join(folder, "_autorun", "run_log.txt").replace('"', '`"'))
+            .replace("__SECONDS__", str(a.seconds))
+            .replace("__CHANS__", chans))
+    lines, log = ps_run(folder, "run.ps1", body, a.timeout)
+    if lines is None:
+        print("   [실패] 로그가 없다: %s" % log)
+        sys.exit(2)
+
+    ok = report_traffic(lines, nets)
+    print("\n   로그 %s" % log)
+    sys.exit(0 if ok else 2)
+
+
 def cmd_check(a):
     folder = os.path.abspath(a.dir)
     if not os.path.isdir(folder):
@@ -1020,6 +1326,24 @@ def main():
     s.add_argument("--dir", required=True)
     s.add_argument("--timeout", type=int, default=180)
     s.set_defaults(fn=cmd_check)
+
+    # run — 연결 + 측정 + CAN 통신 결과 리포트.
+    #   --init 있으면  설정을 먼저 만들고(=초기화) 이어서 측정
+    #   --init 없으면  기존 설정을 그대로 쓰고 측정만
+    s = sub.add_parser("run")
+    s.add_argument("--init", action="store_true",
+                   help="설정을 새로 만들고(추출·갱신·검증) 이어서 측정한다")
+    s.add_argument("--dir", help="--init 없이 쓸 기존 설정 폴더")
+    s.add_argument("--pool", help="--init 용 원본 통폴더")
+    s.add_argument("--cfg", help="--init 용 대상 컨피그 이름")
+    s.add_argument("--out", help="--init 용 대상 폴더")
+    s.add_argument("--repo")
+    s.add_argument("--model")
+    s.add_argument("--rename", action="store_true")
+    s.add_argument("--seconds", type=int, default=5, help="측정 시간 (기본 5초)")
+    s.add_argument("--timeout", type=int, default=300)
+    s.add_argument("--yes", action="store_true")
+    s.set_defaults(fn=cmd_run)
 
     a = ap.parse_args()
     a.fn(a)
