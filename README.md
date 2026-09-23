@@ -167,8 +167,10 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `aspice-audit-mapping` | ASPICE 오디트 1단계 — 체크리스트 Target 시트와 산출물 폴더를 대조·매핑하고 HTML 대시보드로 시각화 |
 | `aspice-audit-report` | ASPICE 품질점검 체크리스트를 자동 1차 작성하고 사람 작성본과 대비해 일치율 측정·개선 |
 | `autosar-artifact-map` | AUTOSAR 프로젝트 폴더를 4단계 스캔해 BSWMD → ECUC → 코드 → 모듈 의존의 산출물 추적성 지도 생성 |
+| `canoe-project-setup` | CANoe 차종별 측정 컨피그를 통폴더에서 추출해 단독 폴더로 만들고, 저장소 현행 CAN DB·진단(CDD)·참조 무결성을 대조 (원본 무수정, 측정은 사람이) |
 | `confluence-project-page` | mobaseasec Confluence 에 신규 프로젝트 페이지 세트를 표준 템플릿으로 생성 |
 | `confluence-writing` | Confluence 글쓰기 톤·구조·서식과 MCP 발행 규약의 정본 |
+| `cvd-project-setup` | CVD(CodeViser) 에 차종별 보드 라이팅 설정을 생성·등록하고 검증. 저장소에서 차종·MCU·바이너리를 읽어낸다 (생성 전용, 라이팅은 사람이) |
 | `daily-standup` | 슬랙 데일리 스탠드업을 대화로 작성해 본인 이름으로 게시 |
 | `ecody-ecm-monitor` | eCoDY-ECM 변경분을 매일 수집해 그룹별 누적 원장과 날짜별 기록으로 사내 Confluence 에 발행 |
 | `ecody-ecm-search` | eCoDY-ECM 공식 문서를 CQL 다중 검색·정독해 근거 링크와 함께 답변 (읽기 전용) |
