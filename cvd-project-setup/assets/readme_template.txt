@@ -27,6 +27,49 @@ MCU     : {MCU}
 6) 보드 전원 재인가
 
 
+[Project Select 에 어떻게 올라가 있나]
+---------------------------------------------------------------------
+이름이 두 가지다. 헷갈리기 쉬우니 구분해 둔다.
+
+  {PROJECT}    폴더 이름.        실제 스크립트가 들어 있는 곳
+  {UPPER}    CHOOSEBOX 라벨.  Project Select 창에 뜨는 이름
+
+라벨 쪽은 S32_Config 바로 아래의 공용 파일 loadfile.cmm 에 블록으로 등록돼
+있다. 실행 코드는 없고 "이 항목을 고르면 CPU 를 이걸로 잡고 툴바를 이렇게
+깔아라"는 등록표다.
+
+  POS ...                        Project Select 창에서의 위치 (열, 행)
+  CHOOSEBOX "..."                화면에 뜨는 이름 = {UPPER}
+  DIALOG.END                     고르면 선택창을 닫는다
+  B::sys.CPU <CPU>               CPU 설정                       <- 핵심
+  MENU.ReProgram ADD TOOLBAR     아래 버튼들을 툴바에 붙인다
+     TOOLITEM "Program DownLoad" "PD,R"  CD.DO ...\{PROJECT}\loadimage.cmm
+     TOOLITEM "Program Edit"     "Ed,B"  Pedit ...\{PROJECT}\loadimage.cmm
+     TOOLITEM "Path Set"         "PA,R"  CD.DO ...\{PROJECT}\Path.cmm
+     TOOLITEM "Path Edit"        "Ed,B"  Pedit ...\{PROJECT}\Path.cmm
+     TOOLITEM "Reset"            "RE,R"  CD.DO ...\{PROJECT}\Reset.cmm
+     TOOLITEM "Window"           "WI,G"  CD.DO ...\{PROJECT}\swp_debug_watch.cmm
+
+버튼 하나가 스크립트 하나를 실행하는 연결일 뿐이다. 실제 일은 전부 이 폴더
+안의 스크립트가 한다. 플래시 지우는 주소, 뱅크 전환, 로더 올리기는 .csf 에
+있다.
+
+TOOLITEM 의 두 번째 문자열이 버튼에 찍히는 2글자다. 첫 문자열은 마우스를
+올렸을 때 뜨는 툴팁이라 버튼에는 안 보인다.
+
+주의할 점 세 가지. 블록을 손으로 복제할 때 실제로 겪은 것들이다.
+
+  - sys.CPU 를 다른 계열(CYT2B9 등) 블록에서 복제하면 CPU 가 엉뚱하게 박힌다.
+    설정은 멀쩡해 보이는데 플래시가 다른 주소에 써진다.
+  - Path Set / Path Edit 줄이 빠진 블록을 복제하면 PA 버튼 자체가 안 생겨
+    Path.cmm 을 호출할 수 없다.
+  - CHOOSEBOX 라벨의 대소문자가 어긋나면 중복 등록 검사를 통과해 같은
+    프로젝트가 두 번 뜬다.
+
+loadfile.cmm 은 12개 넘는 프로젝트가 ;#### 구분선으로 나열된 공용 파일이다.
+스킬은 백업을 남기고 블록을 추가만 하며 기존 블록은 건드리지 않는다.
+
+
 [써 넣는 이미지]
 ---------------------------------------------------------------------
 loadimage.txt 에 적혀 있다. 모두 {REPO} 기준.
