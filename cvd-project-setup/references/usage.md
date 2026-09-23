@@ -1,0 +1,135 @@
+# CVD 라이팅 · 디버깅 조작법
+
+설정이 만들어진 뒤 실제로 보드에 쓰는 절차. 차종에 상관없이 같다.
+
+---
+
+## 라이팅
+
+```
+1. CVD 실행, 보드 연결 (전원 + IGN)
+2. 툴바 빨간 PS  ->  <차종>_<제어기>_DUAL 선택
+3. 툴바 빨간 PD  ->  Image&Hsm  ->  file load start
+4. "Erase flash memory?"  ->  Yes / No
+5. 보드 전원 재인가
+```
+
+프로젝트를 고르면 CPU 가 `CYT2BL-CM4` 로 잡히고 툴바에 `PD` `PA` `RE` `WI` 가
+생긴다. 버튼에는 2글자만 찍힌다.
+
+### 다이얼로그
+
+```
+□ Image        FBL + APP
+□ Hsm          HSM
+■ Image&Hsm    셋 다            <- 이것
+□ Erase        지우기만
+```
+
+처음 열면 `Image` 가 선택되어 있고 세 번째 칸(HEX)이 비활성이다. 그대로 두면
+HSM 을 안 쓴다. **`Image&Hsm` 을 눌러야** 세 칸이 다 살아난다.
+
+세 칸에 아래가 들어 있어야 한다.
+
+```
+boot_image   ...\References\02_Fbl_Binary\OEUK_xxxx\..._fbl_....sre
+app_image    ...\Debug\OEUK_xxxx\..._Writing.s19        <- _Writing 확인
+HEX          ...\References\01_HSM_Framework\HSM_Framework_....sre
+```
+
+### Erase 확인창
+
+| 선택 | 지우는 범위 | 언제 |
+|---|---|---|
+| **Yes** | 워크 플래시 `0x14000000++0x1BFFF` (NvM/Fee) + 코드 플래시 | 보드 이력을 모를 때 |
+| No | 코드만 | DTC·학습값을 남겨야 할 때 |
+
+`Image&Hsm` 은 HOST 와 HSM 스크립트를 연달아 돌리므로 **이 창이 두 번 뜬다.**
+둘 다 Yes 면 워크 플래시 128KB 전체가 지워진다. 두 스크립트의 범위가 겹치지
+않고 맞물린다.
+
+```
+코드 0x10000000~0x10027FFF   HSM  이 지움  ->  HSM 기록
+코드 0x10028000~             HOST 가 지움 ->  FBL + APP (Bank A) / FBL (Bank B)
+워크 0x14000000~0x1401BFFF   HOST 가 지움
+워크 0x1401C000~0x1401FFFF   HSM  이 지움
+```
+
+HSM 의 erase 는 HOST 가 쓴 뒤에 돌지만 범위가 달라 FBL/APP 을 건드리지 않는다.
+
+**Yes 를 고르면 DTC·학습값이 초기화된다.** 이후 진단 검증에서 "원래 없던 것"과
+"이번에 지운 것"을 구분해야 한다.
+
+### 정상 종료 로그
+
+```
+file "...TVII-B-E-2M.out" loaded.        로더
+file "..._fbl_....sre" loaded.           FBL   (Bank A)
+file "..._Writing.s19" loaded.           APP   (Bank A)
+file "...TVII-B-E-2M.out" loaded.
+file "..._fbl_....sre" loaded.           FBL   (Bank B)
+Reset Target                             HOST 종료
+IDCODE = 0x6BA0xxxx.
+file "...HSM_Framework....sre" loaded.   HSM   1차
+file "...HSM_Framework....sre" loaded.   HSM   2차 (뱅크 스왑)
+Reset Target                             HSM 종료
+load button C:\...                       loadimage.cmm 종료
+```
+
+`Reset Target` 이 두 번 찍히면 기록이 끝난 것이다. 상태 표시가 `SYSDOWN` 이
+되는 것은 정상이다.
+
+> **Bank B 에는 APP 이 안 들어간다.** CVD 스크립트가 그 줄을 주석 처리해
+> 두었다. T32 원본은 양쪽 다 쓴다. 부팅·점프 확인에는 지장이 없지만
+> OTA 검증 전에는 확인이 필요하다.
+
+---
+
+## 디버깅
+
+```
+PA (Path Set)   심볼 ELF 로드 + 소스 경로 지정, CPU 정지   ->  DEBUG
+RE (Reset)      sys.down/up 후 go main                    ->  main 에서 멈춤
+```
+
+**순서를 지켜야 한다.** `RE` 를 먼저 누르면 심볼이 없어 `go main` 이
+`0x00000000` 에 브레이크포인트를 걸려다 실패한다.
+
+`main` 에서 멈추면 강한 증거다 — 심볼 주소에 실제 코드가 있고, 리셋부터
+FBL 을 거쳐 APP 스타트업까지 실행이 도달했다는 뜻이다. **디버거 제어 하이긴
+하지만 FBL→APP 점프가 실제로 일어난 것이다.**
+
+`WI` 는 도너의 워치 변수를 그대로 쓰므로 대부분 심볼 에러가 난다.
+troubleshooting.md 참조.
+
+---
+
+## 빌드가 새로 나왔을 때
+
+APP 파일명이 바뀌므로 목록만 갱신한다. 설정을 다시 만들 필요 없다.
+
+```
+python scripts\cvdsetup.py images --repo "D:\...\psu_app"
+```
+
+`loadimage.txt` 의 FBL/APP/HSM 과 `Path.cmm` 의 심볼 ELF 경로를 새 파일로
+바꾸고 검증까지 한다.
+
+Jenkins 가 산출물을 자동 커밋하므로 **작업 전 저장소에서 `git pull`** 을 한다.
+
+---
+
+## 디버거를 떼고 확인해야 하는 것
+
+`RE` 로 `main` 에서 멈추는 것은 디버거가 리셋을 제어한 상태다. 실차 조건이
+아니다. 최종 확인은 이렇게 한다.
+
+```
+1. CVD 종료, 포드 분리
+2. 보드 전원 OFF -> ON
+3. CAN 출력 확인
+```
+
+디버거가 붙어 있으면 워치독과 ECC 가 꺼진 상태이고, `go main` 후 `Go` 를
+누르지 않으면 CPU 가 정지한 채라 CAN 도 안 나간다. **CAN 이 안 나온다고 할 때
+가장 먼저 의심할 것이 이것이다.**
