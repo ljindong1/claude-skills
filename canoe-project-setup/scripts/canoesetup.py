@@ -882,6 +882,9 @@ Set-Content -Path $log -Value ("STEP=start  " + (Get-Date -Format "s")) -Encodin
 $app = $null
 try {
     $app = New-Object -ComObject CANoe.Application
+    # 창을 띄우지 않는다. 사람이 쓰던 화면을 가리지 않고, 원격/무인 실행에서도
+    # 뜨는 창이 없다. 실패해도 finally 에서 Quit 하므로 유령 프로세스가 남지 않는다.
+    try { $app.Visible = $false } catch { W ("VISIBLE_ERR=" + $_.Exception.Message) }
     W ("CANoe=" + $app.Version.major + "." + $app.Version.minor + "." + $app.Version.Build)
     W "STEP=com_ok"
 
@@ -945,7 +948,7 @@ def cmd_check(a):
     print("== CANoe 읽기 전용 확인 ==")
     print("   컨피그 %s" % cfg)
     print("   측정을 시작하지 않는다 — 버스로 송신하지 않는다.")
-    print("   CANoe 창이 잠깐 떴다가 닫힌다.\n")
+    print("   CANoe 를 창 없이(Visible=False) 띄웠다가 닫는다.\n")
 
     try:
         subprocess.run(
