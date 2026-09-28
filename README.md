@@ -170,6 +170,7 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `canoe-project-setup` | CANoe 차종별 측정 컨피그를 통폴더에서 추출해 단독 폴더로 만들고, 저장소 현행 CAN DB·진단(CDD)·참조 무결성을 대조 (원본 무수정, 측정은 사람이) |
 | `confluence-project-page` | mobaseasec Confluence 에 신규 프로젝트 페이지 세트를 표준 템플릿으로 생성 |
 | `confluence-writing` | Confluence 글쓰기 톤·구조·서식과 MCP 발행 규약의 정본 |
+| `cvd-project` | CVD(CodeViser) 과제 단위로 빌드 결과를 CLI 로 MCU 에 기록하고 이미지와 대조 검증 (init 1회, 이후 flash/verify) |
 | `cvd-project-setup` | CVD(CodeViser) 에 차종별 보드 라이팅 설정을 생성·등록하고 검증. 저장소에서 차종·MCU·바이너리를 읽어낸다 (생성 전용, 라이팅은 사람이) |
 | `daily-standup` | 슬랙 데일리 스탠드업을 대화로 작성해 본인 이름으로 게시 |
 | `ecody-ecm-monitor` | eCoDY-ECM 변경분을 매일 수집해 그룹별 누적 원장과 날짜별 기록으로 사내 Confluence 에 발행 |
