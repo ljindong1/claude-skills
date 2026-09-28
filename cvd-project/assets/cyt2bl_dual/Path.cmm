@@ -1,0 +1,178 @@
+;Thanks for buying our HAE HSM product
+;HSM framework empower customer's security
+;version: 2021. 02. 19@hae
+
+
+
+
+gosub Main
+enddo
+
+PathSet:
+(
+	
+	Data.LOAD.auto "@@APP_ELF@@" / nocode
+	sYmbol.SourcePATH.Reset 
+		;sYmbol.SourcePATH.SetRecurseDir "C:\devel\rwpc_jg\jg_rwpc_v211"
+		;sYmbol.SourcePATH.SetRecurseDir "C:\devel\wpc_1coil_master_fd_cps\wpc_1coil_master_fd_v211_cps"
+		sYmbol.SourcePATH.SetRecurseDir "@@SRC_PATH@@"
+	
+	return
+)
+
+
+
+Main:
+(
+	sys.down
+	sys.up
+	gosub initCpu
+	gosub haltSys
+;	gosub flashSetup
+	gosub PathSet
+	
+	system.Option.DUALPORT On
+	system.Option.IMASKASM On
+	system.Option.IMASKHLL On
+	
+	sys.down
+	sys.up
+;	sys.mode.go
+	
+	
+	
+	return
+)
+
+
+initCpu:
+(
+	;SYStem.cpu CYT2B98CA-CM0+
+	SYStem.cpu CYT2BL-CM4
+	;system.cpu
+	RETURN
+)
+
+haltSys:
+(
+	sys.m.down
+;	sys.reset
+	SYS.CONFIG DEBUGPORTTYPE SWD
+	SYS.JtagClock 10MHz
+	
+	OPTION.EnReset on
+	OPTION.ResBreak OFF
+	OPTION.WaitReset ON
+	OPTION.WaitResetTime 0.ms
+
+	sys.m.up
+	wait 5.ms	
+	GOSUB wdtDisable
+	return
+)
+
+;work flash: 0x14000000 + 0x1BFFF (112KB)
+;code flash: 0x10028000 + 0x1E7FFF (1952KB)
+flashSetup:
+(
+	PRIVATE &nHostCodeLargeSectors  &nHostCodeSmallSectors
+	;PRIVATE &nHostWorkFlashLargeSectors &nHostWorkFlashSmallSectors
+
+	&nHostCodeLargeSectors=62.			;32KB
+	&nHostCodeSmallSectors=16.			;8KB
+	// 128kB
+	&nHostWorkFlashLargeSectors=48.			;2KB
+	&nHostWorkFlashSmallSectors=256.		;128B
+
+	flash.reset
+
+	; <code flash>
+	; Single Bank
+	; large
+	; FLASH.Create 1. (0x10000000)++(&nHostCodeLargeSectors*0x8000-0x1) 0x8000 TARGET LONG
+	; small
+	; FLASH.Create 1. (0x10000000+&nHostCodeLargeSectors*0x8000)++(&nHostCodeSmallSectors*0x2000-0x1) 0x2000 TARGET LONG
+	; Dual Bank
+    	; large code
+    	FLASH.Create 1. (0x10000000)++(&nHostCodeLargeSectors*0x8000/0x2-0x1) 0x8000 TARGET LONG
+    	; small code
+    	FLASH.Create 1. (0x10000000+&nHostCodeLargeSectors*0x8000/0x2)++(&nHostCodeSmallSectors*0x2000/0x2-0x1) 0x2000 TARGET LONG
+    	; large code
+    	FLASH.Create 1. (0x12000000)++(&nHostCodeLargeSectors*0x8000/0x2-0x1) 0x8000 TARGET LONG
+    	; small code
+    	FLASH.Create 1. (0x12000000+&nHostCodeLargeSectors*0x8000/0x2)++(&nHostCodeSmallSectors*0x2000/0x2-0x1) 0x2000 TARGET LONG
+
+	; <work flash>
+	; Single Bank
+	; large
+	; FLASH.Create 2. (0x14000000)++(&nHostWorkFlashLargeSectors*0x800-0x1) 0x800 TARGET LONG
+	; small
+	; FLASH.Create 2. (0x14000000+&nHostWorkFlashLargeSectors*0x800)++(&nHostWorkFlashSmallSectors*0x80-0x1) 0x80 TARGET LONG
+	; Dual Bank
+    	; large
+    	FLASH.Create 2. (0x14000000)++(&nHostWorkFlashLargeSectors*0x800/0x2-0x1) 0x800 TARGET LONG
+    	; small
+    	FLASH.Create 2. (0x14000000+&nHostWorkFlashLargeSectors*0x800/0x2)++(&nHostWorkFlashSmallSectors*0x80/0x2-0x1) 0x80 TARGET LONG
+    	; large
+    	FLASH.Create 2. (0x15000000)++(&nHostWorkFlashLargeSectors*0x800/0x2-0x1) 0x800 TARGET LONG
+    	; small
+    	FLASH.Create 2. (0x15000000+&nHostWorkFlashLargeSectors*0x800/0x2)++(&nHostWorkFlashSmallSectors*0x80/0x2-0x1) 0x80 TARGET LONG
+	
+	gosub doFlashAlgorithm
+	
+	return
+)
+
+eraseFlash:
+(
+	DIALOG.YESNO "Program flash memory?"
+	LOCAL &progflash
+	ENTRY &progflash
+	IF &progflash
+	(
+		;erase work flash(112KB)
+		flash.erase 0x14000000++0x1BFFF
+
+		;erase code flash
+		flash.erase 0x10028000++0x1E7FFF
+	)	
+	return
+)
+
+
+doFlashAlgorithm:
+(
+	PRIVATE &nSRamBaseAddress &sFirmwareRam &use_dualport &algoPath
+	&nSRamBaseAddress=0x08000000
+	&algoPath="~~/demo/arm/flash/long/traveo_ii.bin"
+	
+	&use_dualport="1"
+	;&sFirmwareRam="0x0803f800++0x7ff"		;rev B
+	;&sFirmwareRam="0x08000000++0x7ff"		;rev C
+	;&sFirmwareRam="/FirmwareRAM &(sFirmwareRam)"
+	&sFirmwareRam=""
+
+	IF (("&use_dualport"!="1")||SYStem.ACCESS.DENIED())
+	FLASH.TARGET &nSRamBaseAddress+0x1000   &nSRamBaseAddress+0x2000 0x1000 "&algoPath" /STACKSIZE 0x800 &sFirmwareRam
+	ELSE
+	FLASH.TARGET &nSRamBaseAddress+0x1000 E:&nSRamBaseAddress+0x2000 0x1000 "&algoPath" /STACKSIZE 0x800 &sFirmwareRam /DUALPORT
+
+	FLASH.CLOCK AUTO
+	return
+)
+
+wdtDisable:
+(	
+	;unlock
+	Data.Set AD:0x4026C040 %Long 1
+	Data.Set AD:0x4026C040 %Long 2
+	
+	;jk@devel - global disable
+	;additional information refer to wdt_config debug_trigger_en reg in trm 
+	Data.Set AD:0x4026C000 %Long 0
+	
+	;lock again
+	Data.Set AD:0x4026C040 %Long 3
+
+	return
+)

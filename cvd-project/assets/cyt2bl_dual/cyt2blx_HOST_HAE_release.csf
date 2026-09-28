@@ -1,0 +1,523 @@
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//   NickName	      Part Number	Code Flash(LS(32KB)+SS(8KB)	    Work Flash(LS(2KB)+SS(128B)	SRAM        //
+//   TVII-B-E-512K	CYT2B6	     576KB (448KB + 128KB)	        64KB (48KB+16KB)	          64KB          //
+//   TVII-B-E-1M	  CYT2B7	     1088KB (960KB + 128KB)	        96KB (72KB+24KB)	          128KB     //
+//   TVII-B-E-2M	  CYT2B9	     2112KB (1984KB + 128KB)	      128KB (96KB+32KB)	          256KB     //
+//   TVII-B-E-4M	  CYT2BL	     4160KB (4032KB + 128KB)	      128KB (96KB+32KB)	          512KB     //
+//   TVII-B-H-4M	  CYT3BB/4BB	 4160KB (4032KB + 128KB)	      256KB (192KB+64KB)	        768KB   //
+//   TVII-B-H-8M	  CYT4BF	     8384KB (8128KB + 256KB)	      256KB (192KB+64KB)	        1024KB  //
+//   TVII-C-2D-4M	  CYT3DL	     4160KB (4032KB + 128KB)	      128KB (96KB+32KB)	          384KB     //
+//   TVII-C-2D-6M	  CYT4DN	     6336KB (6080KB + 256KB)	      128KB (96KB+32KB)	          640KB     //
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//   The range 0x17000000++0x7fff is guarded against modification.
+//     Address-Range      Description
+// --------------------------------------------------------------------------------
+//     0x17000800++0x1ff  Free for use
+//     0x17000A00++0x1ff  Free for use
+//     0x17000C00++0x1ff  Free for use
+//     0x17000E00++0x1ff  Free for use
+//     0x17001A00++0x1ff  Normal Access Restrictions / Normal-Dead Access Restrictions
+//     0x17006400++0x1ff  Public key for signature verification
+//     0x17006600++0x1ff  Public key for signature verification
+//     0x17006800++0x1ff  Public key for signature verification
+//     0x17006A00++0x1ff  Public key for signature verification
+//     0x17006C00++0x1ff  Public key for signature verification
+//     0x17006E00++0x1ff  Public key for signature verification
+//     0x17007600++0x1ff  Application Protection Settings for SWPU, SMPU, PPU
+//     0x17007C00++0x1ff  Table of Content part #2 (TOC2)
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+	Global &nMainCodeLargeSectors  &nMainCodeSmallSectors
+	Global &nWorkFlashLargeSectors &nWorkFlashSmallSectors
+	local &filePath
+	entry &filePath
+;	winclear
+	local &CPU &FLASH_LOADER &ELF_NAME
+
+
+//***************************    Modify target device and elf file name by user     **************************//
+
+	&CPU="CYT2BL"	//CYT2B6,CYT2B7,CYT2B9,CYT2BL,CYT3BB/4BB,CYT4BF,CYT3DL,CYT4DN
+
+	;&ELF_NAME="C:\TVII_MCAL\TVII_MCAL_SW_Framework_for_SDL_7.1.0\tviibe2m\tools\ghs\flash\cm0plus\cm0plus.elf"
+	;&ELF_NAME="F:\Work\Company\cypress\traveo II\CVD\CYT4BFC\cm7_0.elf"
+	&ELF_NAME="F:\Work\Company\cypress\traveo II\CVD\CYT4BFC\cm0plus.elf"
+//*************************************************************************************************************//
+
+	GOSUB McuDeclaration
+;	gosub parsePath	
+	gosub initCpu
+	CFLASH.RESet
+	GOSUB FlashDeclaration
+	
+	gosub eraseFlash
+
+	gosub writeFw
+    print "Reset Target"
+	sys.down
+;	sys.up
+;	sys.down
+	SYStem.Option.DUALPORT ON
+	SYStem.Option.IMASKASM ON
+	SYStem.Option.IMASKHLL ON
+	gosub reinitCpu
+
+	//gosub Debug              //debug after downloading
+
+ENDdo
+; --------------------------------------------------------------------------------
+; Flash declaration depending on selected CPU
+
+FlashDeclaration:
+(
+	PRIVATE &nSRamBaseAddress &sFirmwareRam
+
+	&nMainCodeLargeSectors=0.
+	&nMainCodeSmallSectors=0.
+	&nWorkFlashLargeSectors=0.
+	&nWorkFlashSmallSectors=0.
+	&sFirmwareRam=""
+	&nSRamBaseAddress=0x08000000
+
+	IF CPUIS("CYT3*")||CPUIS("CYT4*")
+	(
+		&nSRamBaseAddress=0x28000000
+	)
+
+	IF CPUIS("CYT2B6*") ; 512kB/64kB
+	(
+		// 576kB
+		&nMainCodeLargeSectors=14.
+		&nMainCodeSmallSectors=16.
+		// 64kB
+		&nWorkFlashLargeSectors=24.
+		&nWorkFlashSmallSectors=128.
+
+		&FLASH_LOADER="TVII-B-E-2M.out"
+
+	)
+	ELSE IF CPUIS("CYT2B7*") ; 1088kB/96kB
+	(
+		// 1088kB
+		&nMainCodeLargeSectors=30.
+		&nMainCodeSmallSectors=16.
+		// 96kB
+		&nWorkFlashLargeSectors=36.
+		&nWorkFlashSmallSectors=192.
+		&FLASH_LOADER="TVII-B-E-2M.out"
+
+	)
+	ELSE IF CPUIS("CYT2B9*") ; 2112kB/128kB
+	(
+		// 2016kB
+		&nMainCodeLargeSectors=62.
+		&nMainCodeSmallSectors=16.
+		// 128kB
+		&nWorkFlashLargeSectors=48.
+		&nWorkFlashSmallSectors=256.
+		;&FLASH_LOADER="TVII-B-E-2M.out"
+		&FLASH_LOADER="C:\JnDTech\CVI\CVD\S32_Config\_BASE_CYT2BL_Dual\TVII-B-E-2M.out"
+
+	)
+	ELSE IF CPUIS("CYT2BL*") ; 4160kB/128kB
+	(
+		// 4160kB
+		&nMainCodeLargeSectors=126. //32KB
+		&nMainCodeSmallSectors=16. // 8KB
+		// 128kB
+		&nWorkFlashLargeSectors=48. //2KB
+		&nWorkFlashSmallSectors=256. //128B
+		&FLASH_LOADER="C:\JnDTech\CVI\CVD\S32_Config\_BASE_CYT2BL_Dual\TVII-B-E-2M.out"
+	)
+	ELSE IF CPUIS("CYT2CL*") ; 4160kB/128kB
+	(
+		// 4160kB
+		&nMainCodeLargeSectors=126. //32KB
+		&nMainCodeSmallSectors=16. // 8KB
+		// 128kB
+		&nWorkFlashLargeSectors=48. //2KB
+		&nWorkFlashSmallSectors=256. //128B
+
+	)	
+	ELSE IF CPUIS("CYT3BB*") ; 4160kB/256kB
+	(
+		// 4160kB
+		&nMainCodeLargeSectors=126. //32KB
+		&nMainCodeSmallSectors=16. // 8KB
+		// 256kB
+		&nWorkFlashLargeSectors=96. //2KB
+		&nWorkFlashSmallSectors=512. //128B
+
+	)
+	ELSE IF CPUIS("CYT4BB*") ; 4160kB/256kB
+	(
+		// 4160kB
+		&nMainCodeLargeSectors=126. //32KB
+		&nMainCodeSmallSectors=16. // 8KB
+		// 256kB
+		&nWorkFlashLargeSectors=96. //2KB
+		&nWorkFlashSmallSectors=512. //128B
+
+	)
+	ELSE IF CPUIS("CYT4BF*") ; 8384kB/256kB
+	(
+		// 8384kB
+		&nMainCodeLargeSectors=254. //32KB
+		&nMainCodeSmallSectors=32. // 8KB
+		// 256kB
+		&nWorkFlashLargeSectors=96. //2KB
+		&nWorkFlashSmallSectors=512. //128B
+
+	)
+	ELSE IF CPUIS("CYT3DL*") ; 4160kB/128kB
+	(
+		// 4160kB
+		&nMainCodeLargeSectors=126. //32KB
+		&nMainCodeSmallSectors=16. // 8KB
+		// 128kB
+		&nWorkFlashLargeSectors=48. //2KB
+		&nWorkFlashSmallSectors=256. //128B
+
+	)
+	ELSE IF CPUIS("CYT4DN*") ; 6336kB/128kB
+	(
+		// 6336kB
+		&nMainCodeLargeSectors=190. //32KB
+		&nMainCodeSmallSectors=32. // 8KB
+		// 128kB
+		&nWorkFlashLargeSectors=96. //2KB
+		&nWorkFlashSmallSectors=256. //128B
+
+	)
+	ELSE
+	(
+		PRINT %WARNING CPU()+" is not supported by "+OS.PPF()
+		ENDDO
+	)
+
+	; <MainCodeFlash>
+	IF TRUE()
+	(
+		; Single Bank
+		; large code
+		CFLASH.Create 1. (0x10000000)++(&nMainCodeLargeSectors*0x8000-0x1) 0x8000 TARGET LONG
+		; small code
+		CFLASH.Create 1. (0x10000000+&nMainCodeLargeSectors*0x8000)++(&nMainCodeSmallSectors*0x2000-0x1) 0x2000 TARGET LONG
+	)
+	; </MainCodeFlash>
+
+	; <WorkFlash>
+	IF TRUE()
+	(
+		; Single Bank
+		; large
+		CFLASH.Create 2. (0x14000000)++(&nWorkFlashLargeSectors*0x800-0x1) 0x800 TARGET LONG
+		; small
+		CFLASH.Create 2. (0x14000000+&nWorkFlashLargeSectors*0x800)++(&nWorkFlashSmallSectors*0x80-0x1) 0x80 TARGET LONG
+	)
+	; </WorkFlash>
+
+  ; <SupervisoryFlash>   ;be careful for modify this area. 
+  PRIVATE &i
+  &i=0.
+  RePeaT 64.
+  (
+    IF &i==(4.||5.||6.||7.||13.||50.||51.||52.||53.||54.||55.||59.||62.)
+    (
+      CFLASH.Create 3. (0x17000000+&i*0x200)++0x1ff  0x200 TARGET LONG ; /CENSORSHIP (0x17000000+&i*0x200)++0x1ff
+    )
+    ELSE
+    (
+      CFLASH.Create 3. (0x17000000+&i*0x200)++0x1ff  0x200 NOP LONG   ; /CENSORSHIP (0x17000000+&i*0x200)++0x1ff
+    )
+    &i=&i+1.
+  )
+  ; </SupervisoryFlash>
+
+
+
+	IF CPUIS("CYT2B5*")||CPUIS("CYT2B6*")||CPUIS("CYT2B7*")||CPUIS("CYT2B9*")||CPUIS("CYT2BL*")||CPUIS("CYT2CL*")
+		CFLASH.TARGET &nSRamBaseAddress+0x4000   0x1000 &FLASH_LOADER		//08002000
+	ELSE
+		CFLASH.TARGET &nSRamBaseAddress+0x20000   0x1000 &FLASH_LOADER		//28020000
+
+	wait 50.ms
+    
+    data.load.elf  &FLASH_LOADER
+	var.set work_flash_ss_count=&nWorkFlashSmallSectors
+;	var.set work_flash_ls_size=0x800
+	var.set work_flash_ls_count=&nWorkFlashLargeSectors
+;	var.set code_flash_ss_size=0x2000
+	var.set code_flash_ss_count=&nMainCodeSmallSectors
+;	var.set code_flash_ls_size=0x8000
+	var.set code_flash_ls_count=&nMainCodeLargeSectors
+
+    y.delete &FLASH_LOADER
+
+	RETURN
+)
+
+; --------------------------------------------------------------------------------
+; MCU declaration depending on selected MCU series. Note : temporary function
+
+McuDeclaration:
+(
+
+	IF "&CPU"=="CYT2B6"
+	(
+		&CPU="CYT2B58BA"
+		&FLASH_LOADER="TVII-B-E-2M.out"
+	)
+	ELSE IF "&CPU"=="CYT2B7"
+	(
+		&CPU="CYT2B77CA"
+		&FLASH_LOADER="TVII-B-E-2M.out"
+	)
+	ELSE IF "&CPU"=="CYT2B9"
+	(
+		&CPU="CYT2B98CA"
+		&FLASH_LOADER="TVII-B-E-2M.out"
+	)
+	ELSE IF "&CPU"=="CYT2BL"
+	(
+		&CPU="CYT2BL"
+		&FLASH_LOADER="C:\JnDTech\CVI\CVD\S32_Config\_BASE_CYT2BL_Dual\TVII-B-E-2M.out"
+	)
+	ELSE IF "&CPU"=="CYT2CL"
+	(
+		&CPU="CYT2CL"
+		&FLASH_LOADER="TVII-B-E-2M.out"
+	)	
+	ELSE IF "&CPU"=="CYT3BB"
+	(
+		&CPU="CYT3BB"
+		&FLASH_LOADER="TVII-B-H-8M.out"
+	)
+	ELSE IF "&CPU"=="CYT4BB"
+	(
+		&CPU="CYT4BB"
+		&FLASH_LOADER="TVII-B-H-8M.out"
+	)
+	ELSE IF "&CPU"=="CYT4BF"
+	(
+		&CPU="CYT4BF"
+		&FLASH_LOADER="TVII-B-H-8M.out"
+	)
+	ELSE IF "&CPU"=="CYT3DL"
+	(
+		&CPU="CYT4DN"
+		&FLASH_LOADER="TVII-B-H-8M.out"
+	)
+	ELSE IF "&CPU"=="CYT4DN"
+	(
+		&CPU="CYT4DN"
+		&FLASH_LOADER="TVII-B-H-8M.out"
+	)
+	ELSE
+	(
+		PRINT %WARNING CPU()+" is not supported by "+OS.PPF()
+		ENDDO
+	)
+	RETURN
+)
+
+parsePath:
+(
+	&filePath=STRing.SCANAndExtract(STRing.UPpeR("&filePath"),"HSMPATH=","")
+    IF !OS.FILE("&filePath")
+	(
+		DIALOG.FILE *
+		ENTRY &filePath
+	)
+	return
+)
+
+eraseFlash:
+(
+	DIALOG.YESNO "Erase flash memory?"
+	LOCAL &progflash
+	ENTRY &progflash
+	IF &progflash
+	(
+		;erase work flash(112KB)
+		flash.erase 0x14000000++0x1BFFF
+		;cflash.erase 0x1403C000++0x3fff
+
+		;erase code flash(2MB)
+		flash.erase 0x10028000++0x1E7FFF
+		;cflash.erase 0x10028000++0x1E8000
+	)	
+	return
+)
+
+wdtDisable:
+(
+	;unlock
+	Data.Set AD:0x4026C040 %Long 1
+	Data.Set AD:0x4026C040 %Long 2
+	
+	;jk@devel - global disable
+	;additional information refer to wdt_config debug_trigger_en reg in trm 
+	Data.Set AD:0x4026C000 %Long 0
+	
+	;lock again
+	Data.Set AD:0x4026C040 %Long 3
+	
+	return
+)
+
+initCpu:
+(
+
+	CPUTYPE  &CPU-CM0+
+	OPTION.EnReset on
+	OPTION.TRST  OFF
+	OPTION.ResBreak OFF
+	OPTION.WaitReset ON
+	OPTION.WaitResetTime 0.ms
+	;SYStem.JtagClock 8MHz
+	;OPTION.SerialWire ON              // ON: SWD        OFF: JTAG
+	OPTION.SerialWire OFF              // ON: SWD        OFF: JTAG
+	OPTION.JTAGCLOCK 10.MHz
+    
+	Disconnect
+	wait 10.ms
+
+	Connect
+
+        ;-----------------------------------------------------------------------
+        ; Enabel debugger access
+        data.set ASD:0x40201414        %long   0x7
+                
+ 
+        //* Write CM0+ VTOR */
+        data.set  ASD:0xE000ED08   %long      0x00000000
+ 
+        // /* Clear all pending interrupts in CM0+ */
+        data.set  ASD:0xE000E280    %long      0x0000FFFF
+ 
+        // /* Enable only CM0+ IRQ0/1 */
+        data.set  ASD:0xE000E180   %long      0xFFFFFFFC
+        data.set  ASD:0xE000E100    %long      0x3
+ 
+        // /* Set priority of IRQ0=1, IRQ1=0. Need to make sure IRQ1 is triggered even if IRQ0 is pending. */
+        data.set  ASD:0xE000E400    %long      0x1<<6
+ 
+        ;-----------------------------------------------------------------------
+        ; Enabel safety register for flash programming
+		//disable ECC
+	 	data.set 0x40240000   %l  0x00000003
+        data.set 0x4024f400   %l  0x1
+        data.set 0x4024f500   %l  0x1
+ 
+        ;-----------------------------------------------------------------------
+        ; Enabel debugger access
+        ;data.set 0x40201414            %l      0x7
+ 
+        ;-----------------------------------------------------------------------
+        ; Clear SRAM0 ECC error 
+        data.set 0x40201300   %l  0x00020001     // disable SRAM0 ECC
+        
+        data.set 0x40210054   %l  0xFFFFFFFF    // enable SRAM ECC fault masking
+        data.set 0x4021000C   %l  0x0                   // clear fault
+        wait 1.ms
+        data.set 0x4021000C   %l  0x0
+        wait 1.ms
+        data.set 0x4021000C   %l  0x0
+        wait 1.ms
+        data.set 0x4021000C   %l  0x0
+        wait 1.ms
+        data.set 0x4021000C   %l  0x0
+
+	GOSUB wdtDisable
+	
+	system.Option.DUALPORT On
+	OPTION.InterruptRESet	      // clear gloabal/hll/asm interrupt
+	system.Option.IMASKASM On
+	system.Option.IMASKHLL On
+		
+	return 
+
+)
+
+writeFw:
+(
+	;write map A area
+	Data.Set AD:0x40240000 %Long 0x00000002	
+;	Data.Set AD:0x40240000 %Long 0x00111000  ;map A	
+	;download fbl
+	cflash.reprogram all
+	Data.LOAD.auto "&filename1"
+	cflash.reprogram off
+	;download RTSW
+	cflash.reprogram all	
+	Data.LOAD.auto "&filename2"
+	cflash.reprogram off
+
+	wait 100.ms
+	Cflash.Reset 
+	GOSUB FlashDeclaration
+	;write map B area
+;	Data.Set AD:0x40240000 %Long 0x00001003  ;//Enable dual bank mode for 0x1200 0000
+;	Data.Set AD:0x40240000 %Long 0x00001103  ;//Enable bank swap
+	Data.Set AD:0x40240000 %Long 0x00111100  ;map B	
+	cflash.reprogram all	
+	Data.LOAD.auto "&filename1"
+	cflash.reprogram off
+
+	;cflash.reprogram all
+	; RTSW none at Bank B	
+	;Data.LOAD.auto "&filename2"
+	;cflash.reprogram off
+	
+	return
+)
+
+reinitCpu:
+(
+	IF CPUIS("CYT2B*") ; 512kB/64kB
+	(
+		SYStem.cpu &CPU-CM4
+	)
+
+	IF CPUIS("CYT3*")
+	(
+		SYStem.cpu &CPU-CM7
+	)
+	IF CPUIS("CYT4*")
+	(
+		SYStem.cpu &CPU-CM7-0
+	)
+
+	RETURN
+)
+
+Debug:
+(
+	SYStem.Mode Up
+	;load symbol 
+	Data.Load.Elf     "&filePath"      /nocode 
+
+	;set up windows 
+	;Debug list window 
+	winpos 0% 0% 50% 70%
+	Data.List
+
+	;Break List window
+	winpos 0% 70% 50% 30%
+	Break.List
+
+	;Var Watch window 
+	winpos 50% 0% 50% 50%
+	Var.Watch
+
+	;Symbol List window
+	winpos 50% 50% 50% 50%
+	sYmbol.List 
+
+	return 
+)
+
+
+
