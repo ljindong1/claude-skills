@@ -9,7 +9,8 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 
 ## 도구
 
-- 실행 환경: Claude Code CLI, CVD가 설치된 Windows PC (`C:\JnDTech\CVI\CVD`).
+- 실행 환경: Claude Code CLI, CVD가 설치된 Windows PC. 기본 설치 경로 `C:\JnDTech\CVI\CVD`.
+- **CVD 설치를 먼저 확인한다.** `scan` 이 `[CVD]` 줄로 설치 위치를 알려 준다. `init` / `flash` / `verify` 는 `Bin\CVD.exe` 가 없으면 아무것도 만들거나 실행하지 않고 중단한다. 기본 경로에 없으면 도구가 흔한 설치 위치(C~F 드라이브 `JnDTech`, `Program Files`)를 찾아 후보를 보여 준다 — 후보를 사용자에게 확인받은 뒤 모든 명령에 `--cvd-root <설치 폴더>` 를 붙인다. 후보도 없으면 설치 경로를 묻는다.
 - 도구: 이 스킬 폴더의 `scripts\cvd_flash.py`. 설치·복사하지 않고 그 자리에서 실행한다.
   `python "<이 스킬 폴더>\scripts\cvd_flash.py" <명령>`
 - 라이팅 기본 틀: `assets\cyt2bl_dual\` (CYT2BL 듀얼뱅크). 원본은 CVD 의 `S32_Config\_BASE_CYT2BL_Dual` 이며 한 번 복사해 스킬에 넣은 것이다. **다른 과제 폴더(S32_Config 아래)는 참조하지 않는다.**
@@ -40,7 +41,8 @@ C:\JnDTech\CVI\CVD\Projects\
 원칙: **먼저 프로젝트 폴더에서 조사하고, 조사로 정할 수 없는 것만 사용자에게 묻는다.**
 
 1. **프로젝트 폴더를 묻는다.** 기본값은 현재 작업 폴더. AskUserQuestion으로 "현재 폴더 `<cwd>` 사용"을 첫 옵션으로 보여 주고, 다른 경로는 직접 입력받는다.
-2. `scan --repo <폴더>` 로 조사하고 결과를 표로 보여 준다: FBL / APP(기록용 `_Writing.s19`) / ELF(심볼) / HSM / MCU / 뱅크 구성과 그 근거 / 과제명 제안.
+2. `scan --repo <폴더>` 로 조사하고 결과를 표로 보여 준다: FBL / APP(기록용 `_Writing.s19`) / ELF(심볼) / HSM / MCU / 뱅크 구성과 그 근거 / 과제명 제안 / CVD 설치 위치.
+   - CVD 설치를 못 찾았으면 여기서 멈추고 설치 경로부터 확인한다(위 "도구" 참조).
    - **다른 후보가 있다고 나오면 반드시 짚는다.** 저장소에 다른 차종 파일(예: `BJ1_PSU` HSM, `SP3i_PSU_FBL`)이 섞여 있을 수 있고, 도구는 가장 최근 파일을 고른다. 경로의 차종명이 맞는지 확인받는다.
    - 못 찾은 이미지는 경로를 묻는다(`--fbl --app --elf --hsm`).
    - `Debug\OEUK_*` 가 없으면 빌드 산출물이 없는 것이다. 저장소에서 `git pull` 을 안내한다(Jenkins 가 산출물을 자동 커밋한다).
@@ -89,7 +91,7 @@ flash --name <과제명> [--mode IMAGE|HSM|ALL] [--keep-data] [--rescan] [--fbl 
 
 `Program → Run Script File → Projects\cvd_start.csf` → **PS** → 과제 → **FL**(기록) / **VF**(검증) / **CN**(연결·심볼) / **RE**(리셋→main) / **CF**(config 편집). CLI와 같은 파일을 쓴다.
 
-화면의 **FL** 은 누르면 선택창이 차례로 뜬다: `Write FBL + APP ?` → `Write HSM ?` → `Erase data flash too? (DTC / NvM / learned values)`. 둘 다 No 면 아무것도 하지 않는다. 기존 S32_Config 과제(PD 버튼)는 그대로 계속 쓸 수 있다. 자세한 조작은 `references/usage.md`.
+화면의 **FL** 은 누르면 선택창이 차례로 뜬다: `Write FBL + APP ?` → `Write HSM ?` → `Erase data flash too? (DTC / NvM / learned values)`. 둘 다 No 면 아무것도 하지 않는다. 쓰기가 끝나면 **자동으로 검증까지 하고 결과를 창으로 띄운다** — `Flash + Verify OK - all check points match the image files` 또는 `Verify FAILED - ... (first mismatch <주소>)`. 쓰는 도중 오류가 나면 스크립트가 멈춰 결과 창이 뜨지 않는다 — 그때는 메시지 창의 오류 줄을 본다. **VF** 도 끝나면 결과 창을 띄운다. 기존 S32_Config 과제(PD 버튼)는 그대로 계속 쓸 수 있다. 자세한 조작은 `references/usage.md`.
 
 ## 규칙
 
@@ -109,11 +111,11 @@ flash --name <과제명> [--mode IMAGE|HSM|ALL] [--keep-data] [--rescan] [--fbl 
 
 이 흐름은 아직 실기에서 끝까지 돌려 보지 않았다. 처음 쓸 때 아래를 사용자와 함께 확인하고 결과를 알린다.
 
-1. `CVD.exe <파일>.csf` 로 CLI 실행되는지. 안 되면 `--entry cmm` 으로 재실행(진입 파일만 .cmm 사본).
+1. `CVD.exe <파일>.csf` 로 CLI 실행되는지. 안 되면 결과를 사용자에게 보고하고 방법을 함께 정한다(.cmm 사본으로 우회하는 기능은 두지 않았다).
 2. 로그가 `STEP=connected` 까지 가는지 — 쓰기 전 연결 확인은 `connect.csf`(SWD)로 하고 기록은 벤더 스크립트(JTAG)로 한다. 보드에 따라 한쪽만 붙을 수 있다.
 3. `STEP=done` 까지 가고 검증 지점이 모두 일치하는지.
 4. 데이터 영역 **유지**(`--keep-data`)로 쓴 뒤 DTC 가 실제로 남아 있는지 — 벤더 스크립트의 `No` 경로를 그대로 쓰는 것이라 실기로 확인한 적이 없다.
-5. 화면 FL 버튼의 선택창 세 개가 순서대로 뜨는지, CN → RE 로 main 에 도달하는지.
+5. 화면 FL 버튼의 선택창 세 개가 순서대로 뜨는지, 끝나고 결과 창(`DIALOG.OK`)이 뜨는지, CN → RE 로 main 에 도달하는지.
 
 ## 범위 밖
 

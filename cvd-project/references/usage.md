@@ -48,6 +48,18 @@ Erase data flash too? (DTC / NvM / learned values)   Yes / No
 메시지 창에 `FL: FBL=...` `FL: APP=...` `FL: HSM=...` 로 찍힌다. APP 이
 `_Writing.s19` 인지 확인한다.
 
+### FL 결과 창
+
+쓰기가 끝나면 FL 이 이어서 검증(VF 와 같은 내용)을 돌리고 결과를 창으로 띄운다.
+
+```
+Flash + Verify OK - all check points match the image files          성공
+Verify FAILED - flash does not match the image (first mismatch 0x…)  실패 — 다시 쓴다
+```
+
+쓰는 도중 오류가 나면 스크립트가 그 자리에서 멈추므로 **결과 창이 뜨지 않는다.**
+창이 안 뜨면 메시지 창의 마지막 오류 줄을 본다.
+
 > 기존 S32_Config 과제(`PD` → `Image&Hsm` → `Erase flash memory?` 두 번)는 그대로
 > 계속 쓸 수 있다. 새 과제에는 그 창이 없고 위 선택창으로 대신한다.
 
@@ -123,6 +135,8 @@ JTAG 클럭 순으로 본다(troubleshooting.md 의 0xEC2 항목).
 ## 검증
 
 `VF`(화면) 또는 `verify --name <과제명>`(CLI). 보드에 쓰지 않는다.
+화면의 VF 는 끝나면 `Verify OK` / `Verify FAILED` 창을 띄운다. CLI 는 창 없이
+`[성공] 검증 완료` / `[실패] ...` 를 출력한다.
 
 init 과 flash 때 도구가 FBL·APP 이미지에서 최대 16개 지점(주소와 그 값)을 골라
 `config.csf` 에 적어 둔다. 검증은 그 주소를 CM4 로 읽어 이미지 값과 비교한다.

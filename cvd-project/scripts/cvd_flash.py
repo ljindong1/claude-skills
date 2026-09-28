@@ -15,6 +15,7 @@ cvd_flash.py - CVD(CodeViser) CLI 다운로드 + 검증
   python cvd_flash.py flash --name HE1I_PSU --yes           (FBL+APP, 데이터 영역까지 소거)
   python cvd_flash.py flash --name HE1I_PSU --mode ALL --keep-data --rescan --yes
   python cvd_flash.py verify --name HE1I_PSU
+  (CVD 가 기본 경로 C:\\JnDTech\\CVI\\CVD 에 없으면 모든 명령에 --cvd-root <설치 폴더>)
 
 라이팅 기본 틀은 이 스크립트 옆의 ..\\assets\\cyt2bl_dual 을 쓴다. S32_Config 는 읽지 않는다.
 
@@ -32,14 +33,24 @@ import subprocess
 import sys
 import time
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 # 실제 파일 위치(FS)와 .csf 안에 적힐 윈도우 경로(WIN)를 나눈다. 평소에는 같다.
-WIN_ROOT = os.environ.get("CVD_ROOT_WIN", r"C:\JnDTech\CVI\CVD")
-FS_ROOT = os.environ.get("CVD_ROOT", WIN_ROOT)
-FS_PROJECTS = os.path.join(FS_ROOT, "Projects")
-WIN_PROJECTS = WIN_ROOT + "\\Projects"
-CVD_EXE = os.environ.get("CVD_EXE", os.path.join(FS_ROOT, "Bin", "CVD.exe"))
+# --cvd-root 로 바꿀 수 있다 (set_root). CVD_ROOT / CVD_ROOT_WIN / CVD_EXE 환경변수는 시험용이다.
+DEFAULT_ROOT = r"C:\JnDTech\CVI\CVD"
+WIN_ROOT = FS_ROOT = FS_PROJECTS = WIN_PROJECTS = CVD_EXE = None
+
+
+def set_root(root=None):
+    global WIN_ROOT, FS_ROOT, FS_PROJECTS, WIN_PROJECTS, CVD_EXE
+    WIN_ROOT = (root or os.environ.get("CVD_ROOT_WIN") or DEFAULT_ROOT).rstrip("\\/")
+    FS_ROOT = os.environ.get("CVD_ROOT", WIN_ROOT) if not root else root
+    FS_PROJECTS = os.path.join(FS_ROOT, "Projects")
+    WIN_PROJECTS = WIN_ROOT + "\\Projects"
+    CVD_EXE = os.environ.get("CVD_EXE", os.path.join(FS_ROOT, "Bin", "CVD.exe"))
+
+
+set_root()
 
 # 라이팅 기본 틀 (스킬에 동봉). 원본은 S32_Config\_BASE_CYT2BL_Dual 이며 그 경로가 파일 안에 남아 있다.
 TEMPLATE_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "cyt2bl_dual"))
@@ -48,6 +59,8 @@ TEMPLATE_MCU = "CYT2BL"
 TEMPLATE_BANK = "dual"
 TEMPLATE_HOST = "cyt2blx_HOST_HAE_release.csf"
 TEMPLATE_HSM = "cyt2blx_HSM_HAE_release.csf"
+TEMPLATE_CONNECT = "connect.csf"      # 원본 이름 Path.cmm
+TEMPLATE_RESET = "reset.csf"          # 원본 이름 Reset.cmm
 
 ENC = "cp949"
 NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{1,30}$")
@@ -87,6 +100,37 @@ def proj_fs(name):
 
 def proj_win(name):
     return wpath(WIN_PROJECTS, name)
+
+
+def find_cvd_installs():
+    """기본 경로 밖에 설치된 CVD.exe 후보. 드라이브별 흔한 위치만 본다."""
+    pats = []
+    for drv in "CDEF":
+        pats += [r"%s:\JnDTech\*\CVD\Bin\CVD.exe" % drv, r"%s:\JnDTech\CVD\Bin\CVD.exe" % drv,
+                 r"%s:\Program Files*\JnDTech\*\CVD\Bin\CVD.exe" % drv]
+    out = []
+    for p in pats:
+        for f in glob.glob(p):
+            f = os.path.normpath(f)
+            if f not in out:
+                out.append(f)
+    return out
+
+
+def check_cvd(strict=True):
+    """CVD 설치 확인. 없으면 다른 설치 위치를 찾아 알려 주고, strict 면 중단한다."""
+    if os.path.isfile(CVD_EXE):
+        return True
+    others = [f for f in find_cvd_installs() if os.path.normcase(f) != os.path.normcase(CVD_EXE)]
+    print("[CVD] 설치를 찾지 못했습니다: %s" % CVD_EXE)
+    for f in others:
+        root = os.path.dirname(os.path.dirname(f))
+        print("  다른 위치에 있음: %s  → --cvd-root \"%s\"" % (f, root))
+    if not others:
+        print("  흔한 설치 위치(C~F 드라이브 JnDTech, Program Files)에도 없습니다. 설치 경로를 --cvd-root 로 지정하세요.")
+    if strict:
+        die("CVD 설치 경로를 확인한 뒤 다시 실행하세요. 과제는 만들지 않았습니다.")
+    return False
 
 
 def ask(prompt, default=None):
@@ -196,7 +240,7 @@ def suggest_name(repo, hsm):
 
 # ============================================================== 라이팅 기본 틀
 def read_cpu(folder):
-    p = os.path.join(folder, "Path.cmm")
+    p = os.path.join(folder, TEMPLATE_CONNECT)
     if not os.path.isfile(p):
         return None
     t = rb(p).decode(ENC, "replace")
@@ -211,7 +255,7 @@ def read_cpu(folder):
 
 
 def template_check():
-    need = ("Path.cmm", "Reset.cmm", TEMPLATE_HOST, TEMPLATE_HSM)
+    need = (TEMPLATE_CONNECT, TEMPLATE_RESET, TEMPLATE_HOST, TEMPLATE_HSM)
     miss = [f for f in need if not os.path.isfile(os.path.join(TEMPLATE_DIR, f))]
     if miss or not glob.glob(os.path.join(TEMPLATE_DIR, "*.out")):
         die("라이팅 기본 틀이 온전하지 않습니다: %s (누락: %s)" % (TEMPLATE_DIR, ", ".join(miss) or "*.out"))
@@ -352,11 +396,13 @@ def tpl_flash(name, d):
     return """; {n}_flash.csf - FL: 소거 + 기록
 ; CLI : do {n}_flash.csf <IMAGE|HSM|ALL> <YES|NO>   (YES = 데이터 영역까지 소거)
 ; 화면: FL 버튼 (인자 없음) -> 무엇을 쓸지, 데이터 영역을 지울지 선택창으로 묻는다
-LOCAL &m &cvd_erase &a &h &e &filename1 &filename2 &filename3
+LOCAL &m &cvd_erase &a &h &e &gui &filename1 &filename2 &filename3
 ENTRY &m &cvd_erase
 do {d}\\{n}_config.csf
+&gui="NO"
 IF "&m"==""
 (
+	&gui="YES"
 	print "FL: FBL=&cfg_fbl"
 	print "FL: APP=&cfg_app"
 	print "FL: HSM=&cfg_hsm"
@@ -413,13 +459,22 @@ IF ("&m"=="HSM")||("&m"=="ALL")
 	do {d}\\{n}_flash_hsm.csf
 )
 print "FL: done (&m)"
+; 화면에서 눌렀으면 이어서 검증하고 결과를 창으로 알린다 (CLI 는 run.csf 가 따로 검증)
+IF "&gui"=="YES"
+(
+	do {d}\\{n}_verify.csf FL
+)
 ENDDO
 """.format(n=name, d=d)
 
 
 def tpl_verify(name, d):
     L = ["; %s_verify.csf - VF: 연결 후 검증 지점을 읽어 로그에 남긴다" % name,
-         "LOCAL &v",
+         "; 인자: CLI = 결과 창 없음 / FL = FL 버튼이 부름 / 없음 = VF 버튼",
+         "LOCAL &v &ctx &bad &first",
+         "ENTRY &ctx",
+         '&bad="NO"',
+         '&first=""',
          "do %s\\%s_config.csf" % (d, name),
          "do %s\\%s_connect.csf" % (d, name),
          'IF !OS.FILE("&cfg_log")',
@@ -435,8 +490,37 @@ def tpl_verify(name, d):
               "\t&v=Data.Long(AD:&cfg_va%d)" % i,
               '\tWRITE #1 "RD &cfg_va%d &v &cfg_ve%d"' % (i, i),
               '\tprint "VF: &cfg_va%d read=&v expect=&cfg_ve%d"' % (i, i),
+              "\tIF &v!=&cfg_ve%d" % i,
+              "\t(",
+              '\t\t&bad="YES"',
+              '\t\tIF "&first"==""',
+              "\t\t(",
+              '\t\t\t&first="&cfg_va%d"' % i,
+              "\t\t)",
+              "\t)",
               ")"]
-    L += ['WRITE #1 "VERIFY=end"', "CLOSE #1", "ENDDO"]
+    L += ['WRITE #1 "VERIFY=end"', "CLOSE #1",
+          'IF "&bad"=="YES"',
+          "(",
+          '\tprint "VF: FAILED - first mismatch at &first (log: &cfg_log)"',
+          '\tIF "&ctx"!="CLI"',
+          "\t(",
+          '\t\tDIALOG.OK "Verify FAILED - flash does not match the image (first mismatch &first). See &cfg_log"',
+          "\t)",
+          ")",
+          "ELSE",
+          "(",
+          '\tprint "VF: OK - all check points match"',
+          '\tIF "&ctx"=="FL"',
+          "\t(",
+          '\t\tDIALOG.OK "Flash + Verify OK - all check points match the image files"',
+          "\t)",
+          '\tIF "&ctx"==""',
+          "\t(",
+          '\t\tDIALOG.OK "Verify OK - all check points match the image files"',
+          "\t)",
+          ")",
+          "ENDDO"]
     return "\n".join(L) + "\n"
 
 
@@ -463,7 +547,7 @@ def tpl_entry(name, d, with_flash):
         L += _step("flashing")
         L += ["do %s\\%s_flash.csf &cfg_mode &cfg_erase" % (d, name)]
         L += _step("flashed")
-    L += ["do %s\\%s_verify.csf" % (d, name)]
+    L += ["do %s\\%s_verify.csf CLI" % (d, name)]
     L += _step("done")
     L += ["QUIT"]
     return "\n".join(L) + "\n"
@@ -549,7 +633,7 @@ def convert_flash_csf(src_file, src_folder_win, dst_win):
     return t, notes
 
 
-def convert_path_cmm(src_file, src_folder_win, dst_win, name):
+def convert_connect(src_file, src_folder_win, dst_win, name):
     t = rb(src_file).decode(ENC, "replace").replace("\r\n", "\n")
     t = re.sub(re.escape(src_folder_win), lambda m: dst_win, t, flags=re.I)
     t, n1 = re.subn(r'Data\.LOAD\.auto\s+"[^"]*"\s*/\s*nocode', 'Data.LOAD.auto "&cfg_elf" / nocode', t, flags=re.I)
@@ -565,8 +649,8 @@ def convert_path_cmm(src_file, src_folder_win, dst_win, name):
             out.append(indent + 'sYmbol.SourcePATH.SetRecurseDir "&cfg_src"   ; [cvd_flash]')
             inserted = True
     if n1 != 1 or not inserted:
-        die("Path.cmm 구조가 예상과 다릅니다 (심볼 로드 %d곳, 소스 경로 삽입 %s)." % (n1, inserted))
-    head = "; %s_connect.csf - CN: 연결 + 워치독 해제 + 심볼 + 소스 경로 (원본: Path.cmm)\ndo %s\\%s_config.csf\n" % (name, dst_win, name)
+        die("connect.csf 구조가 예상과 다릅니다 (심볼 로드 %d곳, 소스 경로 삽입 %s)." % (n1, inserted))
+    head = "; %s_connect.csf - CN: 연결 + 워치독 해제 + 심볼 + 소스 경로 (기본 틀 connect.csf)\ndo %s\\%s_config.csf\n" % (name, dst_win, name)
     return head + "\n".join(out)
 
 
@@ -597,10 +681,13 @@ def print_scan(d):
 def cmd_scan(a):
     d = discover(a.repo or os.getcwd())
     print_scan(d)
+    if check_cvd(strict=False):
+        print("[CVD] %s  (과제 폴더: %s)" % (CVD_EXE, FS_PROJECTS))
 
 
 def cmd_init(a):
     # 1) 프로젝트 폴더: 기본값 = 현재 폴더
+    check_cvd(strict=True)                       # 설치가 확인돼야 과제를 만든다
     repo = a.repo or ask("[1/4] 프로젝트 폴더 (빌드 저장소)  Enter=기본값", os.getcwd())
     d = discover(repo)
     for k in ("fbl", "app", "elf", "hsm"):
@@ -643,6 +730,7 @@ def cmd_init(a):
     print("  폴더   %s" % dst_fs)
     print("  파일   %s_{config,connect,flash,flash_host,flash_hsm,verify,reset,run,check}.csf + 로더" % name)
     print("  기본틀 %s (CPU %s, %s)" % (TEMPLATE_DIR, tcpu, BANK_KO[bank]))
+    print("  CVD    %s" % CVD_EXE)
     print("  등록   %s (백업 후 다시 생성)" % os.path.join(FS_PROJECTS, "loadfile.csf"))
     if not a.yes:
         if not sys.stdin.isatty():
@@ -662,9 +750,9 @@ def cmd_init(a):
     t, n = convert_flash_csf(os.path.join(TEMPLATE_DIR, TEMPLATE_HSM), TEMPLATE_ORIGIN_WIN, dst_win)
     wtext(os.path.join(dst_fs, "%s_flash_hsm.csf" % name), t); notes += ["hsm: " + x for x in n]
     wtext(os.path.join(dst_fs, "%s_connect.csf" % name),
-          convert_path_cmm(os.path.join(TEMPLATE_DIR, "Path.cmm"), TEMPLATE_ORIGIN_WIN, dst_win, name))
-    reset = rb(os.path.join(TEMPLATE_DIR, "Reset.cmm")).decode(ENC, "replace")
-    wtext(os.path.join(dst_fs, "%s_reset.csf" % name), "; %s_reset.csf - RE: 리셋 후 main 까지 (원본: Reset.cmm)\n" % name + reset)
+          convert_connect(os.path.join(TEMPLATE_DIR, TEMPLATE_CONNECT), TEMPLATE_ORIGIN_WIN, dst_win, name))
+    reset = rb(os.path.join(TEMPLATE_DIR, TEMPLATE_RESET)).decode(ENC, "replace")
+    wtext(os.path.join(dst_fs, "%s_reset.csf" % name), "; %s_reset.csf - RE: 리셋 후 main 까지 (기본 틀 reset.csf)\n" % name + reset)
     wtext(os.path.join(dst_fs, "%s_flash.csf" % name), tpl_flash(name, dst_win))
     wtext(os.path.join(dst_fs, "%s_verify.csf" % name), tpl_verify(name, dst_win))
     wtext(os.path.join(dst_fs, "%s_run.csf" % name), tpl_entry(name, dst_win, True))
@@ -737,15 +825,9 @@ def last_step(log_fs):
     return s[-1] if s else None
 
 
-def run_cvd(entry_fs, log_fs, timeout, flash_limit, entry_ext):
+def run_cvd(entry_fs, log_fs, timeout, flash_limit):
     """CVD 를 실행하고 로그의 STEP 으로 진행을 본다.
     쓰는 중(flashing)에는 절대 끄지 않는다. 그 밖의 단계는 timeout 초 동안 진전이 없으면 끈다."""
-    if not os.path.isfile(CVD_EXE):
-        die("CVD 실행 파일이 없습니다: %s" % CVD_EXE)
-    if entry_ext == "cmm":                      # .csf 를 인자로 못 받는 경우 대비
-        alt = entry_fs[:-4] + ".cmm"
-        shutil.copyfile(entry_fs, alt)
-        entry_fs = alt
     if os.path.isfile(log_fs):
         os.remove(log_fs)
     proc = subprocess.Popen([CVD_EXE, entry_fs], cwd=os.path.dirname(CVD_EXE))
@@ -820,6 +902,7 @@ def judge(log_fs, with_flash, why, flash_limit):
 
 
 def cmd_flash(a, with_flash=True):
+    check_cvd(strict=True)
     c = prepare_cfg(a)
     d = proj_fs(a.name)
     if with_flash:
@@ -837,7 +920,7 @@ def cmd_flash(a, with_flash=True):
     write_cfg(c)
     entry = os.path.join(d, "%s_%s.csf" % (a.name, "run" if with_flash else "check"))
     log_fs = os.path.join(d, "%s_result.log" % a.name)
-    why, sec = run_cvd(entry, log_fs, a.timeout, a.flash_timeout, a.entry)
+    why, sec = run_cvd(entry, log_fs, a.timeout, a.flash_timeout)
     print("  CVD 종료: %s, %d초" % (why, sec))
     sys.exit(judge(log_fs, with_flash, why, a.flash_timeout))
 
@@ -855,8 +938,10 @@ def cmd_list(a):
 def main():
     ap = argparse.ArgumentParser(description="CVD CLI 다운로드 + 검증 (v%s)" % VERSION)
     sp = ap.add_subparsers(dest="cmd")
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--cvd-root", help="CVD 설치 폴더 (기본: %s)" % DEFAULT_ROOT)
 
-    p = sp.add_parser("init", help="과제 폴더 생성 + loadfile.csf 등록")
+    p = sp.add_parser("init", parents=[common], help="과제 폴더 생성 + loadfile.csf 등록")
     p.add_argument("--repo", help="프로젝트 폴더 (기본: 현재 폴더)")
     p.add_argument("--name", help="과제명 (예: HE1I_PSU)")
     p.add_argument("--bank", choices=("dual", "single"), help="뱅크 구성 (사용자 확인값)")
@@ -867,11 +952,11 @@ def main():
     p.add_argument("--force-mcu", action="store_true", help="MCU 계열 불일치 무시 (권장하지 않음)")
     p.add_argument("--force-bank", action="store_true", help="저장소 조사 결과와 다른 뱅크 지정 허용 (권장하지 않음)")
 
-    p = sp.add_parser("scan", help="인식 결과만 출력")
+    p = sp.add_parser("scan", parents=[common], help="인식 결과만 출력")
     p.add_argument("--repo")
 
     for cmd in ("flash", "verify"):
-        p = sp.add_parser(cmd)
+        p = sp.add_parser(cmd, parents=[common])
         p.add_argument("--name", required=True)
         if cmd == "flash":
             p.add_argument("--mode", choices=MODES, help="IMAGE(기본) / HSM / ALL")
@@ -882,10 +967,11 @@ def main():
             p.add_argument("--yes", action="store_true", help="계획 확인 후 실제로 기록")
         p.add_argument("--timeout", type=int, default=120, help="쓰기 외 단계에서 진전이 없을 때 기다리는 초")
         p.add_argument("--flash-timeout", type=int, default=900, help="쓰기 단계 한도(초). 넘어도 CVD 를 끄지 않음")
-        p.add_argument("--entry", choices=("csf", "cmm"), default="csf", help="CLI 진입 파일 확장자")
 
-    sp.add_parser("list")
+    sp.add_parser("list", parents=[common])
     a = ap.parse_args()
+    if getattr(a, "cvd_root", None):
+        set_root(os.path.abspath(a.cvd_root))
     if a.cmd == "init":
         cmd_init(a)
     elif a.cmd == "scan":
