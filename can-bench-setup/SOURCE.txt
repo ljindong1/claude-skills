@@ -1,0 +1,26 @@
+스크립트 출처
+============
+
+scripts/pycan/  (9개)
+    원본   D:\Ljindong\python-tutorial\python-can_tutorial
+    커밋   32ba7bd  (2026-09-30)  "CanDbc 명령행 — 노드 관련 결함만 보기와 결과 파일 저장"
+    복사   2026-09-30, 바이트 단위 동일 확인
+    파일   can_bench.py  CanModule.py  CanErrors.py  can_log.py  CanDbc.py
+           CanNodeTxCheck.py  CanRestbus.py  CanNm.py  CanE2E.py
+    뺀 것  WpcCan.py  ProductExample.py  can_0*.py(데모)  test_*.py  CAN_DB\  trace\
+
+scripts/canoe/canoesetup.py
+    원본   ~/.claude/skills/canoe-project-setup/scripts/canoesetup.py
+           (skills-repo 커밋 01ac75e 시점)
+    수정   1곳 — 안내문 틀 경로. 폴더가 한 단계 깊어져서
+           "..", "assets"  ->  "..", "..", "assets"
+
+projects/psu_drv.toml
+    원본   python-can_tutorial\psu_drv.toml (같은 커밋)
+
+원본이 바뀌었는지 보는 법
+    python-can_tutorial 에서
+        git log --oneline 32ba7bd..HEAD -- <위 9개 파일>
+        git status --short -- <위 9개 파일>
+    둘 다 비어 있으면 같다. 무엇이든 나오면 원본이 앞서 있다 — 다시 복사할지는
+    사용자가 정한다. 다시 복사하면 이 파일의 커밋·날짜를 고친다.
