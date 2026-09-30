@@ -249,7 +249,14 @@ python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name
 | `Build_Hook_GIT_ASEC.bat` | `assets` 바이트 그대로 | 랩 표준 훅. **수정하지 않는다.** 전용 훅이 없는 브랜치를 위한 fallback |
 | `GitPush.bat` | `assets` + `[USER]` 2줄 치환 | 빌드 결과물 자동 커밋·push |
 | `Build_Hook_<차종>.bat` | 표준 훅에서 생성 | ⭐ **Job이 실제로 부르는 훅.** 표준 훅 + `PostPackage` 호출 1블록 |
-| `PostPackage.bat` | `assets` 바이트 그대로 | `Build_all.bat`의 `[Post-build] Archiving` 블록. `Debug\OEUK_xxxx\` 차종명 산출물과 `rom_<버전>\`(aSIMS 서명 입력) 생성 |
+| `PostPackage.bat` | `assets` 바이트 그대로 | `Build_all.bat`의 `[Post-build] Archiving` 블록 기반. **버전별 폴더** `Debug\OEUK_xxxx\<버전>\`에 차종명 산출물(`_Writing.s19` 등)과 `rom_<버전>\`(aSIMS 서명 입력) 생성 |
+
+> 📁 **산출물 폴더는 버전별로 쌓인다**
+>
+> `<버전>`은 `PJ_Define.h`의 해당 `OEUK_*` 블록 `SOFTWARE_VERSION_0~4` 다섯 글자다(예: `26810`). 같은 버전으로 다시 빌드하면 그 버전 폴더만 지우고 새로 만들고, 다른 버전 폴더는 그대로 둔다. `OEUK_xxxx\` 바로 아래의 파일·`rom_*` 폴더(옛 평면 구조)는 정리한다. 버전을 읽지 못하면 `UNKNOWN\`에 넣고 `rom` 패키징은 건너뛴다.
+>
+> - CVD 등 디버거 다운로드 경로가 `Debug\OEUK_xxxx\<버전>\<차종>_psu_app_vX_Y_Z_Writing.s19`가 되므로 버전을 올리면 디버거 설정 경로도 바꿔야 한다.
+> - 로컬 `Build_all.bat`은 수정하지 않으므로 여전히 `OEUK_xxxx\` 전체를 지우고 평면 구조로 만든다. Jenkins 결과는 `git pull`로 받도록 안내한다.
 
 > 💡 **왜 표준 훅을 고치지 않고 전용 훅을 따로 두는가**
 >
