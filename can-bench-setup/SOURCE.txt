@@ -15,6 +15,9 @@ scripts/canoe/canoesetup.py
     수정   1곳 — 안내문 틀 경로. 폴더가 한 단계 깊어져서
            "..", "assets"  ->  "..", "..", "assets"
 
+scripts/project_info.py
+    스킬 자체 스크립트 (복사본 아님). 프로젝트 폴더에서 기본정보를 읽는다.
+
 projects/psu_drv.toml
     원본   python-can_tutorial\psu_drv.toml (같은 커밋)
 

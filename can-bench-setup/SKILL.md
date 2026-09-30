@@ -1,6 +1,6 @@
 ---
 name: can-bench-setup
-description: 실험대의 ECU 가 CAN 을 DB 대로 보내는지 확인하는 스킬. 모드가 둘이다. 기본(매개변수 없음)은 python-can 모드로, Vector 장비(VN1640A)에 파이썬으로 직접 붙어 레스트버스로 깨우고 받은 프레임을 DBC 와 대조(주기·길이·FD 형식·카운터·CRC)한다. 설정은 차종별 .toml 하나다. 매개변수 `canoe` 를 주면 CANoe 모드로, 통폴더에서 차종 cfg 와 참조 파일만 뽑아 단독 컨피그를 만들고 저장소 현행 DB 로 갱신·검증하며 CANoe COM 으로 확인·측정한다. 사용자가 "CAN 벤치", "can-bench", "CAN 검사 돌려줘", "새 빌드 CAN 나오는지 봐줘", "DB 대로 나오나", "레스트버스로 깨워줘", "주기 맞나", "CRC 맞나", "벤치 설정 만들어줘", "새 차종 toml", "CAN 이 안 나와", "에러 프레임" 등을 말하면 python-can 모드, "CANoe 컨피그 뽑아줘", "CANoe 설정 만들어줘", "cfg 검증", "CDD 물려 있나", "CANoe 열어서 확인" 처럼 CANoe 를 콕 집으면 CANoe 모드다. Claude Code CLI(사용자 PC) 전용. CVD/T32 보드 라이팅은 cvd-project 담당이다.
+description: 실험대의 ECU 가 CAN 을 DB 대로 보내는지 확인하는 스킬. 모드가 둘이다. 기본(매개변수 없음)은 python-can 모드로, Vector 장비(VN1640A)에 파이썬으로 직접 붙어 레스트버스로 깨우고 받은 프레임을 DBC 와 대조(주기·길이·FD 형식·카운터·CRC)한다. 설정은 차종별 .toml 하나다. 프로젝트 폴더(예: psu_master)에서 부르면 차종·빌드에 들어간 DB·보율·시험 대상 노드를 그 폴더에서 읽어, 시작할 때 필요한 것만 한 번에 묻는다. 매개변수 `canoe` 를 주면 CANoe 모드로, 통폴더에서 차종 cfg 와 참조 파일만 뽑아 단독 컨피그를 만들고 저장소 현행 DB 로 갱신·검증하며 CANoe COM 으로 확인·측정한다. 사용자가 "CAN 벤치", "can-bench", "CAN 검사 돌려줘", "새 빌드 CAN 나오는지 봐줘", "DB 대로 나오나", "레스트버스로 깨워줘", "주기 맞나", "CRC 맞나", "벤치 설정 만들어줘", "새 차종 toml", "CAN 이 안 나와", "에러 프레임" 등을 말하면 python-can 모드, "CANoe 컨피그 뽑아줘", "CANoe 설정 만들어줘", "cfg 검증", "CDD 물려 있나", "CANoe 열어서 확인" 처럼 CANoe 를 콕 집으면 CANoe 모드다. Claude Code CLI(사용자 PC) 전용. CVD/T32 보드 라이팅은 cvd-project 담당이다.
 ---
 
 # can-bench-setup
@@ -20,9 +20,14 @@ ECU 가 CAN 을 **DB 대로 보내는지** 실험대에서 확인한다. 도구�
 
 ## 공통 절대 규칙
 
-- **버스로 송신하는 일은 매번 사용자에게 묻고 한다.** python-can 의 `--run`,
+- **필요한 것은 시작할 때 한 번에 묻는다.** python-can 모드는 설정·DB·실행
+  범위·실물 ECU 를 처음에 AskUserQuestion 한 번으로 묻고, 그 뒤로는 답대로
+  끝까지 간다 (`references/pycan.md` ②). 중간에 멈추는 것은 오류이거나
+  답과 다른 상황을 만났을 때뿐이다.
+- **버스로 송신하는 일은 실행마다 허락을 받는다.** python-can 의 `--run`,
   CANoe 의 `run` 이 여기에 든다. 레스트버스·시뮬레이션 노드가 실제 버스로
-  프레임을 보낸다. 한 번 허락받았다고 다음 실행까지 허락된 것이 아니다.
+  프레임을 보낸다. python-can 모드는 시작 질문에서 송신을 고른 것이 그
+  실행의 허락이다. 한 번 허락받았다고 다음 실행까지 허락된 것이 아니다.
 - **저장소(`psu_app`)는 읽기만 한다.** DB 경로와 보율의 근거로 쓸 뿐이다.
 - **제어기가 다르면 = 다른 프로젝트다.** 다른 프로젝트의 설정(.toml)이나
   CANoe 컨피그를 도너로 쓰지 않는다. 판단 근거는 저장소
@@ -31,13 +36,20 @@ ECU 가 CAN 을 **DB 대로 보내는지** 실험대에서 확인한다. 도구�
   저장소에 없는 값은 비워 두고 묻는다. 틀린 값은 엉뚱한 ID 를 버스로 보낸다.
 - 스크립트를 고쳐서 문제를 피하지 않는다. 스크립트 결함이면 보고한다.
 
-## 공통 근거 — 저장소에서 읽는 것
+## 공통 근거 — 프로젝트 폴더에서 읽는 것
+
+**스킬은 프로젝트 폴더(예: `D:\Mobase\psu_master`)에서 부르는 것이 기본이다.**
+python-can 모드는 시작할 때 `scripts/project_info.py` 로 그 폴더에서 아래를
+읽어 질문의 선택지와 추천을 만든다. 읽기만 한다.
 
 | 항목 | 출처 |
 |---|---|
 | 차종 · 제어기 | `References\01_HSM_Framework\*.sre` 의 `rel_<차종>_<제어기>_V` |
+| 빌드 변형 · 브랜치 | `PJ_Define.h` 의 켜진 `#define OEUK_*` · git |
+| **빌드에 들어간 DB** | `Configuration\System\DBImport\<망>_version.h` 의 `Path` — 판정 기준 DB 의 추천값 |
 | 현행 CAN DB | `References\DB\` **최상위**, 같은 버스 DB 가 여럿이면 **날짜 접두사가 가장 늦은 것** |
-| 보율 · 샘플포인트 | `Configuration\Ecu\Mcal\Ecud_Can.arxml` |
+| 보율 · 샘플포인트 · BRS | `Configuration\Ecu\Mcal\Ecud_Can.arxml` (Seg 값으로 샘플포인트 계산) |
+| 시험 대상 노드 | `Ecud_CanNm.arxml` 의 `CanNmNodeId` → DB 에서 그 번호의 NM 메시지를 보내는 노드 |
 | 네트워크 구성 | `Configuration\System\DBImport\BCAN.arxml` · `L1CAN.arxml` |
 
 구버전은 보통 `unused\` 로 내려가지만, 최상위에 옛 판이 남아 있기도 하다
