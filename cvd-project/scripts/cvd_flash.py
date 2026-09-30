@@ -896,8 +896,28 @@ def convert_connect(src_file, src_folder_win, dst_win, name):
             inserted = True
     if n1 != 1 or not inserted:
         die("connect.csf 구조가 예상과 다릅니다 (심볼 로드 %d곳, 소스 경로 삽입 %s)." % (n1, inserted))
-    head = "; %s_connect.csf - CN: 연결 + 워치독 해제 + 심볼 + 소스 경로 (기본 틀 connect.csf)\ndo %s\\%s_config.csf\n" % (name, dst_win, name)
-    return head + "\n".join(out)
+    t = "\n".join(out)
+    # 기본 틀은 CPU 를 정하기 전에 sys.up 하고, 연결이 끝난 뒤에야 ELF·소스 경로를 읽는다.
+    # 그러면 연결이 실패했을 때 심볼·소스 창이 예전 ELF 그대로 남는다(버전 폴더를 골라도 반영 안 됨).
+    # 순서를 바꾼다: CPU 지정 → ELF 확인·로드 + 소스 경로 (연결 없이 가능, CVD 에서 확인) → 연결.
+    main_re = re.compile(r"(\n([ \t]*)sys\.down[ \t]*\n)[ \t]*sys\.up[ \t]*\n([ \t]*gosub initCpu[ \t]*\n)"
+                         r"([ \t]*gosub haltSys[ \t]*\n)((?:[ \t]*;[^\n]*\n)*)[ \t]*gosub PathSet[ \t]*\n", re.I)
+    m = main_re.search(t)
+    if not m:
+        die("connect.csf 구조가 예상과 다릅니다 (Main 의 sys.up → initCpu → haltSys → PathSet 순서를 찾지 못함).")
+    ind = m.group(2)
+    t = t[:m.start()] + (m.group(1) + m.group(3) +
+                         ind + "gosub PathSet   ; [cvd_flash] 연결 전에 config 의 ELF·소스 경로 (연결 실패해도 반영)\n" +
+                         ind + "sys.up\n" + m.group(4) + m.group(5)) + t[m.end():]
+    check = ("\tIF OS.FILE(\"&cfg_elf\")\n\t(\n\t)\n\tELSE\n\t(\n"
+             "\t\tprint \"PA: ELF not found - &cfg_elf\"\n"
+             "\t\tDIALOG.OK \"ELF not found: &cfg_elf - run: cvd_flash.py set --name %s --version <version>\"\n"
+             "\t\tENDDO\n\t)\n" % name)
+    t, n2 = re.subn(r"(PathSet:[ \t]*\n[ \t]*\([ \t]*\n)", lambda mm: mm.group(1) + "\t; [cvd_flash] ELF 가 없으면 옛 심볼로 진행하지 않는다\n" + check, t, count=1)
+    if n2 != 1:
+        die("connect.csf 구조가 예상과 다릅니다 (PathSet 블록을 찾지 못함).")
+    head = "; %s_connect.csf - PA: 심볼·소스 경로(config 의 버전 ELF) → 연결 + 워치독 해제 (기본 틀 connect.csf)\ndo %s\\%s_config.csf\n" % (name, dst_win, name)
+    return head + t
 
 
 # ============================================================== 명령: scan / init
@@ -962,10 +982,13 @@ def cmd_init(a):
     check_cvd(strict=True)                       # 설치가 확인돼야 과제를 만든다
     repo = a.repo or ask("[1/4] 프로젝트 폴더 (빌드 저장소)  Enter=기본값", os.getcwd())
     d = discover(repo, a.version)
-    if not (a.app or a.elf):
-        if d["need_version"]:
-            print_scan(d)
-        d = pick_version(d, a)
+    notes_ver = []
+    if not (a.app or a.elf) and d["need_version"]:
+        # init 은 묻지 않고 가장 낮은 버전으로 config 를 만든다. 다른 버전은 set/flash --version 으로 바꾼다.
+        low = d["versions"][0]
+        d = discover(repo, low)
+        notes_ver.append("버전 폴더 %d개(%s) — 가장 낮은 %s 로 설정. 바꾸려면 set --name <과제> --version <버전>"
+                         % (len(d["versions"]), ", ".join(d["versions"]), low))
     for k in ("fbl", "app", "elf", "hsm"):
         v = getattr(a, k)
         if v:
@@ -973,9 +996,14 @@ def cmd_init(a):
             d["cands"][k] = [d[k]]
     tcpu = template_check()
     print_scan(d)
-    missing = [k for k in ("fbl", "app", "elf") if not d[k]]
-    if missing:
-        die("찾지 못한 이미지: %s  → --%s <경로> 로 지정하세요." % (", ".join(missing), missing[0]))
+    if not d["fbl"]:
+        die("찾지 못한 이미지: FBL  → --fbl <경로> 로 지정하세요.")
+    if not (d["app"] and d["elf"]):
+        # 빌드 결과(APP·ELF)가 아직 없으면 비워 두고 과제는 만든다. 빌드가 나오면 set/flash --version 으로 채운다.
+        d["app"], d["elf"] = d["app"] or "", d["elf"] or ""
+        notes_ver.append("빌드 결과(APP·ELF)가 없어 config 에 비워 둠 — git pull 후 set --name <과제> --version <버전>")
+    for n in notes_ver:
+        print("[참고] " + n)
 
     # 2) MCU — 기본 틀과 계열이 같아야 한다
     if not (d["mcu"] or "").upper().startswith(TEMPLATE_MCU) and not a.force_mcu:
@@ -1050,7 +1078,14 @@ def cmd_init(a):
     if bak:
         print("  - loadfile.csf 백업: %s" % bak)
     print_shortcut(lnk)
-    print("다음: python cvd_flash.py flash --name %s" % name)
+    for n in notes_ver:
+        print("[참고] " + n)
+    ver = img_version(d["app"])
+    if not d["app"]:
+        print("다음: 빌드 결과를 받은 뒤 python cvd_flash.py set --name %s --version <버전>" % name)
+    else:
+        print("config 버전: %s" % (ver or "(버전 폴더 아님)"))
+        print("다음: 보드 연결 확인 python cvd_flash.py verify --name %s  →  기록 flash --name %s" % (name, name))
 
 
 # ============================================================== 시작 바로가기
@@ -1115,15 +1150,19 @@ def cmd_refresh(a):
     read_cfg(a.name)                              # 과제가 있는지 확인
     d = proj_win(a.name)
     files = {"flash": tpl_flash(a.name, d), "verify": tpl_verify(a.name, d),
-             "run": tpl_entry(a.name, d, True), "check": tpl_entry(a.name, d, False)}
+             "run": tpl_entry(a.name, d, True), "check": tpl_entry(a.name, d, False),
+             "connect": convert_connect(os.path.join(TEMPLATE_DIR, TEMPLATE_CONNECT), TEMPLATE_ORIGIN_WIN, d, a.name)}
     print("[refresh] %s" % proj_fs(a.name))
     for k in files:
-        print("  다시 생성  %s_%s.csf" % (a.name, k))
+        print("  다시 생성  %s_%s.csf%s" % (a.name, k, " (백업 후)" if k == "connect" else ""))
     print("  다시 생성  %s (백업 후)" % os.path.join(FS_PROJECTS, "loadfile.csf"))
-    print("  유지       %s_config.csf, flash_host/hsm, connect, reset" % a.name)
+    print("  유지       %s_config.csf, flash_host/hsm, reset" % a.name)
     if a.dry_run:
         print("[dry-run] 파일을 만들지 않았습니다.")
         return
+    conn = os.path.join(proj_fs(a.name), "%s_connect.csf" % a.name)
+    if os.path.isfile(conn):
+        shutil.copy2(conn, conn + ".bak_" + time.strftime("%Y%m%d_%H%M%S"))
     for k, t in files.items():
         wtext(os.path.join(proj_fs(a.name), "%s_%s.csf" % (a.name, k)), t)
     bak = rebuild_loadfile()
@@ -1197,9 +1236,12 @@ def prepare_cfg(a):
             hint = ""
             if is_flash:
                 hint = "\n       저장소를 git pull 했는지 확인하고, 경로가 바뀌었으면 --rescan 또는 --%s <경로>" % k
+            elif k in ("app", "elf") and not c[k]:
+                hint = ("\n       config 에 %s 가 비어 있습니다(init 때 빌드 결과 없음). "
+                        "set --name %s --version <버전> 으로 먼저 채우세요." % (k.upper(), a.name))
             elif k in ("app", "elf"):
-                hint = ("\n       마지막으로 기록한 이미지가 저장소에서 없어졌습니다(버전 폴더 정리·브랜치 변경)."
-                        " 검증은 기록한 이미지와 비교해야 하므로 flash 로 다시 기록한 뒤 검증하세요.")
+                hint = ("\n       config 의 이미지가 저장소에 없습니다(버전 폴더 정리·브랜치 변경). "
+                        "set --name %s --version <버전> 으로 경로를 맞추세요. 보드에 쓴 것과 다른 버전이면 검증은 불일치로 나옵니다." % a.name)
             die("%s 파일이 없습니다: %s%s" % (k.upper(), c[k] or "(미지정)", hint))
     return c
 
