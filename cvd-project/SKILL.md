@@ -27,6 +27,7 @@ Jenkins(`PostPackage.bat`)는 APP 산출물을 `Debug\OEUK_xxxx\<버전>\` 에 �
   - **set**: `set --name <과제명> --version <버전>` — 보드에 쓰지 않고 config 만 바꾼다(검증 지점 재계산). 화면 PD·PA 는 누를 때마다 config 를 읽으므로 과제를 다시 고를 필요 없다. 확인 없이 실행해도 된다.
 - config 의 버전 폴더가 없어졌으면(정리, 로컬 `Build_all.bat` 은 옛 평면 구조로 폴더 전체를 지움) flash/set/verify 는 **아무것도 쓰지 않고 멈춘다** → 목록에서 다시 고른다.
 - 같은 버전을 Jenkins 가 다시 빌드하면(경로 같고 내용만 바뀜) 도구가 `[알림] … 다시 빌드됐습니다` 를 띄우고 검증 지점을 다시 계산한다. **화면 PD 만 쓸 때는 재빌드 뒤 `set --version <같은 버전>` 한 번**을 안내한다(PD 는 옛 기준으로 검증해 잘못 FAILED 가 날 수 있다).
+- **검증 지점은 다른 버전과 구별된다.** 버전 폴더가 여러 개면 16개 중 앞 4개를 다른 버전 APP 와 내용이 다른 워드로 고른다(앞쪽 차이 우선 — HE1i 는 `0x10059004` 에 SW 버전 문자열 "2681"/"2682"). 이미지 전체에서 고르게 뽑은 지점만으로는 26810/26820 이 구별되지 않아 다른 버전이 들어 있어도 OK 가 났다(2026-09-30 실기). 불일치가 이 4곳에만 나면 **보드에 다른 버전이 들어 있다는 뜻**이니, 읽은 값을 다른 버전 이미지와 비교해 어느 버전인지 알려 준다. 계산 방식이 바뀐 뒤 기존 과제는 `set --name <과제명>`(인자 없이) 한 번으로 검증 지점을 다시 계산한다.
 - 버전 폴더가 없는 저장소(평면 구조)는 예전처럼 가장 최근 파일을 고르고 `--rescan` 으로 다시 찾는다.
 
 ## 폴더 구조 (도구가 만든다)
@@ -147,7 +148,8 @@ set   --name <과제명> [--version <버전>] [--rescan] [--fbl/--app/--elf/--hs
 - 확인됨: `CVD Projects` 바로가기로 켜면 ED/PS 가 붙음 → PS → PD/Ed/PA/VF/RE 툴바. PD 창 표시·경로 3칸 채움·Image/Hsm 선택에 따른 칸 잠금·파일 선택 버튼 동작. `file load start` → 소거 질문 → `PD: mode=IMAGE erase_data=YES` → `PD: HOST <FBL> / <APP>` 까지 창의 값이 그대로 넘어감.
 - 보드 없이 실행하면 `flash_host.csf` 의 `initCpu` 안 `Connect`(391행)에서 `0xEC2` 로 멈춘다. 소거(`eraseFlash`)·기록(`writeFw`)보다 앞이라 아무것도 쓰지 않는다. 결과 창은 뜨지 않는 것이 정상.
 - 버전 폴더(2026-09-30, 보드 미연결): PD 창 첫 줄 `APP version 26810 (config)` 와 APP 칸 `...\26810\...` 확인 → `set --version 26820` 뒤 PD 를 다시 누르자 `26820` 과 `...\26820\...` 로 따라옴(과제 재선택 없이). DIALOG 정의 안(HEADER)에서는 `&매크로`가 안 풀리고, 칸 이름 `VER` 에는 `dialog.set` 값이 안 들어갔다 → `ADD0` 칸으로 표시.
-- 남음(보드 필요): 1~4, 실제 기록 후 `Flash + Verify OK (APP <버전>)` 결과 창, PA → RE 로 main 도달, PD 의 `File not found` 창(config APP 가 없을 때).
+- 보드 연결(2026-09-30): PA 연결 성공(`IDCODE 0x6BA00477 → 0x6BA02477`, 26820 ELF 로드). CLI verify 가 `STEP=done` 까지 8초 — 항목 1~3 확인. 고르게 뽑은 16지점만으로는 전부 일치했지만 버전 구별 지점을 넣자 4곳 불일치 → 보드는 26810 (읽은 값이 26810 이미지와 일치). 첫 연결 실패 `Already port opened (0xF0000023)` = 다른 가상 데스크톱에 CVD 가 하나 더 떠 있었음, 이어진 `JTAG signals are something wrong ... Reset CodeViser (0xEC2)` 는 CVD 를 강제 종료한 뒤라 CodeViser USB 를 뽑았다 꽂아 해결.
+- 남음(보드 필요): 4, 실제 기록 후 `Flash + Verify OK (APP <버전>)` 결과 창, PA → RE 로 main 도달, PD 의 `File not found` 창(config APP 가 없을 때).
 
 ## 범위 밖
 

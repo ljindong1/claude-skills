@@ -457,6 +457,52 @@ def verify_points(paths, per_image=8):
     return pts[:MAX_POINTS]
 
 
+def version_points(app, others, n=4):
+    """버전 폴더가 여러 개일 때: 이 APP 가 다른 버전 APP 와 다른 주소(워드)를 고른다.
+    전체에서 고르게 뽑은 지점만으로는 버전끼리 구별되지 않는다 (26810/26820 은 1.5KB 만 다르고
+    그중 0x10059004 에 SW 버전 문자열이 있다). 앞쪽 차이(상수·버전 영역)를 먼저, 나머지는 고르게."""
+    if not app or not os.path.isfile(app):
+        return []
+    mine = [(a, bytes(d)) for a, d in load_image(app)]
+
+    def word(addr):
+        for a, d in mine:
+            if a <= addr and addr + 4 <= a + len(d) and VERIFY_RANGE[0] <= addr < VERIFY_RANGE[1]:
+                return struct.unpack_from("<I", d, addr - a)[0]
+        return None
+
+    picked = []
+    for ver, other in others:
+        if not os.path.isfile(other):
+            continue
+        theirs = {a: bytes(d) for a, d in load_image(other)}
+        runs = []                                   # 다른 바이트가 있는 워드 주소 (차이 구간마다 첫 워드)
+        for a, d in mine:
+            t = theirs.get(a)
+            if t is None:
+                continue
+            m = min(len(d), len(t))
+            i, prev = 0, None
+            while i < m:
+                if d[i] != t[i]:
+                    w = (a + i) & ~3
+                    if prev is None or w > prev + 4:
+                        runs.append(w)
+                    prev = w
+                    i = w + 4 - a                   # 같은 워드는 건너뜀
+                else:
+                    i += 1
+        runs = [w for w in runs if word(w) is not None]
+        if not runs:
+            continue
+        k = min(n, len(runs))
+        sel = runs[:min(2, k)] + [runs[len(runs) * j // (k - 1)] for j in range(1, k - 1)] if k > 2 else runs[:k]
+        for w in sel:
+            if w not in [p[0] for p in picked]:
+                picked.append((w, word(w), "%s (vs %s)" % (os.path.basename(app), ver)))
+    return picked[:n]
+
+
 # ============================================================== config.csf 읽고 쓰기
 CFG_KEYS = ("name", "dir", "cpu", "bank", "mode", "erase", "repo", "version",
             "fbl", "app", "elf", "hsm", "src", "log", "template", "app_stamp")
@@ -481,7 +527,12 @@ def read_cfg(name):
 def write_cfg(c):
     name = c["name"]
     c["app_stamp"] = stamp(c.get("app"))           # 검증 지점을 계산한 APP 파일 (재빌드 감지)
-    pts = verify_points([c.get("fbl"), c.get("app")])
+    vp = []
+    if c.get("version") and c.get("repo"):         # 다른 버전과 구별되는 지점을 먼저 넣는다
+        vs = find_versions(c["repo"])
+        vp = version_points(c.get("app"), [(v, i["app"]) for v, i in sorted(vs.items()) if v != c["version"]])
+    base = [p for p in verify_points([c.get("fbl"), c.get("app")]) if p[0] not in [q[0] for q in vp]]
+    pts = (vp + base)[:MAX_POINTS]
     names = " ".join("&cfg_%s" % k for k in CFG_KEYS)
     vnames = " ".join("&cfg_va%d &cfg_ve%d" % (i, i) for i in range(1, MAX_POINTS + 1))
     L = [
@@ -1399,9 +1450,8 @@ def cmd_set(a):
     changed = [k for k in ("version", "fbl", "app", "elf", "hsm") if (old[k] or "") != (c[k] or "")]
     for k in changed:
         print("  바뀜 %-7s %s\n       %-7s → %s" % (k.upper(), old[k] or "(없음)", "", c[k] or "(없음)"))
-    if not changed and not c["_rebuilt"] and old["app_stamp"]:
-        print("  바뀐 것 없음.")
-        return
+    if not changed and not c["_rebuilt"]:
+        print("  경로·버전은 그대로 — 검증 지점만 다시 계산합니다.")
     if a.dry_run:
         print("[dry-run] config 를 바꾸지 않았습니다.")
         return
