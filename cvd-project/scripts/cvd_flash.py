@@ -936,6 +936,10 @@ def cmd_list(a):
 
 # ============================================================== main
 def main():
+    # 파이프·리다이렉트로 실행하면 윈도우 코드페이지(cp949)가 쓰여 '—' 등에서 멈춘다. 출력은 UTF-8 로 고정.
+    for s in (sys.stdout, sys.stderr):
+        if hasattr(s, "reconfigure"):
+            s.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description="CVD CLI 다운로드 + 검증 (v%s)" % VERSION)
     sp = ap.add_subparsers(dest="cmd")
     common = argparse.ArgumentParser(add_help=False)
