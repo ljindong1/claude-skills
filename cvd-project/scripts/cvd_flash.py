@@ -15,6 +15,7 @@ cvd_flash.py - CVD(CodeViser) CLI 다운로드 + 검증
   python cvd_flash.py init --repo D:\\w\\psu_app --name HE1I_PSU --bank dual --yes --dry-run
   python cvd_flash.py flash --name HE1I_PSU                 (계획만 출력)
   python cvd_flash.py flash --name HE1I_PSU --yes           (FBL+APP, 데이터 영역까지 소거)
+  python cvd_flash.py flash --name HE1I_PSU --version 26820 --yes   (버전 폴더가 여러 개일 때)
   python cvd_flash.py flash --name HE1I_PSU --mode ALL --keep-data --rescan --yes
   python cvd_flash.py verify --name HE1I_PSU
   (CVD 가 기본 경로 C:\\JnDTech\\CVI\\CVD 에 없으면 모든 명령에 --cvd-root <설치 폴더>)
@@ -35,7 +36,7 @@ import subprocess
 import sys
 import time
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 # 실제 파일 위치(FS)와 .csf 안에 적힐 윈도우 경로(WIN)를 나눈다. 평소에는 같다.
 # --cvd-root 로 바꿀 수 있다 (set_root). CVD_ROOT / CVD_ROOT_WIN / CVD_EXE 환경변수는 시험용이다.
@@ -152,18 +153,39 @@ SKIP_DIRS = {".git", ".svn", "node_modules", "__pycache__", ".vs"}
 BANK_DIR_RE = re.compile(r"^(dual|single)[_\- ]?bank$", re.I)
 
 
+VER_DIR_RE = re.compile(r"^(\d+|UNKNOWN)$", re.I)
+
+
 def _by_time(files):
     """최근 수정 순. 첫 번째가 기본 선택이다."""
     return sorted(files, key=os.path.getmtime, reverse=True)
 
 
-def discover(repo):
+def img_version(p):
+    """Debug\\OEUK_xxxx\\<버전>\\파일 이면 <버전>, 아니면 None (PostPackage.bat 버전별 폴더)."""
+    if not p:
+        return None
+    ver_dir = os.path.dirname(p)
+    if VER_DIR_RE.match(os.path.basename(ver_dir)) and \
+            os.path.basename(os.path.dirname(ver_dir)).upper().startswith("OEUK_"):
+        return os.path.basename(ver_dir)
+    return None
+
+
+def _ver_key(v):
+    return (0, int(v)) if v.isdigit() else (1, 0)
+
+
+def discover(repo, version=None):
+    """저장소에서 이미지를 찾는다. APP·ELF 가 버전별 폴더에 있으면 버전 하나를 정해 그 폴더에서만 고른다.
+    버전 폴더가 여러 개인데 version 이 없으면 고르지 않고 d["need_version"] = True 로 돌려준다."""
     repo = os.path.abspath(repo)
     if not os.path.isdir(repo):
         die("프로젝트 폴더가 없습니다: " + repo)
     imgs, elfs, bank_dirs = [], [], []
     for root, dirs, files in os.walk(repo):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        # rom_<버전>\ 은 aSIMS 서명 입력(기록용 아님)
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.lower().startswith("rom_")]
         for dn in dirs:
             if BANK_DIR_RE.match(dn):
                 bank_dirs.append(os.path.join(root, dn))
@@ -181,8 +203,23 @@ def discover(repo):
     app_w = [p for p in rest if "_writing" in low(p)] or [p for p in rest if "app" in low(p)] or rest
     elf = [p for p in elfs if "fbl" not in low(p) and "hsm" not in low(p)]
     elf = [p for p in elf if "app" in low(p)] or elf
+    versions = sorted({img_version(p) for p in app_w if img_version(p)}, key=_ver_key)
+    ver, need = None, False
+    if version:
+        if version not in versions:
+            die("버전 %s 폴더가 없습니다. 저장소에 있는 버전: %s" % (version, ", ".join(versions) or "없음"))
+        ver = version
+    elif len(versions) == 1:
+        ver = versions[0]
+    elif len(versions) > 1:
+        need = True
+    if ver:                                      # APP·ELF 는 같은 버전 폴더에서
+        app_w = [p for p in app_w if img_version(p) == ver]
+        elf = [p for p in elf if img_version(p) == ver]
+    elif need:
+        app_w, elf = [], []
     cands = {"fbl": _by_time(fbl), "hsm": _by_time(hsm), "elf": _by_time(elf), "app": _by_time(app_w)}
-    d = {"repo": repo, "cands": cands}
+    d = {"repo": repo, "cands": cands, "versions": versions, "version": ver, "need_version": need}
     for k in ("fbl", "hsm", "elf"):
         d[k] = cands[k][0] if cands[k] else None
     d["app"] = cands["app"][0] if cands["app"] else d["elf"]      # 기록용 APP (없으면 ELF 로 기록)
@@ -778,10 +815,36 @@ def convert_connect(src_file, src_folder_win, dst_win, name):
 BANK_KO = {"dual": "듀얼뱅크", "single": "싱글뱅크"}
 
 
+def version_list(d, last=None):
+    return ", ".join(v + (" (직전 기록)" if v == last else "") for v in d["versions"])
+
+
+def pick_version(d, a, last=None):
+    """버전 폴더가 여러 개인데 --version 이 없으면: 대화형이면 묻고, 아니면 목록을 보여 주고 멈춘다."""
+    if not d["need_version"]:
+        return d
+    print("[버전 선택] 저장소에 버전 폴더가 여러 개 있습니다: %s" % version_list(d, last))
+    v = None
+    if sys.stdin.isatty():                       # 윈도우는 NUL 도 isatty 로 보이므로 EOF 도 처리한다
+        dflt = last if last in d["versions"] else None
+        try:
+            v = input("  기록할 버전%s > " % (" [%s]" % dflt if dflt else "")).strip() or dflt
+        except EOFError:
+            print()
+    if not v:
+        die("버전을 지정하세요: --version <%s>" % "|".join(d["versions"]))
+    return discover(d["repo"], v)
+
+
 def print_scan(d):
     print("[프로젝트 폴더] %s" % d["repo"])
+    if d["versions"]:
+        if d["version"]:
+            print("  %-10s %s  (저장소에 있는 버전: %s)" % ("버전", d["version"], version_list(d)))
+        else:
+            print("  %-10s 선택 필요 — 버전 폴더 여러 개: %s  → --version <버전>" % ("버전", version_list(d)))
     for k, lab in (("fbl", "FBL"), ("app", "APP(기록)"), ("elf", "ELF(심볼)"), ("hsm", "HSM")):
-        print("  %-10s %s" % (lab, d[k] or "없음"))
+        print("  %-10s %s" % (lab, d[k] or ("버전 선택 후 정함" if d["need_version"] and k in ("app", "elf") else "없음")))
         others = [p for p in d["cands"].get(k, []) if p != d[k]]
         if others:
             print("  %-10s   (다른 후보 %d개 — 가장 최근 파일을 골랐음. 차종·사양이 맞는지 확인)" % ("", len(others)))
@@ -799,7 +862,7 @@ def print_scan(d):
 
 
 def cmd_scan(a):
-    d = discover(a.repo or os.getcwd())
+    d = discover(a.repo or os.getcwd(), a.version)
     print_scan(d)
     if check_cvd(strict=False):
         print("[CVD] %s  (과제 폴더: %s)" % (CVD_EXE, FS_PROJECTS))
@@ -809,7 +872,11 @@ def cmd_init(a):
     # 1) 프로젝트 폴더: 기본값 = 현재 폴더
     check_cvd(strict=True)                       # 설치가 확인돼야 과제를 만든다
     repo = a.repo or ask("[1/4] 프로젝트 폴더 (빌드 저장소)  Enter=기본값", os.getcwd())
-    d = discover(repo)
+    d = discover(repo, a.version)
+    if not (a.app or a.elf):
+        if d["need_version"]:
+            print_scan(d)
+        d = pick_version(d, a)
     for k in ("fbl", "app", "elf", "hsm"):
         v = getattr(a, k)
         if v:
@@ -1009,11 +1076,25 @@ def rebuild_loadfile():
 def prepare_cfg(a):
     """저장된 설정 + 이번 인자. 파일에 쓰지는 않는다 (flash 는 --yes 일 때만 쓴다)."""
     c = read_cfg(a.name)
-    if getattr(a, "rescan", False):
-        d = discover(c["repo"])
-        for k in ("fbl", "app", "elf", "hsm"):
-            if d[k]:
-                c[k] = d[k]
+    c["last_version"] = img_version(c["app"])
+    c["version"] = c["last_version"]
+    is_flash = hasattr(a, "mode")
+    if is_flash:
+        # flash 는 매번 저장소를 다시 본다. 버전 폴더가 여러 개면 --version 으로 고르게 한다.
+        d = discover(c["repo"], a.version)
+        if getattr(a, "rescan", False):          # FBL·HSM 까지 최신 재탐색
+            for k in ("fbl", "hsm"):
+                if d[k]:
+                    c[k] = d[k]
+        if not (a.app or a.elf):
+            if d["versions"]:
+                d = pick_version(d, a, c["last_version"])
+                c["app"], c["elf"], c["version"] = d["app"], d["elf"], d["version"]
+                c["versions"] = d["versions"]
+            elif a.rescan:                       # 버전 폴더가 없는 저장소: 예전처럼 최신 파일
+                for k in ("app", "elf"):
+                    if d[k]:
+                        c[k] = d[k]
     for k in ("fbl", "app", "elf", "hsm"):
         v = getattr(a, k, None)
         if v:
@@ -1024,7 +1105,13 @@ def prepare_cfg(a):
     need = {"IMAGE": ("fbl", "app"), "HSM": ("hsm",), "ALL": ("fbl", "app", "hsm")}.get(c["mode"], ("fbl", "app"))
     for k in need + ("elf",):
         if not c[k] or not os.path.isfile(c[k]):
-            die("%s 파일이 없습니다: %s" % (k.upper(), c[k] or "(미지정)"))
+            hint = ""
+            if is_flash:
+                hint = "\n       저장소를 git pull 했는지 확인하고, 경로가 바뀌었으면 --rescan 또는 --%s <경로>" % k
+            elif k in ("app", "elf"):
+                hint = ("\n       마지막으로 기록한 이미지가 저장소에서 없어졌습니다(버전 폴더 정리·브랜치 변경)."
+                        " 검증은 기록한 이미지와 비교해야 하므로 flash 로 다시 기록한 뒤 검증하세요.")
+            die("%s 파일이 없습니다: %s%s" % (k.upper(), c[k] or "(미지정)", hint))
     return c
 
 
@@ -1111,6 +1198,9 @@ def judge(log_fs, with_flash, why, flash_limit):
     return EXIT_OK
 
 
+VERSION_HELP = "APP 버전 폴더 (Debug\\OEUK_xxxx\\<버전>\\, 예: 26810). 버전 폴더가 여러 개면 필수"
+
+
 MODE_KO = {"IMAGE": "FBL+APP", "HSM": "HSM 만", "ALL": "FBL+APP+HSM"}
 
 
@@ -1125,10 +1215,17 @@ def print_flash_options(a, c):
     print("  데이터 영역 (DTC·NvM·학습값, 워크 플래시)")
     print("   %s 지움         (인자 없음, 기본)   보드 이력을 모를 때" % mark(c["erase"] == "YES"))
     print("   %s 유지         --keep-data        고장 기록을 남긴 채 새 빌드만 올릴 때 (실기 미확인)" % mark(c["erase"] == "NO"))
-    print("  이미지")
-    print("   %s 저장된 경로  (인자 없음)" % mark(not a.rescan and not any(getattr(a, k) for k in ("fbl", "app", "hsm"))))
-    print("   %s 최신 재탐색  --rescan           새 빌드가 나왔을 때 (저장소 git pull 먼저)" % mark(a.rescan))
-    print("   %s 직접 지정    --fbl/--app/--hsm <경로>" % mark(any(getattr(a, k) for k in ("fbl", "app", "hsm"))))
+    direct = any(getattr(a, k) for k in ("fbl", "app", "elf", "hsm"))
+    vers = c.get("versions") or []
+    if vers and not (a.app or a.elf):
+        print("  APP 버전 (Debug\\OEUK_xxxx\\<버전>\\, 여러 개면 매번 고른다)")
+        for v in vers:
+            print("   %s %-12s --version %s%s" % (mark(c.get("version") == v), v, v,
+                                               "   (직전 기록)" if v == c.get("last_version") else ""))
+    print("  이미지 경로")
+    print("   %s 저장된 FBL/HSM (인자 없음)" % mark(not a.rescan and not direct))
+    print("   %s 최신 재탐색  --rescan           FBL·HSM 도 저장소에서 다시 찾음 (저장소 git pull 먼저)" % mark(a.rescan))
+    print("   %s 직접 지정    --fbl/--app/--elf/--hsm <경로>" % mark(direct))
 
 
 def cmd_flash(a, with_flash=True):
@@ -1137,9 +1234,14 @@ def cmd_flash(a, with_flash=True):
     d = proj_fs(a.name)
     if with_flash:
         print("[%s] 모드 %s, 데이터 영역(DTC·NvM) %s" % (a.name, c["mode"], "지움" if c["erase"] == "YES" else "유지"))
+        if c.get("version"):
+            print("  버전 %s%s" % (c["version"], "" if c["version"] == c["last_version"]
+                                  else "  (직전 기록 %s)" % (c["last_version"] or "없음")))
         for k in ("fbl", "app", "hsm"):
             if (k != "hsm" or c["mode"] in ("HSM", "ALL")) and (k == "hsm" or c["mode"] in ("IMAGE", "ALL")):
                 print("  %-4s %s" % (k.upper(), c[k]))
+                if k == "app":
+                    print("  %-4s %s  (PA 심볼)" % ("ELF", c["elf"]))
         if c["mode"] in ("HSM", "ALL"):
             print("  (HSM 영역은 CM4 에서 읽을 수 없어 검증은 FBL·APP 지점으로 한다)")
         if not a.yes:
@@ -1186,9 +1288,11 @@ def main():
     p.add_argument("--dry-run", action="store_true", help="생성하지 않고 계획만 출력")
     p.add_argument("--force-mcu", action="store_true", help="MCU 계열 불일치 무시 (권장하지 않음)")
     p.add_argument("--force-bank", action="store_true", help="저장소 조사 결과와 다른 뱅크 지정 허용 (권장하지 않음)")
+    p.add_argument("--version", help=VERSION_HELP)
 
     p = sp.add_parser("scan", parents=[common], help="인식 결과만 출력")
     p.add_argument("--repo")
+    p.add_argument("--version", help=VERSION_HELP)
 
     for cmd in ("flash", "verify"):
         p = sp.add_parser(cmd, parents=[common])
@@ -1198,7 +1302,8 @@ def main():
             p.add_argument("--keep-data", action="store_true", help="데이터 영역(DTC·NvM)을 지우지 않음")
             for k in ("fbl", "app", "elf", "hsm"):
                 p.add_argument("--" + k)
-            p.add_argument("--rescan", action="store_true", help="저장소에서 최신 이미지를 다시 찾음")
+            p.add_argument("--version", help=VERSION_HELP)
+            p.add_argument("--rescan", action="store_true", help="FBL·HSM 도 저장소에서 최신 이미지를 다시 찾음")
             p.add_argument("--yes", action="store_true", help="계획 확인 후 실제로 기록")
         p.add_argument("--timeout", type=int, default=120, help="쓰기 외 단계에서 진전이 없을 때 기다리는 초")
         p.add_argument("--flash-timeout", type=int, default=900, help="쓰기 단계 한도(초). 넘어도 CVD 를 끄지 않음")

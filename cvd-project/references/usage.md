@@ -18,7 +18,8 @@ python <스킬>\scripts\cvd_flash.py flash --name <과제명> --yes      실제�
 | `--mode HSM` | HSM 만 |
 | `--mode ALL` | FBL + APP + HSM |
 | `--keep-data` | 데이터 영역(DTC·NvM·학습값)을 지우지 않음 |
-| `--rescan` | 저장소에서 최신 이미지를 다시 찾음 |
+| `--version <버전>` | APP·ELF 를 `Debug\OEUK_xxxx\<버전>\` 에서 가져옴. 버전 폴더가 여러 개면 필수 |
+| `--rescan` | FBL·HSM 도 저장소에서 최신 이미지를 다시 찾음 |
 
 CVD 가 스스로 실행되고 끝나면 닫힌다. 결과는 종료 코드와 `<과제명>_result.log` 로 남는다.
 CVD 화면이 켜져 있으면 포트가 겹치므로 닫고 실행한다.
@@ -57,7 +58,8 @@ Program → Run Script File → `Projects\cvd_start.csf` 를 한 번 실행한�
 → Erase data flash too? (DTC / NvM / learned values)   Yes / No
 ```
 
-- 경로 칸에는 **config 의 현재 이미지**가 채워져 있다(`flash --rescan` 이나 init 이 갱신).
+- 경로 칸에는 **config 의 현재 이미지**가 채워져 있다(init 이나 CLI flash `--yes` 가 갱신 — 마지막으로 기록한 버전).
+  PD 창은 버전을 묻지 않는다. 다른 버전을 쓰려면 CLI 에서 `--version` 으로 기록하거나 옆 버튼으로 고른다.
   APP 이 `_Writing.s19` 인지 확인한다. 옆 버튼으로 다른 파일을 고를 수 있다.
 - `Image` = FBL+APP, `Hsm` = HSM 만, `Image&Hsm` = 전부. 고르지 않은 칸은 흐리게 잠긴다.
 - 기존 창의 `Erase`(전체 소거)는 없다 — SFlash 가 복구 불가(`troubleshooting.md`).
@@ -181,9 +183,21 @@ FBL 을 거쳐 APP 스타트업까지 실행이 도달했다는 뜻이다. **디
 
 ## 빌드가 새로 나왔을 때
 
-과제를 다시 만들지 않는다. flash 때 `--rescan` 으로 저장소에서 최신 이미지를 다시
-찾거나 `--fbl --app --elf --hsm` 으로 경로를 직접 준다. 계획 출력에서 경로의
-차종·버전이 맞는지 확인한 뒤 `--yes`.
+과제를 다시 만들지 않는다. Jenkins 빌드 산출물은 버전별 폴더에 쌓인다.
+
+```
+Debug\OEUK_HE1I\
+  26810\  he1i_psu_app_v3_0_26_Writing.s19 / .elf / ... / rom_26810\
+  26820\  (같은 구성)
+```
+
+flash 는 매번 저장소를 다시 본다. 버전 폴더가 하나면 그것을 쓰고, 여러 개면
+`[중단] 버전을 지정하세요: --version <26810|26820>` 으로 멈추므로 `--version` 을 붙여 다시
+실행한다. APP(`_Writing.s19`)와 ELF 는 같은 버전 폴더에서 가져온다. FBL·HSM 까지 다시
+찾으려면 `--rescan`, 버전 폴더 밖 파일은 `--fbl --app --elf --hsm` 으로 직접 준다. 계획
+출력에서 버전·경로의 차종이 맞는지 확인한 뒤 `--yes`.
+
+verify 는 버전을 묻지 않고 마지막으로 기록한 이미지와 비교한다.
 
 Jenkins 가 산출물을 자동 커밋하므로 **작업 전 저장소에서 `git pull`** 을 한다.
 
