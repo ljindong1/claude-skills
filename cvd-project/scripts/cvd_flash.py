@@ -35,7 +35,7 @@ import subprocess
 import sys
 import time
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 # 실제 파일 위치(FS)와 .csf 안에 적힐 윈도우 경로(WIN)를 나눈다. 평소에는 같다.
 # --cvd-root 로 바꿀 수 있다 (set_root). CVD_ROOT / CVD_ROOT_WIN / CVD_EXE 환경변수는 시험용이다.
@@ -157,13 +157,80 @@ def _by_time(files):
     return sorted(files, key=os.path.getmtime, reverse=True)
 
 
+# ---- 버전별 빌드 폴더 (Jenkins PostPackage.bat: Debug\OEUK_xxxx\<버전>\)
+# 파일 이름은 버전마다 같고(he1i_psu_app_v3_0_26*) 폴더 이름만 다르다. 그래서 APP(_Writing.s19)와
+# ELF 는 항상 고른 버전 폴더에서 한 쌍으로 가져온다. rom_<버전>\ 은 aSIMS 서명 입력이라 제외.
+VER_DIR_RE = re.compile(r"^\d{3,8}$")
+
+
+def find_versions(repo):
+    """{버전: {"app", "elf", "dir", "variant"}}. _Writing.s19 와 .elf 가 하나씩 있는 폴더만."""
+    out = {}
+    for pat in (os.path.join(repo, "Debug", "OEUK_*", "*"), os.path.join(repo, "*", "Debug", "OEUK_*", "*")):
+        for vdir in glob.glob(pat):
+            ver = os.path.basename(vdir)
+            if not (os.path.isdir(vdir) and VER_DIR_RE.match(ver)):
+                continue
+            fs = os.listdir(vdir)
+            app = [f for f in fs if f.lower().endswith("_writing.s19")]
+            elf = [f for f in fs if f.lower().endswith(".elf")]
+            if len(app) == 1 and len(elf) == 1:
+                out[ver] = {"app": os.path.join(vdir, app[0]), "elf": os.path.join(vdir, elf[0]),
+                            "dir": vdir, "variant": os.path.basename(os.path.dirname(vdir))}
+    return out
+
+
+def source_version(repo):
+    """PJ_Define.h 에서 켜진 OEUK_* 블록의 SOFTWARE_VERSION_0~4 → (변형, 버전). 못 찾으면 (None, None)."""
+    for pat in (os.path.join(repo, "Application", "app_code", "a_app_service", "src", "PJ_Define.h"),
+                os.path.join(repo, "*", "Application", "app_code", "a_app_service", "src", "PJ_Define.h")):
+        for p in glob.glob(pat):
+            t = rb(p).decode("latin-1")
+            m = re.search(r"^[ \t]*#define[ \t]+(OEUK_\w+)", t, re.M)
+            if not m:
+                continue
+            b = re.search(r"defined\s*\(\s*%s\s*\)(.*?)#\s*(elif|else|endif)" % m.group(1), t, re.S)
+            if not b:
+                continue
+            ch = [re.search(r"#define\s+SOFTWARE_VERSION_%d\s+\(u8\)'(.)'" % i, b.group(1)) for i in range(5)]
+            if all(ch):
+                return m.group(1), "".join(x.group(1) for x in ch)
+    return None, None
+
+
+def ver_key(v):
+    return int(v) if v.isdigit() else 0
+
+
+def print_versions(vs, cur=None, src=None, indent="  "):
+    """버전 목록. ▶ = 지금 선택, (현재 소스) = PJ_Define.h 버전."""
+    newest = max(vs, key=ver_key) if vs else None
+    for v in sorted(vs, key=ver_key):
+        tags = []
+        if v == src:
+            tags.append("현재 소스")
+        if v == newest:
+            tags.append("가장 새 버전")
+        print("%s%s %-8s %-22s %s" % (indent, "▶" if v == cur else " ", v, " · ".join(tags),
+                                     os.path.relpath(vs[v]["dir"], os.path.dirname(os.path.dirname(vs[v]["dir"])))))
+
+
+def stamp(p):
+    """재빌드 감지용: 크기_수정시각. 같은 버전 폴더를 Jenkins 가 다시 만들면 달라진다."""
+    try:
+        st = os.stat(p)
+        return "%d_%d" % (st.st_size, int(st.st_mtime))
+    except OSError:
+        return ""
+
+
 def discover(repo):
     repo = os.path.abspath(repo)
     if not os.path.isdir(repo):
         die("프로젝트 폴더가 없습니다: " + repo)
     imgs, elfs, bank_dirs = [], [], []
     for root, dirs, files in os.walk(repo):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.lower().startswith("rom_")]
         for dn in dirs:
             if BANK_DIR_RE.match(dn):
                 bank_dirs.append(os.path.join(root, dn))
@@ -175,6 +242,11 @@ def discover(repo):
             elif low.endswith(".elf"):
                 elfs.append(p)
     low = lambda p: os.path.basename(p).lower()
+    versions = find_versions(repo)
+    in_ver = {os.path.normcase(v["dir"]) for v in versions.values()}
+    if in_ver:                                    # 버전 폴더 안 APP·ELF 는 버전으로만 고른다
+        imgs = [p for p in imgs if os.path.normcase(os.path.dirname(p)) not in in_ver]
+        elfs = [p for p in elfs if os.path.normcase(os.path.dirname(p)) not in in_ver]
     hsm = [p for p in imgs if "hsm" in low(p)]
     fbl = [p for p in imgs if "fbl" in low(p) or "boot" in low(p)]
     rest = [p for p in imgs if p not in hsm and p not in fbl]
@@ -186,10 +258,50 @@ def discover(repo):
     for k in ("fbl", "hsm", "elf"):
         d[k] = cands[k][0] if cands[k] else None
     d["app"] = cands["app"][0] if cands["app"] else d["elf"]      # 기록용 APP (없으면 ELF 로 기록)
+    d["versions"] = versions
+    d["src_variant"], d["src_ver"] = source_version(repo)
+    d["version"] = ""
+    if versions:                                  # 버전 폴더 구조: 하나면 그것, 여러 개면 사용자가 고른다
+        d["app"] = d["elf"] = None
+        cands["app"], cands["elf"] = [], []
+        if len(versions) == 1:
+            use_version(d, list(versions)[0])
     d["mcu"] = detect_mcu(repo)
     d["name"] = suggest_name(repo, d["hsm"])
     d["bank"], d["bank_why"] = detect_bank(repo, bank_dirs)
     return d
+
+
+def use_version(d, ver):
+    """d 의 APP·ELF·version 을 그 버전 폴더의 한 쌍으로 바꾼다. 경로가 버전을 따라가는 유일한 곳."""
+    v = d["versions"][ver]
+    d["app"], d["elf"], d["version"] = v["app"], v["elf"], ver
+
+
+def choose_version(d, want, keep, what):
+    """버전 폴더 저장소에서 쓸 버전을 정하고 APP·ELF 를 그 폴더로 맞춘다.
+    want = --version, keep = config 에 저장된 버전(flash/set/verify 의 기본값). 정할 수 없으면 목록을 보여 주고 멈춘다."""
+    vs = d["versions"]
+    if not vs:
+        if want:
+            die("버전 폴더(Debug\\OEUK_xxxx\\<버전>\\)가 없는 저장소라 --version 을 쓸 수 없습니다.")
+        return
+    ver = want or keep
+    why = "--version" if want else "config"
+    if not ver and len(vs) == 1:
+        ver, why = list(vs)[0], "하나뿐"
+    if not ver or ver not in vs:
+        print("[버전] %s 폴더 목록 (_Writing.s19 + .elf 가 있는 것)" % d["repo"])
+        print_versions(vs, None, d.get("src_ver"))
+        rec = d.get("src_ver") if d.get("src_ver") in vs else max(vs, key=ver_key)
+        if not ver:
+            die("%s: 버전 폴더가 여러 개입니다. --version <버전> 으로 고르세요 (추천 %s)." % (what, rec))
+        if want:
+            die("%s: 버전 %s 폴더가 없거나 _Writing.s19/.elf 가 없습니다. 위 목록에서 고르세요." % (what, ver))
+        die("%s: config 의 버전 %s 폴더가 저장소에 없습니다(정리됐거나 Build_all 로 바뀜). "
+            "아무것도 쓰지 않았습니다. --version <버전> 으로 다시 고르세요 (추천 %s)." % (what, ver, rec))
+    use_version(d, ver)
+    d["version_why"] = why
 
 
 def detect_bank(repo, bank_dirs):
@@ -346,7 +458,8 @@ def verify_points(paths, per_image=8):
 
 
 # ============================================================== config.csf 읽고 쓰기
-CFG_KEYS = ("name", "dir", "cpu", "bank", "mode", "erase", "repo", "fbl", "app", "elf", "hsm", "src", "log", "template")
+CFG_KEYS = ("name", "dir", "cpu", "bank", "mode", "erase", "repo", "version",
+            "fbl", "app", "elf", "hsm", "src", "log", "template", "app_stamp")
 
 
 def cfg_path(name):
@@ -367,6 +480,7 @@ def read_cfg(name):
 
 def write_cfg(c):
     name = c["name"]
+    c["app_stamp"] = stamp(c.get("app"))           # 검증 지점을 계산한 APP 파일 (재빌드 감지)
     pts = verify_points([c.get("fbl"), c.get("app")])
     names = " ".join("&cfg_%s" % k for k in CFG_KEYS)
     vnames = " ".join("&cfg_va%d &cfg_ve%d" % (i, i) for i in range(1, MAX_POINTS + 1))
@@ -402,12 +516,19 @@ def tpl_flash(name, d):
     return """; {n}_flash.csf - PD: 기록 (+ 화면에서는 이어서 검증)
 ; CLI : do {n}_flash.csf <IMAGE|HSM|ALL> <YES|NO>   (YES = 데이터 영역까지 소거)
 ; 화면: PD 버튼 (인자 없음) -> Image / Hsm / Image&Hsm 선택, 파일 확인, file load start
-LOCAL &m &cvd_erase &src &e &p &filename1 &filename2 &filename3
+LOCAL &m &cvd_erase &src &e &p &filename1 &filename2 &filename3 &miss &ver
 ENTRY &m &cvd_erase &src
 GLOBAL &gui_fbl &gui_app &gui_hsm
 do {d}\\{n}_config.csf
+; 버전 표시: config 의 APP 버전 (버전 폴더가 아니면 -)
+&ver="&cfg_version"
+IF "&ver"==""
+(
+	&ver="-"
+)
 IF "&m"==""
 (
+	print "PD: config APP version &ver - &cfg_app"
 	DIALOG
 	(
 	HEADER "{n} Program DownLoad"
@@ -446,9 +567,13 @@ IF "&m"==""
 		)
 	)
 
-	POS 1. 3. 56. 1.
+	; DIALOG 정의 안(HEADER 등)에서는 &매크로가 풀리지 않는다 (CVD 확인). 버전은 잠긴 칸(ADD0)에 dialog.set 으로 넣는다. 칸 이름 VER 는 값이 안 들어갔다(CVD 확인).
+	POS 1. 3. 68. 1.
+	ADD0:  EDIT "" ""
+
+	POS 1. 5. 56. 1.
 	ADD1:  EDIT "" ""
-	POS 58. 3. 11. 1.
+	POS 58. 5. 11. 1.
 	BT1: DEFBUTTON "boot_image"
 	(
 		&p=dialog.string(ADD1)
@@ -465,9 +590,9 @@ IF "&m"==""
 		)
 	)
 
-	POS 1. 5. 56. 1.
+	POS 1. 7. 56. 1.
 	ADD2:  EDIT "" ""
-	POS 58. 5. 11. 1.
+	POS 58. 7. 11. 1.
 	BT2: DEFBUTTON "app_image"
 	(
 		&p=dialog.string(ADD2)
@@ -484,9 +609,9 @@ IF "&m"==""
 		)
 	)
 
-	POS 1. 7. 56. 1.
+	POS 1. 9. 56. 1.
 	ADD3:  EDIT "" ""
-	POS 58. 7. 11. 1.
+	POS 58. 9. 11. 1.
 	BT3: DEFBUTTON "HSM"
 	(
 		&p=dialog.string(ADD3)
@@ -503,7 +628,7 @@ IF "&m"==""
 		)
 	)
 
-	POS 1. 9. 68. 1.
+	POS 1. 11. 68. 1.
 	DEFBUTTON "file load start"
 	(
 		&gui_fbl=dialog.string(ADD1)
@@ -534,6 +659,8 @@ IF "&m"==""
 	dialog.set LN.one
 	dialog.disable ADD3
 	dialog.disable BT3
+	dialog.set ADD0 "APP version &ver (config)"
+	dialog.disable ADD0
 	dialog.set ADD1 "&cfg_fbl"
 	dialog.set ADD2 "&cfg_app"
 	dialog.set ADD3 "&cfg_hsm"
@@ -555,7 +682,41 @@ IF "&src"=="GUI"
 	&filename2="&gui_app"
 	&filename3="&gui_hsm"
 )
-print "PD: mode=&m erase_data=&cvd_erase"
+IF "&filename2"!="&cfg_app"
+(
+	&ver="(selected file)"
+)
+; 벤더 스크립트는 소거 -> FBL 기록 -> APP 읽기 순서라, 파일이 없으면 보드를 지운 채 멈춘다.
+; 부르기 전에 이번 모드에 필요한 파일이 모두 있는지 먼저 본다.
+&miss=""
+IF ("&m"=="IMAGE")||("&m"=="ALL")
+(
+	IF !OS.FILE("&filename1")
+	(
+		&miss="&miss FBL=&filename1"
+	)
+	IF !OS.FILE("&filename2")
+	(
+		&miss="&miss APP=&filename2"
+	)
+)
+IF ("&m"=="HSM")||("&m"=="ALL")
+(
+	IF !OS.FILE("&filename3")
+	(
+		&miss="&miss HSM=&filename3"
+	)
+)
+IF "&miss"!=""
+(
+	print "PD: file not found - nothing written (board untouched):&miss"
+	IF "&src"=="GUI"
+	(
+		DIALOG.OK "File not found - nothing written (board untouched).&miss"
+	)
+	ENDDO
+)
+print "PD: mode=&m erase_data=&cvd_erase APP version &ver"
 IF ("&m"=="IMAGE")||("&m"=="ALL")
 (
 	print "PD: HOST (FBL+APP) &filename1 / &filename2"
@@ -566,7 +727,7 @@ IF ("&m"=="HSM")||("&m"=="ALL")
 	print "PD: HSM &filename3"
 	do {d}\\{n}_flash_hsm.csf
 )
-print "PD: done (&m)"
+print "PD: done (&m) APP version &ver"
 ; 화면에서 눌렀으면 이어서 검증하고 결과를 창으로 알린다 (CLI 는 run.csf 가 따로 검증).
 ; 검증 지점은 config 의 FBL/APP 기준이라, 창에서 다른 파일을 골랐으면 검증하지 않는다.
 IF "&src"=="GUI"
@@ -578,7 +739,7 @@ IF "&src"=="GUI"
 	ELSE
 	(
 		print "PD: verify skipped - FBL/APP differ from {n}_config.csf"
-		DIALOG.OK "Written. Verify skipped - selected FBL/APP differ from the project config (check points are for the config files)"
+		DIALOG.OK "Written (APP &ver). Verify skipped - selected FBL/APP differ from the project config (check points are for the config files)"
 	)
 )
 ENDDO
@@ -622,7 +783,7 @@ def tpl_verify(name, d):
           '\tprint "VF: FAILED - first mismatch at &first (log: &cfg_log)"',
           '\tIF "&ctx"!="CLI"',
           "\t(",
-          '\t\tDIALOG.OK "Verify FAILED - flash does not match the image (first mismatch &first). See &cfg_log"',
+          '\t\tDIALOG.OK "Verify FAILED (APP &cfg_version) - flash does not match the image (first mismatch &first). See &cfg_log"',
           "\t)",
           ")",
           "ELSE",
@@ -630,11 +791,11 @@ def tpl_verify(name, d):
           '\tprint "VF: OK - all check points match"',
           '\tIF "&ctx"=="FL"',
           "\t(",
-          '\t\tDIALOG.OK "Flash + Verify OK - all check points match the image files"',
+          '\t\tDIALOG.OK "Flash + Verify OK (APP &cfg_version) - all check points match the image files"',
           "\t)",
           '\tIF "&ctx"==""',
           "\t(",
-          '\t\tDIALOG.OK "Verify OK - all check points match the image files"',
+          '\t\tDIALOG.OK "Verify OK (APP &cfg_version) - all check points match the image files"',
           "\t)",
           ")",
           "ENDDO"]
@@ -780,8 +941,17 @@ BANK_KO = {"dual": "듀얼뱅크", "single": "싱글뱅크"}
 
 def print_scan(d):
     print("[프로젝트 폴더] %s" % d["repo"])
+    if d.get("versions"):
+        print("  %-10s 버전 폴더 %d개 — APP(_Writing.s19)·ELF 는 고른 버전 폴더에서 한 쌍으로 쓴다"
+              % ("APP 버전", len(d["versions"])))
+        print_versions(d["versions"], d.get("version"), d.get("src_ver"), "             ")
+        if d.get("src_ver"):
+            print("  %-10s   현재 소스(PJ_Define.h %s) = %s%s" % ("", d["src_variant"], d["src_ver"],
+                  "" if d["src_ver"] in d["versions"] else "  (이 버전 폴더는 아직 없음)"))
+        if not d.get("version"):
+            print("  %-10s   → 여러 개라 고르지 않았음. init/flash 에 --version <버전>" % "")
     for k, lab in (("fbl", "FBL"), ("app", "APP(기록)"), ("elf", "ELF(심볼)"), ("hsm", "HSM")):
-        print("  %-10s %s" % (lab, d[k] or "없음"))
+        print("  %-10s %s" % (lab, d[k] or ("버전 선택 필요" if d.get("versions") and k in ("app", "elf") else "없음")))
         others = [p for p in d["cands"].get(k, []) if p != d[k]]
         if others:
             print("  %-10s   (다른 후보 %d개 — 가장 최근 파일을 골랐음. 차종·사양이 맞는지 확인)" % ("", len(others)))
@@ -810,13 +980,21 @@ def cmd_init(a):
     check_cvd(strict=True)                       # 설치가 확인돼야 과제를 만든다
     repo = a.repo or ask("[1/4] 프로젝트 폴더 (빌드 저장소)  Enter=기본값", os.getcwd())
     d = discover(repo)
+    tcpu = template_check()
+    print_scan(d)
+    if not (a.app or a.elf):
+        choose_version(d, a.version, None, "init")
     for k in ("fbl", "app", "elf", "hsm"):
         v = getattr(a, k)
         if v:
             d[k] = os.path.abspath(v)
             d["cands"][k] = [d[k]]
-    tcpu = template_check()
-    print_scan(d)
+            if k in ("app", "elf"):
+                d["version"] = ""
+    if d["version"]:
+        print("  → APP 버전 %s (%s)" % (d["version"], d.get("version_why", "")))
+        print("    APP  %s" % d["app"])
+        print("    ELF  %s" % d["elf"])
     missing = [k for k in ("fbl", "app", "elf") if not d[k]]
     if missing:
         die("찾지 못한 이미지: %s  → --%s <경로> 로 지정하세요." % (", ".join(missing), missing[0]))
@@ -879,7 +1057,8 @@ def cmd_init(a):
     wtext(os.path.join(dst_fs, "%s_run.csf" % name), tpl_entry(name, dst_win, True))
     wtext(os.path.join(dst_fs, "%s_check.csf" % name), tpl_entry(name, dst_win, False))
     cfg = {"name": name, "dir": dst_win, "cpu": tcpu, "bank": bank, "mode": "IMAGE", "erase": "YES",
-           "repo": d["repo"], "fbl": d["fbl"], "app": d["app"], "elf": d["elf"], "hsm": d["hsm"] or "",
+           "repo": d["repo"], "version": d["version"],
+           "fbl": d["fbl"], "app": d["app"], "elf": d["elf"], "hsm": d["hsm"] or "",
            "src": d["repo"], "log": wpath(dst_win, "%s_result.log" % name),
            "template": "cyt2bl_dual (cvd_flash %s)" % VERSION}
     pts = write_cfg(cfg)
@@ -891,6 +1070,7 @@ def cmd_init(a):
     for x in notes:
         print("  - " + x)
     print("  - 검증 지점 %d개" % len(pts))
+    print("  - APP 버전 %s" % (cfg["version"] or "(버전 폴더 아님)"))
     if bak:
         print("  - loadfile.csf 백업: %s" % bak)
     print_shortcut(lnk)
@@ -1007,17 +1187,42 @@ def rebuild_loadfile():
 
 # ============================================================== 명령: flash / verify
 def prepare_cfg(a):
-    """저장된 설정 + 이번 인자. 파일에 쓰지는 않는다 (flash 는 --yes 일 때만 쓴다)."""
+    """저장된 설정 + 이번 인자. 파일에 쓰지는 않는다 (flash 는 --yes, set 은 dry-run 이 아닐 때 쓴다).
+    버전 폴더 저장소: APP·ELF 는 항상 고른 버전 폴더에서 다시 가져온다 (--version, 없으면 config 의 버전)."""
     c = read_cfg(a.name)
-    if getattr(a, "rescan", False):
-        d = discover(c["repo"])
-        for k in ("fbl", "app", "elf", "hsm"):
-            if d[k]:
-                c[k] = d[k]
+    old_app, old_stamp, c["_cfg_version"] = c["app"], c["app_stamp"], c["version"]
+    want = getattr(a, "version", None)
+    d = {"repo": c["repo"], "versions": find_versions(c["repo"])}
+    d["src_variant"], d["src_ver"] = source_version(c["repo"])
+    c["_versions"], c["_src_ver"] = d["versions"], d["src_ver"]
+    if getattr(a, "rescan", False):              # FBL·HSM 재탐색 (버전 폴더가 없으면 APP·ELF 도)
+        r = discover(c["repo"])
+        for k in ("fbl", "hsm") if d["versions"] else ("fbl", "app", "elf", "hsm"):
+            if r[k]:
+                c[k] = r[k]
+    direct = [k for k in ("app", "elf") if getattr(a, k, None)]
+    if direct and want:
+        die("--version 과 --app/--elf 는 함께 쓸 수 없습니다 (버전을 고르면 APP·ELF 는 그 폴더에서 가져옵니다).")
+    if not c["version"] and c["app"]:            # 버전 값이 없는 옛 config: APP 경로의 버전 폴더로 판단
+        for v, info in d["versions"].items():
+            if os.path.normcase(os.path.dirname(c["app"])) == os.path.normcase(info["dir"]):
+                c["version"] = c["_cfg_version"] = v
+    if not direct:
+        choose_version(d, want, c["version"] or None, a.cmd)
+        if d["versions"]:
+            c["app"], c["elf"], c["version"] = d["app"], d["elf"], d["version"]
+            c["_version_why"] = d["version_why"]
+        else:
+            c["version"] = ""
     for k in ("fbl", "app", "elf", "hsm"):
         v = getattr(a, k, None)
         if v:
             c[k] = os.path.abspath(v)
+    if direct:
+        c["version"] = ""                         # 버전 폴더 밖 파일을 직접 지정
+    # 같은 경로인데 파일이 바뀜 = 같은 버전을 다시 빌드함 → 검증 지점을 새로 계산해야 한다
+    c["_rebuilt"] = bool(old_stamp) and os.path.normcase(c["app"]) == os.path.normcase(old_app) \
+        and stamp(c["app"]) != old_stamp
     if hasattr(a, "mode"):                       # flash: 매번 지정값, 없으면 IMAGE (저장값을 이어 쓰지 않음)
         c["mode"] = a.mode or "IMAGE"
         c["erase"] = "NO" if a.keep_data else "YES"
@@ -1117,7 +1322,7 @@ MODE_KO = {"IMAGE": "FBL+APP", "HSM": "HSM 만", "ALL": "FBL+APP+HSM"}
 def print_flash_options(a, c):
     """--yes 전에 고를 수 있는 옵션과 지금 선택값, 바꾸는 방법을 보여 준다."""
     mark = lambda on: "▶" if on else " "
-    print("[옵션] 지금 선택값은 ▶. 바꾸려면 오른쪽 인자를 붙인다. 지정하지 않은 값은 기본값(이전 실행값을 이어 쓰지 않음).")
+    print("[옵션] 지금 선택값은 ▶. 바꾸려면 오른쪽 인자를 붙인다. 모드·데이터 영역은 매번 기본값, APP 버전은 config 의 버전을 이어 쓴다.")
     print("  무엇을 쓸지")
     for m in MODES:
         print("   %s %-5s %-12s --mode %s%s" % (mark(c["mode"] == m), m, MODE_KO.get(m, ""), m,
@@ -1125,10 +1330,39 @@ def print_flash_options(a, c):
     print("  데이터 영역 (DTC·NvM·학습값, 워크 플래시)")
     print("   %s 지움         (인자 없음, 기본)   보드 이력을 모를 때" % mark(c["erase"] == "YES"))
     print("   %s 유지         --keep-data        고장 기록을 남긴 채 새 빌드만 올릴 때 (실기 미확인)" % mark(c["erase"] == "NO"))
-    print("  이미지")
-    print("   %s 저장된 경로  (인자 없음)" % mark(not a.rescan and not any(getattr(a, k) for k in ("fbl", "app", "hsm"))))
+    vs = c["_versions"]
+    if vs:
+        print("  APP 버전 (APP _Writing.s19 + ELF 를 그 버전 폴더에서)  기본 = config 의 버전(마지막 설정)")
+        newest = max(vs, key=ver_key)
+        for v in sorted(vs, key=ver_key):
+            tags = [t for t, on in (("config", v == c["_cfg_version"]), ("현재 소스", v == c["_src_ver"]),
+                                    ("가장 새 버전", v == newest)) if on]
+            print("   %s %-8s %-28s %s" % (mark(v == c["version"]), v, " · ".join(tags),
+                                          "(인자 없음)" if v == c["_cfg_version"] else "--version %s" % v))
+    print("  이미지 (FBL·HSM%s)" % ("" if vs else "·APP·ELF"))
+    print("   %s 저장된 경로  (인자 없음)" % mark(not a.rescan and not any(getattr(a, k) for k in ("fbl", "app", "elf", "hsm"))))
     print("   %s 최신 재탐색  --rescan           새 빌드가 나왔을 때 (저장소 git pull 먼저)" % mark(a.rescan))
-    print("   %s 직접 지정    --fbl/--app/--hsm <경로>" % mark(any(getattr(a, k) for k in ("fbl", "app", "hsm"))))
+    print("   %s 직접 지정    --fbl/--hsm%s <경로>" % (mark(any(getattr(a, k) for k in ("fbl", "app", "elf", "hsm"))),
+                                                   "" if vs else "/--app/--elf"))
+
+
+def print_image_head(a, c, mode=None):
+    """flash·verify·set 공통: 이번에 쓸(비교할) 버전과 경로, 알림. mode 를 주면 그 모드가 쓰는 파일만."""
+    if c["version"]:
+        why = {"--version": "--version 으로 지정", "config": "config 의 버전", "하나뿐": "버전 폴더 하나뿐"}
+        print("  버전 %s  (%s)" % (c["version"], why.get(c.get("_version_why"), "")))
+    use = {"IMAGE": ("fbl", "app", "elf"), "HSM": ("hsm", "elf"), "ALL": ("fbl", "app", "elf", "hsm")}.get(mode)
+    for k in ("fbl", "app", "elf", "hsm"):
+        if (use is None and (k != "hsm" or c.get("hsm"))) or (use and k in use):
+            print("  %-4s %s" % (k.upper(), c[k]))
+    src, vs = c["_src_ver"], c["_versions"]
+    if c["version"] and src and src in vs and src != c["version"]:
+        print("  [알림] 현재 소스(PJ_Define.h) 버전은 %s 입니다. 그 버전을 쓰려면 --version %s" % (src, src))
+    newer = [v for v in vs if ver_key(v) > ver_key(c["version"] or "0")]
+    if c["version"] and newer and src not in newer:
+        print("  [알림] 더 새 버전 폴더가 있습니다: %s" % ", ".join(sorted(newer, key=ver_key)))
+    if c["_rebuilt"]:
+        print("  [알림] APP 가 마지막 설정 뒤 같은 경로에 다시 빌드됐습니다 — 검증 지점을 새 파일 기준으로 다시 계산합니다.")
 
 
 def cmd_flash(a, with_flash=True):
@@ -1137,9 +1371,7 @@ def cmd_flash(a, with_flash=True):
     d = proj_fs(a.name)
     if with_flash:
         print("[%s] 모드 %s, 데이터 영역(DTC·NvM) %s" % (a.name, c["mode"], "지움" if c["erase"] == "YES" else "유지"))
-        for k in ("fbl", "app", "hsm"):
-            if (k != "hsm" or c["mode"] in ("HSM", "ALL")) and (k == "hsm" or c["mode"] in ("IMAGE", "ALL")):
-                print("  %-4s %s" % (k.upper(), c[k]))
+        print_image_head(a, c, c["mode"])
         if c["mode"] in ("HSM", "ALL"):
             print("  (HSM 영역은 CM4 에서 읽을 수 없어 검증은 FBL·APP 지점으로 한다)")
         if not a.yes:
@@ -1147,7 +1379,8 @@ def cmd_flash(a, with_flash=True):
             print("[확인 필요] 아직 보드에 아무것도 하지 않았습니다. 위 내용이 맞으면 같은 인자에 --yes 를 붙여 다시 실행하세요.")
             sys.exit(EXIT_OK)
     else:
-        print("[%s] 검증만" % a.name)
+        print("[%s] 검증만 — 보드를 config 의 이미지와 비교 (보드에 쓰지 않음)" % a.name)
+        print_image_head(a, c)
     write_cfg(c)
     entry = os.path.join(d, "%s_%s.csf" % (a.name, "run" if with_flash else "check"))
     log_fs = os.path.join(d, "%s_result.log" % a.name)
@@ -1156,13 +1389,34 @@ def cmd_flash(a, with_flash=True):
     sys.exit(judge(log_fs, with_flash, why, a.flash_timeout))
 
 
+def cmd_set(a):
+    """보드에 쓰지 않고 config 의 버전·이미지 경로만 바꾼다 (화면 PD·PA 는 누를 때마다 config 를 읽는다).
+    검증 지점도 새 파일 기준으로 다시 계산한다. 같은 버전 재빌드 후 검증 지점 갱신에도 쓴다."""
+    old = read_cfg(a.name)
+    c = prepare_cfg(a)
+    print("[%s] config 변경 (보드에는 쓰지 않음)" % a.name)
+    print_image_head(a, c)
+    changed = [k for k in ("version", "fbl", "app", "elf", "hsm") if (old[k] or "") != (c[k] or "")]
+    for k in changed:
+        print("  바뀜 %-7s %s\n       %-7s → %s" % (k.upper(), old[k] or "(없음)", "", c[k] or "(없음)"))
+    if not changed and not c["_rebuilt"] and old["app_stamp"]:
+        print("  바뀐 것 없음.")
+        return
+    if a.dry_run:
+        print("[dry-run] config 를 바꾸지 않았습니다.")
+        return
+    pts = write_cfg(c)
+    print("[완료] %s — 검증 지점 %d개 다시 계산" % (cfg_path(a.name), len(pts)))
+    print("  CVD 화면: 다음 PD / PA 부터 이 경로를 씁니다 (과제를 다시 고를 필요 없음).")
+
+
 def cmd_list(a):
     ps = list_projects()
     if not ps:
         print("생성된 과제가 없습니다: %s" % FS_PROJECTS)
     for n, cpu in ps:
         c = read_cfg(n)
-        print("%-16s %-14s %-6s 저장소 %s" % (n, cpu, c["bank"], c["repo"]))
+        print("%-16s %-14s %-6s 버전 %-8s 저장소 %s" % (n, cpu, c["bank"], c["version"] or "-", c["repo"]))
 
 
 # ============================================================== main
@@ -1180,6 +1434,7 @@ def main():
     p.add_argument("--repo", help="프로젝트 폴더 (기본: 현재 폴더)")
     p.add_argument("--name", help="과제명 (예: HE1I_PSU)")
     p.add_argument("--bank", choices=("dual", "single"), help="뱅크 구성 (사용자 확인값)")
+    p.add_argument("--version", help="APP·ELF 버전 폴더 (Debug\\OEUK_xxxx\\<버전>\\, 여러 개일 때 필수)")
     for k in ("fbl", "app", "elf", "hsm"):
         p.add_argument("--" + k, help="%s 경로 직접 지정" % k.upper())
     p.add_argument("--yes", action="store_true", help="확인 생략")
@@ -1196,12 +1451,21 @@ def main():
         if cmd == "flash":
             p.add_argument("--mode", choices=MODES, help="IMAGE(기본) / HSM / ALL")
             p.add_argument("--keep-data", action="store_true", help="데이터 영역(DTC·NvM)을 지우지 않음")
+            p.add_argument("--version", help="APP·ELF 버전 폴더 (없으면 config 의 버전)")
             for k in ("fbl", "app", "elf", "hsm"):
                 p.add_argument("--" + k)
-            p.add_argument("--rescan", action="store_true", help="저장소에서 최신 이미지를 다시 찾음")
+            p.add_argument("--rescan", action="store_true", help="저장소에서 FBL·HSM 을 다시 찾음 (버전 폴더 없으면 APP·ELF 도)")
             p.add_argument("--yes", action="store_true", help="계획 확인 후 실제로 기록")
         p.add_argument("--timeout", type=int, default=120, help="쓰기 외 단계에서 진전이 없을 때 기다리는 초")
         p.add_argument("--flash-timeout", type=int, default=900, help="쓰기 단계 한도(초). 넘어도 CVD 를 끄지 않음")
+
+    p = sp.add_parser("set", parents=[common], help="보드에 쓰지 않고 config 의 버전·이미지 경로만 변경")
+    p.add_argument("--name", required=True)
+    p.add_argument("--version", help="APP·ELF 버전 폴더")
+    for k in ("fbl", "app", "elf", "hsm"):
+        p.add_argument("--" + k)
+    p.add_argument("--rescan", action="store_true", help="FBL·HSM 재탐색")
+    p.add_argument("--dry-run", action="store_true")
 
     sp.add_parser("list", parents=[common])
     sp.add_parser("startup", parents=[common], help="시작 메뉴 'CVD Projects' 바로가기 생성 (init 도 만든다)")
@@ -1219,6 +1483,8 @@ def main():
         cmd_flash(a, True)
     elif a.cmd == "verify":
         cmd_flash(a, False)
+    elif a.cmd == "set":
+        cmd_set(a)
     elif a.cmd == "list":
         cmd_list(a)
     elif a.cmd == "startup":

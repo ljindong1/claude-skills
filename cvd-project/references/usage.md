@@ -18,7 +18,10 @@ python <스킬>\scripts\cvd_flash.py flash --name <과제명> --yes      실제�
 | `--mode HSM` | HSM 만 |
 | `--mode ALL` | FBL + APP + HSM |
 | `--keep-data` | 데이터 영역(DTC·NvM·학습값)을 지우지 않음 |
-| `--rescan` | 저장소에서 최신 이미지를 다시 찾음 |
+| `--version <버전>` | APP·ELF 버전 폴더 (`Debug\OEUK_xxxx\<버전>\`). 없으면 config 의 버전 |
+| `--rescan` | 저장소에서 FBL·HSM 을 다시 찾음 (버전 폴더가 없는 저장소는 APP·ELF 도) |
+
+config 만 바꾸고 보드에는 쓰지 않으려면 `set --name <과제명> --version <버전>` (화면 PD 로 다른 버전을 쓸 때).
 
 CVD 가 스스로 실행되고 끝나면 닫힌다. 결과는 종료 코드와 `<과제명>_result.log` 로 남는다.
 CVD 화면이 켜져 있으면 포트가 겹치므로 닫고 실행한다.
@@ -49,20 +52,26 @@ Program → Run Script File → `Projects\cvd_start.csf` 를 한 번 실행한�
 ```
 ┌ <과제명> Program DownLoad ───────────────────────────────┐
 │ Load:  (●) Image   ( ) Hsm   ( ) Image&Hsm               │
+│ [ APP version 26820  (config)   change: ... set ... ]    │
 │ [ ...he1i_psu_fbl_v3_0_17.sre            ] [boot_image]  │
-│ [ ...he1i_psu_app_v3_0_26_Writing.s19    ] [app_image ]  │
+│ [ ...\26820\he1i_psu_app_v3_0_26_Writing.s19 ] [app_image ]  │
 │ [ ...HSM_Framework_..._V2_10_0.sre       ] [HSM       ]  │
 │ [              file load start                        ]  │
 └──────────────────────────────────────────────────────────┘
 → Erase data flash too? (DTC / NvM / learned values)   Yes / No
 ```
 
-- 경로 칸에는 **config 의 현재 이미지**가 채워져 있다(`flash --rescan` 이나 init 이 갱신).
-  APP 이 `_Writing.s19` 인지 확인한다. 옆 버튼으로 다른 파일을 고를 수 있다.
+- 첫 줄 `APP version 26820 (config)` 이 config 의 APP 버전이다(잠긴 칸). 경로 칸에는 그 버전 폴더의 이미지가
+  채워져 있다. 다른 버전을 쓰려면 CLI `set --name <과제명> --version <버전>` 뒤 PD 를 다시
+  누른다(과제를 다시 고를 필요 없음). APP 이 `_Writing.s19` 인지 확인한다.
+- 옆 버튼으로 다른 파일을 고를 수 있다.
+- `file load start` 뒤, 벤더 스크립트를 부르기 전에 파일이 있는지 본다. 없으면
+  `File not found - nothing written (board untouched). APP=<경로>` 창만 뜨고 끝난다
+  (config 의 버전 폴더가 지워졌을 때 등 → `set --version` 으로 다시 고른다).
 - `Image` = FBL+APP, `Hsm` = HSM 만, `Image&Hsm` = 전부. 고르지 않은 칸은 흐리게 잠긴다.
 - 기존 창의 `Erase`(전체 소거)는 없다 — SFlash 가 복구 불가(`troubleshooting.md`).
-- 창에서 고른 파일은 이번 한 번만 쓰고 config 에 저장하지 않는다. 계속 쓸 파일이면
-  `cvd_flash.py flash --name <과제명> --app <경로>` 로 config 를 갱신한다(검증 지점도 같이 바뀜).
+- 창에서 고른 파일은 이번 한 번만 쓰고 config 에 저장하지 않는다(결과 창에 `APP (selected file)`).
+  계속 쓸 버전이면 `set --version <버전>` 으로 config 를 바꾼다(검증 지점도 같이 바뀜).
 
 ### PD 결과 창
 
@@ -181,9 +190,13 @@ FBL 을 거쳐 APP 스타트업까지 실행이 도달했다는 뜻이다. **디
 
 ## 빌드가 새로 나왔을 때
 
-과제를 다시 만들지 않는다. flash 때 `--rescan` 으로 저장소에서 최신 이미지를 다시
-찾거나 `--fbl --app --elf --hsm` 으로 경로를 직접 준다. 계획 출력에서 경로의
-차종·버전이 맞는지 확인한 뒤 `--yes`.
+과제를 다시 만들지 않는다. APP 는 버전 폴더(`Debug\OEUK_xxxx\<버전>\`)로 나오므로
+flash 에 `--version <새 버전>` 을 붙인다(화면 PD 만 쓸 때는 `set --version <새 버전>`).
+버전을 주지 않으면 config 의 버전(마지막으로 쓴 버전)을 쓰고, 계획에
+`[알림] 현재 소스 버전은 …` 이 뜬다. 같은 버전이 다시 빌드됐으면 `[알림] … 다시 빌드됐습니다`
+가 뜨고 검증 지점을 새로 계산한다(화면 PD 만 쓸 때는 `set --version <같은 버전>` 한 번).
+FBL·HSM 이 바뀌었으면 `--rescan` 또는 `--fbl --hsm` 으로 직접 준다.
+계획 출력에서 APP/ELF 경로의 버전 폴더가 맞는지 확인한 뒤 `--yes`.
 
 Jenkins 가 산출물을 자동 커밋하므로 **작업 전 저장소에서 `git pull`** 을 한다.
 
