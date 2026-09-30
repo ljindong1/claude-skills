@@ -6,6 +6,7 @@ cvd_flash.py - CVD(CodeViser) CLI 다운로드 + 검증
   scan    저장소에서 이미지·MCU·뱅크 구성 인식 결과만 출력 (변경 없음)
   flash   이미지 기록 → 검증 (--yes 없으면 계획만 출력)
   verify  기록 없이 검증만
+  set     보드에 쓰지 않고 config 이미지 경로만 변경 (화면 PD 창·검증 지점용)
   list    생성된 과제 목록
   startup 시작 메뉴 "CVD Projects" 바로가기 생성 (CVD 를 켜면 cvd_start.csf 먼저 실행, init 도 만든다)
   refresh 기존 과제의 PD 창·툴바 스크립트를 새 템플릿으로 다시 생성 (config 는 유지)
@@ -18,6 +19,7 @@ cvd_flash.py - CVD(CodeViser) CLI 다운로드 + 검증
   python cvd_flash.py flash --name HE1I_PSU --version 26820 --yes   (버전 폴더가 여러 개일 때)
   python cvd_flash.py flash --name HE1I_PSU --mode ALL --keep-data --rescan --yes
   python cvd_flash.py verify --name HE1I_PSU
+  python cvd_flash.py set --name HE1I_PSU --version 26810   (보드에 쓰지 않고 PD 창 경로만 변경)
   (CVD 가 기본 경로 C:\\JnDTech\\CVI\\CVD 에 없으면 모든 명령에 --cvd-root <설치 폴더>)
 
 라이팅 기본 틀은 이 스크립트 옆의 ..\\assets\\cyt2bl_dual 을 쓴다. S32_Config 는 읽지 않는다.
@@ -915,7 +917,7 @@ def pick_version(d, a, last=None):
     if sys.stdin.isatty():                       # 윈도우는 NUL 도 isatty 로 보이므로 EOF 도 처리한다
         dflt = last if last in d["versions"] else None
         try:
-            v = input("  기록할 버전%s > " % (" [%s]" % dflt if dflt else "")).strip() or dflt
+            v = input("  사용할 버전%s > " % (" [%s]" % dflt if dflt else "")).strip() or dflt
         except EOFError:
             print()
     if not v:
@@ -1165,9 +1167,9 @@ def prepare_cfg(a):
     c = read_cfg(a.name)
     c["last_version"] = img_version(c["app"])
     c["version"] = c["last_version"]
-    is_flash = hasattr(a, "mode")
+    is_flash = hasattr(a, "rescan")              # flash / set (verify 는 저장된 경로 그대로)
     if is_flash:
-        # flash 는 매번 저장소를 다시 본다. 버전 폴더가 여러 개면 --version 으로 고르게 한다.
+        # flash·set 은 매번 저장소를 다시 본다. 버전 폴더가 여러 개면 --version 으로 고르게 한다.
         d = discover(c["repo"], a.version)
         if getattr(a, "rescan", False):          # FBL·HSM 까지 최신 재탐색
             for k in ("fbl", "hsm"):
@@ -1363,6 +1365,30 @@ def cmd_flash(a, with_flash=True):
     sys.exit(judge(log_fs, with_flash, why, a.flash_timeout, written_summary(c, with_flash)))
 
 
+def cmd_set(a):
+    """보드에 쓰지 않고 config 의 이미지 경로만 바꾼다 (화면 PD 창 칸·검증 지점이 이것을 쓴다).
+    경로 선택은 flash 와 같다: 버전 폴더가 여러 개면 --version, --rescan, 경로 직접 지정."""
+    old = read_cfg(a.name)
+    c = prepare_cfg(a)
+    print("[%s] config 이미지 경로 (보드에는 쓰지 않음)" % a.name)
+    changed = False
+    for k in ("fbl", "app", "elf", "hsm"):
+        same = old[k] == c[k]
+        changed |= not same
+        print("  %-4s %s%s" % (k.upper(), c[k] or "(없음)", "" if same else "   ← 바뀜 (전: %s)" % (old[k] or "없음")))
+    if c.get("version"):
+        print("  버전 %s" % c["version"])
+    if not changed:
+        print("[변경 없음] 이미 이 경로입니다.")
+        return
+    if a.dry_run:
+        print("[dry-run] config 를 바꾸지 않았습니다.")
+        return
+    pts = write_cfg(c)
+    print("[완료] %s 갱신 — 검증 지점 %d개를 새 파일 기준으로 다시 계산" % (cfg_path(a.name), len(pts)))
+    print("CVD 가 켜져 있으면 PS 로 과제를 다시 고르면 PD 창에 새 경로가 채워집니다.")
+
+
 def cmd_list(a):
     ps = list_projects()
     if not ps:
@@ -1413,6 +1439,14 @@ def main():
         p.add_argument("--timeout", type=int, default=120, help="쓰기 외 단계에서 진전이 없을 때 기다리는 초")
         p.add_argument("--flash-timeout", type=int, default=900, help="쓰기 단계 한도(초). 넘어도 CVD 를 끄지 않음")
 
+    p = sp.add_parser("set", parents=[common], help="보드에 쓰지 않고 config 이미지 경로만 변경 (화면 PD 용)")
+    p.add_argument("--name", required=True)
+    p.add_argument("--version", help=VERSION_HELP)
+    for k in ("fbl", "app", "elf", "hsm"):
+        p.add_argument("--" + k)
+    p.add_argument("--rescan", action="store_true", help="FBL·HSM 도 저장소에서 최신 이미지를 다시 찾음")
+    p.add_argument("--dry-run", action="store_true", help="바꾸지 않고 결과만 출력")
+
     sp.add_parser("list", parents=[common])
     sp.add_parser("startup", parents=[common], help="시작 메뉴 'CVD Projects' 바로가기 생성 (init 도 만든다)")
     p = sp.add_parser("refresh", parents=[common], help="기존 과제의 PD 창·툴바 스크립트를 새 템플릿으로 다시 생성")
@@ -1429,6 +1463,8 @@ def main():
         cmd_flash(a, True)
     elif a.cmd == "verify":
         cmd_flash(a, False)
+    elif a.cmd == "set":
+        cmd_set(a)
     elif a.cmd == "list":
         cmd_list(a)
     elif a.cmd == "startup":

@@ -58,8 +58,10 @@ Program → Run Script File → `Projects\cvd_start.csf` 를 한 번 실행한�
 → Erase data flash too? (DTC / NvM / learned values)   Yes / No
 ```
 
-- 경로 칸에는 **config 의 현재 이미지**가 채워져 있다(init 이나 CLI flash `--yes` 가 갱신 — 마지막으로 기록한 버전).
-  PD 창은 버전을 묻지 않는다. 다른 버전을 쓰려면 CLI 에서 `--version` 으로 기록하거나 옆 버튼으로 고른다.
+- 경로 칸에는 **config 의 현재 이미지**가 채워져 있다(init, CLI flash `--yes`, `set` 이 갱신).
+  PD 창은 버전을 묻지 않는다. 다른 버전을 PD 로 쓰려면 먼저 CLI 에서
+  `cvd_flash.py set --name <과제명> --version <버전>` 으로 config 를 바꾼다(보드에 쓰지 않음,
+  검증 지점도 새 파일 기준으로 다시 계산). 그 뒤 PS 로 과제를 다시 고르고 PD.
   APP 이 `_Writing.s19` 인지 확인한다. 옆 버튼으로 다른 파일을 고를 수 있다.
 - `Image` = FBL+APP, `Hsm` = HSM 만, `Image&Hsm` = 전부. 고르지 않은 칸은 흐리게 잠긴다.
 - 기존 창의 `Erase`(전체 소거)는 없다 — SFlash 가 복구 불가(`troubleshooting.md`).
@@ -68,7 +70,7 @@ Program → Run Script File → `Projects\cvd_start.csf` 를 한 번 실행한�
   옆 버튼으로 있는 파일(예: `Debug\OEUK_HE1I\<버전>\..._Writing.s19`)을 골라 다시 누른다.
   (벤더 스크립트는 소거·FBL 기록 뒤에야 APP 를 읽으므로, 이 확인이 없으면 보드를 지운 채 멈춘다.)
 - 창에서 고른 파일은 이번 한 번만 쓰고 config 에 저장하지 않는다. 계속 쓸 파일이면
-  `cvd_flash.py flash --name <과제명> --app <경로>` 로 config 를 갱신한다(검증 지점도 같이 바뀜).
+  `cvd_flash.py set --name <과제명> --version <버전>`(또는 `--app <경로>`)으로 config 를 갱신한다(검증 지점도 같이 바뀜).
 
 ### PD 결과 창
 
