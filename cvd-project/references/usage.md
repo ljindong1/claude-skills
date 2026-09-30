@@ -75,10 +75,15 @@ Program → Run Script File → `Projects\cvd_start.csf` 를 한 번 실행한�
 쓰기가 끝나면 PD 가 이어서 검증(VF 와 같은 내용)을 돌리고 결과를 창으로 띄운다.
 
 ```
-Flash + Verify OK - all check points match the image files          성공
-Verify FAILED - flash does not match the image (first mismatch 0x…)  실패 — 다시 쓴다
-Written. Verify skipped - selected FBL/APP differ from the project config   창에서 다른 파일을 고름
+Flash + Verify OK - all check points match. mode=IMAGE | FBL=<경로> | APP=<경로>          성공
+Flash done but Verify FAILED (first mismatch 0x…). mode=… | FBL=… | APP=… . See <로그>  실패 — 다시 쓴다
+Written, verify skipped (selected FBL/APP differ from the project config). mode=… | …    창에서 다른 파일을 고름
 ```
+
+창 끝에 **이번에 쓴 모드와 파일 경로**가 붙는다(`Image&Hsm` 이면 `| HSM=<경로>` 까지).
+APP 경로에 버전 폴더(`Debug\OEUK_HE1I\26820\...`)가 들어 있어 어느 버전을 썼는지 보인다.
+같은 내용이 결과 로그에 `WRITTEN_MODE=` / `FBL=` / `APP=` / `HSM=` 줄로 남는다(화면 PD 는
+로그를 새로 만든다 — 첫 줄 `PD=GUI`).
 
 검증 지점은 config 의 FBL/APP 기준이라, 창에서 다른 파일을 골랐으면 검증을 건너뛴다.
 쓰는 도중 오류가 나면 스크립트가 그 자리에서 멈추므로 **결과 창이 뜨지 않는다.**
@@ -142,11 +147,20 @@ HOST 와 HSM 을 둘 다 쓰면 `Reset Target` 이 두 번 찍힌다. 상태 표
 STEP=start        CVD 가 스크립트를 실행함
 STEP=connected    타깃에 붙음 (아직 아무것도 쓰지 않음)
 STEP=flashing     쓰는 중 — 도구는 이 단계에서 CVD 를 끄지 않는다
+WRITTEN_MODE=IMAGE
+FBL=<경로>        실제로 쓴 파일 (기록이 끝난 뒤에 남으므로, 쓰다 멈추면 이 줄이 없다)
+APP=<경로>        (HSM 을 썼으면 HSM=<경로>)
 STEP=flashed      기록 끝
 VERIFY=begin      검증 지점 읽기
 RD <주소> <읽은 값> <기대값>
+VERIFY=end
+RESULT=OK         또는 RESULT=FAILED <첫 불일치 주소>
 STEP=done
+VERSION=26820     도구가 CVD 종료 후 덧붙임 (APP 가 버전 폴더에 있을 때)
 ```
+
+CLI 성공 줄에도 요약이 붙는다:
+`[성공] 기록·검증 완료 — 버전 26820 · FBL he1i_psu_fbl_v3_0_17.sre · APP 26820\he1i_psu_app_v3_0_26_Writing.s19`
 
 로그가 `start` 에서 끝났으면 연결 자체가 안 된 것이다. 전원 / IGN / 케이블 /
 JTAG 클럭 순으로 본다(troubleshooting.md 의 0xEC2 항목).
@@ -156,8 +170,9 @@ JTAG 클럭 순으로 본다(troubleshooting.md 의 0xEC2 항목).
 ## 검증
 
 `VF`(화면) 또는 `verify --name <과제명>`(CLI). 보드에 쓰지 않는다.
-화면의 VF 는 끝나면 `Verify OK` / `Verify FAILED` 창을 띄운다. CLI 는 창 없이
-`[성공] 검증 완료` / `[실패] ...` 를 출력한다.
+화면의 VF 는 끝나면 `Verify OK` / `Verify FAILED` 창을 띄우고, 비교한 config 의
+`FBL=` / `APP=` 경로를 함께 보여 준다. CLI 는 창 없이 `[성공] 검증 완료 — 버전 … · FBL … · APP …`
+/ `[실패] ...` 를 출력한다.
 
 init 과 flash 때 도구가 FBL·APP 이미지에서 최대 16개 지점(주소와 그 값)을 골라
 `config.csf` 에 적어 둔다. 검증은 그 주소를 CM4 로 읽어 이미지 값과 비교한다.

@@ -441,7 +441,7 @@ def tpl_flash(name, d):
 ; 화면: PD 버튼 (인자 없음) -> Image / Hsm / Image&Hsm 선택, 파일 확인, file load start
 LOCAL &m &cvd_erase &src &e &p &filename1 &filename2 &filename3 &miss
 ENTRY &m &cvd_erase &src
-GLOBAL &gui_fbl &gui_app &gui_hsm
+GLOBAL &gui_fbl &gui_app &gui_hsm &pd_written
 do {d}\\{n}_config.csf
 IF "&m"==""
 (
@@ -643,6 +643,38 @@ IF ("&m"=="HSM")||("&m"=="ALL")
 	do {d}\\{n}_flash_hsm.csf
 )
 print "PD: done (&m)"
+; 무엇을 썼는지 남긴다 (기록이 끝난 뒤라 여기까지 왔으면 실제로 쓴 파일이다).
+; 결과 창(verify.csf FL)은 &pd_written 을, 로그는 FBL=/APP=/HSM= 줄을 쓴다.
+&pd_written="mode=&m"
+IF ("&m"=="IMAGE")||("&m"=="ALL")
+(
+	&pd_written="&pd_written | FBL=&filename1 | APP=&filename2"
+)
+IF ("&m"=="HSM")||("&m"=="ALL")
+(
+	&pd_written="&pd_written | HSM=&filename3"
+)
+print "PD: written &pd_written"
+IF "&src"=="GUI"
+(
+	OPEN #1 &cfg_log /CREATE
+	WRITE #1 "PD=GUI"
+	WRITE #1 "PROJECT=&cfg_name"
+	WRITE #1 "ERASE=&cvd_erase"
+	CLOSE #1
+)
+OPEN #1 &cfg_log /APPEND
+WRITE #1 "WRITTEN_MODE=&m"
+IF ("&m"=="IMAGE")||("&m"=="ALL")
+(
+	WRITE #1 "FBL=&filename1"
+	WRITE #1 "APP=&filename2"
+)
+IF ("&m"=="HSM")||("&m"=="ALL")
+(
+	WRITE #1 "HSM=&filename3"
+)
+CLOSE #1
 ; 화면에서 눌렀으면 이어서 검증하고 결과를 창으로 알린다 (CLI 는 run.csf 가 따로 검증).
 ; 검증 지점은 config 의 FBL/APP 기준이라, 창에서 다른 파일을 골랐으면 검증하지 않는다.
 IF "&src"=="GUI"
@@ -654,7 +686,7 @@ IF "&src"=="GUI"
 	ELSE
 	(
 		print "PD: verify skipped - FBL/APP differ from {n}_config.csf"
-		DIALOG.OK "Written. Verify skipped - selected FBL/APP differ from the project config (check points are for the config files)"
+		DIALOG.OK "Written, verify skipped (selected FBL/APP differ from the project config). &pd_written"
 	)
 )
 ENDDO
@@ -666,6 +698,7 @@ def tpl_verify(name, d):
          "; 인자: CLI = 결과 창 없음 / FL = FL 버튼이 부름 / 없음 = VF 버튼",
          "LOCAL &v &ctx &bad &first",
          "ENTRY &ctx",
+         "GLOBAL &pd_written",
          '&bad="NO"',
          '&first=""',
          "do %s\\%s_config.csf" % (d, name),
@@ -692,13 +725,28 @@ def tpl_verify(name, d):
               "\t\t)",
               "\t)",
               ")"]
-    L += ['WRITE #1 "VERIFY=end"', "CLOSE #1",
+    # 결과 창에 무엇과 비교했는지(=무엇을 썼는지) 함께 보여 준다.
+    # FL: PD 가 방금 쓴 내용(&pd_written) / VF: config 의 FBL·APP (검증 지점의 기준)
+    L += ['WRITE #1 "VERIFY=end"',
+          'IF "&bad"=="YES"',
+          "(",
+          '\tWRITE #1 "RESULT=FAILED &first"',
+          ")",
+          "ELSE",
+          "(",
+          '\tWRITE #1 "RESULT=OK"',
+          ")",
+          "CLOSE #1",
           'IF "&bad"=="YES"',
           "(",
           '\tprint "VF: FAILED - first mismatch at &first (log: &cfg_log)"',
-          '\tIF "&ctx"!="CLI"',
+          '\tIF "&ctx"=="FL"',
           "\t(",
-          '\t\tDIALOG.OK "Verify FAILED - flash does not match the image (first mismatch &first). See &cfg_log"',
+          '\t\tDIALOG.OK "Flash done but Verify FAILED (first mismatch &first). &pd_written. See &cfg_log"',
+          "\t)",
+          '\tIF "&ctx"==""',
+          "\t(",
+          '\t\tDIALOG.OK "Verify FAILED - flash does not match (first mismatch &first). FBL=&cfg_fbl | APP=&cfg_app. See &cfg_log"',
           "\t)",
           ")",
           "ELSE",
@@ -706,11 +754,11 @@ def tpl_verify(name, d):
           '\tprint "VF: OK - all check points match"',
           '\tIF "&ctx"=="FL"',
           "\t(",
-          '\t\tDIALOG.OK "Flash + Verify OK - all check points match the image files"',
+          '\t\tDIALOG.OK "Flash + Verify OK - all check points match. &pd_written"',
           "\t)",
           '\tIF "&ctx"==""',
           "\t(",
-          '\t\tDIALOG.OK "Verify OK - all check points match the image files"',
+          '\t\tDIALOG.OK "Verify OK - all check points match. FBL=&cfg_fbl | APP=&cfg_app"',
           "\t)",
           ")",
           "ENDDO"]
@@ -1200,7 +1248,21 @@ def run_cvd(entry_fs, log_fs, timeout, flash_limit):
     return why, int(time.time() - t0)
 
 
-def judge(log_fs, with_flash, why, flash_limit):
+def written_summary(c, with_flash):
+    """성공 줄에 붙일 요약: 버전 + 파일 이름 (APP 는 버전 폴더째)."""
+    def short(p):
+        v = img_version(p)
+        return "%s\\%s" % (v, os.path.basename(p)) if v else os.path.basename(p or "")
+    ver = img_version(c.get("app"))
+    parts = ["버전 %s" % ver] if ver else []
+    if not with_flash or c["mode"] in ("IMAGE", "ALL"):
+        parts += ["FBL %s" % short(c["fbl"]), "APP %s" % short(c["app"])]
+    if with_flash and c["mode"] in ("HSM", "ALL"):
+        parts += ["HSM %s" % short(c["hsm"])]
+    return " · ".join(parts)
+
+
+def judge(log_fs, with_flash, why, flash_limit, summary=""):
     t = rb(log_fs).decode(ENC, "replace") if os.path.isfile(log_fs) else ""
     steps = re.findall(r"STEP=(\w+)", t)
     last = steps[-1] if steps else "없음"
@@ -1233,7 +1295,7 @@ def judge(log_fs, with_flash, why, flash_limit):
     if bad:
         print("[실패] 플래시 내용이 이미지와 다릅니다.")
         return EXIT_MISMATCH
-    print("[성공] 기록·검증 완료" if with_flash else "[성공] 검증 완료")
+    print(("[성공] 기록·검증 완료" if with_flash else "[성공] 검증 완료") + (" — " + summary if summary else ""))
     return EXIT_OK
 
 
@@ -1294,7 +1356,11 @@ def cmd_flash(a, with_flash=True):
     log_fs = os.path.join(d, "%s_result.log" % a.name)
     why, sec = run_cvd(entry, log_fs, a.timeout, a.flash_timeout)
     print("  CVD 종료: %s, %d초" % (why, sec))
-    sys.exit(judge(log_fs, with_flash, why, a.flash_timeout))
+    ver = img_version(c.get("app"))
+    if ver and os.path.isfile(log_fs):           # 로그에 버전을 남긴다 (경로는 csf 가 FBL=/APP= 로 남김)
+        with open(log_fs, "a", encoding=ENC, errors="replace") as f:
+            f.write("VERSION=%s\n" % ver)
+    sys.exit(judge(log_fs, with_flash, why, a.flash_timeout, written_summary(c, with_flash)))
 
 
 def cmd_list(a):
