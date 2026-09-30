@@ -123,7 +123,12 @@ flash --name <과제명> [--mode IMAGE|HSM|ALL] [--keep-data] [--rescan] [--fbl 
 2. 로그가 `STEP=connected` 까지 가는지 — 쓰기 전 연결 확인은 `connect.csf`(SWD)로 하고 기록은 벤더 스크립트(JTAG)로 한다. 보드에 따라 한쪽만 붙을 수 있다.
 3. `STEP=done` 까지 가고 검증 지점이 모두 일치하는지.
 4. 데이터 영역 **유지**(`--keep-data`)로 쓴 뒤 DTC 가 실제로 남아 있는지 — 벤더 스크립트의 `No` 경로를 그대로 쓰는 것이라 실기로 확인한 적이 없다.
-5. 화면 PD 창이 뜨고 경로 칸이 채워지는지, Image/Hsm 선택에 따라 칸이 잠기는지, 파일 버튼(`dialog.file`)이 열리는지, `file load start` 뒤 소거 질문과 결과 창(`DIALOG.OK`)이 뜨는지, PA → RE 로 main 에 도달하는지. (2026-09-30: CVD Projects 바로가기로 켜면 ED/PS 가 붙는 것까지 확인됨)
+5. 화면 PD 창이 뜨고 경로 칸이 채워지는지, Image/Hsm 선택에 따라 칸이 잠기는지, 파일 버튼(`dialog.file`)이 열리는지, `file load start` 뒤 소거 질문과 결과 창(`DIALOG.OK`)이 뜨는지, PA → RE 로 main 에 도달하는지.
+
+확인 기록 (HE1I_PSU, 2026-09-30, 보드 미연결):
+- 확인됨: `CVD Projects` 바로가기로 켜면 ED/PS 가 붙음 → PS → PD/Ed/PA/VF/RE 툴바. PD 창 표시·경로 3칸 채움·Image/Hsm 선택에 따른 칸 잠금·파일 선택 버튼 동작. `file load start` → 소거 질문 → `PD: mode=IMAGE erase_data=YES` → `PD: HOST <FBL> / <APP>` 까지 창의 값이 그대로 넘어감.
+- 보드 없이 실행하면 `flash_host.csf` 의 `initCpu` 안 `Connect`(391행)에서 `0xEC2` 로 멈춘다. 소거(`eraseFlash`)·기록(`writeFw`)보다 앞이라 아무것도 쓰지 않는다. 결과 창은 뜨지 않는 것이 정상.
+- 남음(보드 필요): 1~4, 실제 기록 후 `Flash + Verify OK` 결과 창, PA → RE 로 main 도달.
 
 ## 범위 밖
 
