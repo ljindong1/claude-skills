@@ -7,6 +7,8 @@ cvd_flash.py - CVD(CodeViser) CLI 다운로드 + 검증
   flash   이미지 기록 → 검증 (--yes 없으면 계획만 출력)
   verify  기록 없이 검증만
   list    생성된 과제 목록
+  startup 시작 메뉴 "CVD Projects" 바로가기 생성 (CVD 를 켜면 cvd_start.csf 먼저 실행, init 도 만든다)
+  refresh 기존 과제의 PD 창·툴바 스크립트를 새 템플릿으로 다시 생성 (config 는 유지)
 
 예)
   python cvd_flash.py scan --repo D:\\w\\psu_app
@@ -393,76 +395,191 @@ def write_cfg(c):
 
 # ============================================================== 템플릿
 def tpl_flash(name, d):
-    return """; {n}_flash.csf - FL: 소거 + 기록
+    # 화면 창은 기존 S32_Config loadimage.cmm(PD 버튼)과 같은 모양으로 둔다:
+    # Image / Hsm / Image&Hsm 선택 + 파일 경로 칸 3개(버튼으로 바꿀 수 있음) + file load start.
+    # 기존 창의 Erase(전체 소거)는 넣지 않는다 — SFlash 복구 불가 (troubleshooting.md).
+    # 창에서 쓰이는 요소는 loadimage.cmm 에서 동작이 확인된 것만 쓴다.
+    return """; {n}_flash.csf - PD: 기록 (+ 화면에서는 이어서 검증)
 ; CLI : do {n}_flash.csf <IMAGE|HSM|ALL> <YES|NO>   (YES = 데이터 영역까지 소거)
-; 화면: FL 버튼 (인자 없음) -> 무엇을 쓸지, 데이터 영역을 지울지 선택창으로 묻는다
-LOCAL &m &cvd_erase &a &h &e &gui &filename1 &filename2 &filename3
-ENTRY &m &cvd_erase
+; 화면: PD 버튼 (인자 없음) -> Image / Hsm / Image&Hsm 선택, 파일 확인, file load start
+LOCAL &m &cvd_erase &src &e &p &filename1 &filename2 &filename3
+ENTRY &m &cvd_erase &src
+GLOBAL &gui_fbl &gui_app &gui_hsm
 do {d}\\{n}_config.csf
-&gui="NO"
 IF "&m"==""
 (
-	&gui="YES"
-	print "FL: FBL=&cfg_fbl"
-	print "FL: APP=&cfg_app"
-	print "FL: HSM=&cfg_hsm"
-	DIALOG.YESNO "Write FBL + APP ?"
-	ENTRY &a
-	DIALOG.YESNO "Write HSM ?"
-	ENTRY &h
-	&m="NONE"
-	IF &a
+	DIALOG
 	(
-		&m="IMAGE"
-	)
-	IF &h
+	HEADER "{n} Program DownLoad"
+	POS 1. 0. 70. 3.
+	BOX "Load"
 	(
-		IF "&m"=="IMAGE"
+		POS 2. 1. 12. 1.
+		LN.one:  CHOOSEBOX "Image"
 		(
-			&m="ALL"
+			dialog.enable ADD1
+			dialog.enable BT1
+			dialog.enable ADD2
+			dialog.enable BT2
+			dialog.disable ADD3
+			dialog.disable BT3
 		)
-		ELSE
+		POS 16. 1. 12. 1.
+		LN.two:  CHOOSEBOX "Hsm"
+		(
+			dialog.disable ADD1
+			dialog.disable BT1
+			dialog.disable ADD2
+			dialog.disable BT2
+			dialog.enable ADD3
+			dialog.enable BT3
+		)
+		POS 30. 1. 12. 1.
+		LN.three:  CHOOSEBOX "Image&Hsm"
+		(
+			dialog.enable ADD1
+			dialog.enable BT1
+			dialog.enable ADD2
+			dialog.enable BT2
+			dialog.enable ADD3
+			dialog.enable BT3
+		)
+	)
+
+	POS 1. 3. 56. 1.
+	ADD1:  EDIT "" ""
+	POS 58. 3. 11. 1.
+	BT1: DEFBUTTON "boot_image"
+	(
+		&p=dialog.string(ADD1)
+		if os.file("&p")
+		(
+			&p=os.file.path("&p")
+			cd &p
+		)
+		dialog.file *
+		entry &filename1
+		if "&filename1"!=""
+		(
+			dialog.set ADD1 "&filename1"
+		)
+	)
+
+	POS 1. 5. 56. 1.
+	ADD2:  EDIT "" ""
+	POS 58. 5. 11. 1.
+	BT2: DEFBUTTON "app_image"
+	(
+		&p=dialog.string(ADD2)
+		if os.file("&p")
+		(
+			&p=os.file.path("&p")
+			cd &p
+		)
+		dialog.file *
+		entry &filename2
+		if "&filename2"!=""
+		(
+			dialog.set ADD2 "&filename2"
+		)
+	)
+
+	POS 1. 7. 56. 1.
+	ADD3:  EDIT "" ""
+	POS 58. 7. 11. 1.
+	BT3: DEFBUTTON "HSM"
+	(
+		&p=dialog.string(ADD3)
+		if os.file("&p")
+		(
+			&p=os.file.path("&p")
+			cd &p
+		)
+		dialog.file *
+		entry &filename3
+		if "&filename3"!=""
+		(
+			dialog.set ADD3 "&filename3"
+		)
+	)
+
+	POS 1. 9. 68. 1.
+	DEFBUTTON "file load start"
+	(
+		&gui_fbl=dialog.string(ADD1)
+		&gui_app=dialog.string(ADD2)
+		&gui_hsm=dialog.string(ADD3)
+		&m="IMAGE"
+		if dialog.boolean(LN.two)
 		(
 			&m="HSM"
 		)
-	)
-	IF "&m"=="NONE"
-	(
-		print "FL: cancelled (nothing selected)"
+		else if dialog.boolean(LN.three)
+		(
+			&m="ALL"
+		)
+		DIALOG.END
+		DIALOG.YESNO "Erase data flash too? (DTC / NvM / learned values)"
+		ENTRY &e
+		&cvd_erase="NO"
+		IF &e
+		(
+			&cvd_erase="YES"
+		)
+		do {d}\\{n}_flash.csf &m &cvd_erase GUI
 		ENDDO
 	)
-	DIALOG.YESNO "Erase data flash too? (DTC / NvM / learned values)"
-	ENTRY &e
-	&cvd_erase="NO"
-	IF &e
-	(
-		&cvd_erase="YES"
 	)
+
+	dialog.set LN.one
+	dialog.disable ADD3
+	dialog.disable BT3
+	dialog.set ADD1 "&cfg_fbl"
+	dialog.set ADD2 "&cfg_app"
+	dialog.set ADD3 "&cfg_hsm"
+	STOP
+	DIALOG.END
+	ENDDO
 )
 IF "&cvd_erase"==""
 (
 	&cvd_erase="&cfg_erase"
 )
-; 원본 .csf 가 이 LOCAL 변수들을 읽는다
+; 원본 .csf 가 이 LOCAL 변수들을 읽는다. 화면(GUI)에서는 창에서 확인한 파일을 쓴다.
 &filename1="&cfg_fbl"
 &filename2="&cfg_app"
 &filename3="&cfg_hsm"
-print "FL: mode=&m erase_data=&cvd_erase"
+IF "&src"=="GUI"
+(
+	&filename1="&gui_fbl"
+	&filename2="&gui_app"
+	&filename3="&gui_hsm"
+)
+print "PD: mode=&m erase_data=&cvd_erase"
 IF ("&m"=="IMAGE")||("&m"=="ALL")
 (
-	print "FL: HOST (FBL+APP) &filename1 / &filename2"
+	print "PD: HOST (FBL+APP) &filename1 / &filename2"
 	do {d}\\{n}_flash_host.csf
 )
 IF ("&m"=="HSM")||("&m"=="ALL")
 (
-	print "FL: HSM &filename3"
+	print "PD: HSM &filename3"
 	do {d}\\{n}_flash_hsm.csf
 )
-print "FL: done (&m)"
-; 화면에서 눌렀으면 이어서 검증하고 결과를 창으로 알린다 (CLI 는 run.csf 가 따로 검증)
-IF "&gui"=="YES"
+print "PD: done (&m)"
+; 화면에서 눌렀으면 이어서 검증하고 결과를 창으로 알린다 (CLI 는 run.csf 가 따로 검증).
+; 검증 지점은 config 의 FBL/APP 기준이라, 창에서 다른 파일을 골랐으면 검증하지 않는다.
+IF "&src"=="GUI"
 (
-	do {d}\\{n}_verify.csf FL
+	IF ("&filename1"=="&cfg_fbl")&&("&filename2"=="&cfg_app")
+	(
+		do {d}\\{n}_verify.csf FL
+	)
+	ELSE
+	(
+		print "PD: verify skipped - FBL/APP differ from {n}_config.csf"
+		DIALOG.OK "Written. Verify skipped - selected FBL/APP differ from the project config (check points are for the config files)"
+	)
 )
 ENDDO
 """.format(n=name, d=d)
@@ -590,11 +707,14 @@ def tpl_loadfile(projects):
               "\t\t\tADD",
               "\t\t\tTOOLBAR",
               "\t\t\t(",
-              '\t\t\t\tTOOLITEM  "%s Flash"    "FL,R"  "CD.DO %s\\%s_flash.csf"' % (n, d, n),
-              '\t\t\t\tTOOLITEM  "%s Verify"   "VF,G"  "CD.DO %s\\%s_verify.csf"' % (n, d, n),
-              '\t\t\t\tTOOLITEM  "%s Connect"  "CN,R"  "CD.DO %s\\%s_connect.csf"' % (n, d, n),
-              '\t\t\t\tTOOLITEM  "%s Reset"    "RE,R"  "CD.DO %s\\%s_reset.csf"' % (n, d, n),
-              '\t\t\t\tTOOLITEM  "%s Config"   "CF,B"  "Pedit %s\\%s_config.csf"' % (n, d, n),
+              # 기존 S32 과제 툴바(PD / Ed | PA / Ed | RE)와 같은 배치
+              '\t\t\t\tTOOLITEM  "%s Program DownLoad"  "PD,R"  "CD.DO %s\\%s_flash.csf"' % (n, d, n),
+              '\t\t\t\tTOOLITEM  "%s Program Edit (config: image paths)"  "Ed,B"  "Pedit %s\\%s_config.csf"' % (n, d, n),
+              "\t\t\t\tSEPARATOR",
+              '\t\t\t\tTOOLITEM  "%s Path Set (connect + symbol + source)"  "PA,R"  "CD.DO %s\\%s_connect.csf"' % (n, d, n),
+              '\t\t\t\tTOOLITEM  "%s Verify"  "VF,G"  "CD.DO %s\\%s_verify.csf"' % (n, d, n),
+              "\t\t\t\tSEPARATOR",
+              '\t\t\t\tTOOLITEM  "%s Reset (go main)"  "RE,R"  "CD.DO %s\\%s_reset.csf"' % (n, d, n),
               "\t\t\t\tSEPARATOR",
               "\t\t\t)",
               "\t\t)",
@@ -732,6 +852,7 @@ def cmd_init(a):
     print("  기본틀 %s (CPU %s, %s)" % (TEMPLATE_DIR, tcpu, BANK_KO[bank]))
     print("  CVD    %s" % CVD_EXE)
     print("  등록   %s (백업 후 다시 생성)" % os.path.join(FS_PROJECTS, "loadfile.csf"))
+    print("  시작   %s  (CVD 를 켜면 cvd_start.csf 먼저 실행)" % shortcut_path())
     if not a.yes:
         if not sys.stdin.isatty():
             die("확인이 필요합니다. 내용을 확인했으면 --yes 로 다시 실행하세요.")
@@ -765,13 +886,102 @@ def cmd_init(a):
     bak = rebuild_loadfile()
     if not os.path.isfile(os.path.join(FS_PROJECTS, "cvd_start.csf")):
         wtext(os.path.join(FS_PROJECTS, "cvd_start.csf"), tpl_start())
+    lnk = make_shortcut()
     print("[완료] %s" % dst_fs)
     for x in notes:
         print("  - " + x)
     print("  - 검증 지점 %d개" % len(pts))
     if bak:
         print("  - loadfile.csf 백업: %s" % bak)
+    print_shortcut(lnk)
     print("다음: python cvd_flash.py flash --name %s" % name)
+
+
+# ============================================================== 시작 바로가기
+# CVD 는 스크립트로 붙인 툴바 버튼을 저장하지 않는다. 켤 때 버튼을 붙이려면
+# 실행 인수로 스크립트를 넘겨야 한다 (기존 S32 바로가기는 S32_Config\autostart.cmm 을 넘긴다).
+# 우리 바로가기를 따로 만들고, 다른 바로가기는 건드리지 않는다.
+SHORTCUT_NAME = "CVD Projects.lnk"
+
+
+def shortcut_path():
+    return os.path.join(os.environ.get("APPDATA", ""), r"Microsoft\Windows\Start Menu\Programs", SHORTCUT_NAME)
+
+
+def _ps(script):
+    r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    return r.returncode, r.stdout, r.stderr
+
+
+def make_shortcut():
+    """시작 메뉴에 'CVD Projects' 바로가기를 만든다(있으면 다시 쓴다). 실패해도 과제 생성은 유지."""
+    start = wpath(WIN_PROJECTS, "cvd_start.csf")
+    lnk = shortcut_path()
+    q = lambda s: s.replace("'", "''")
+    code, _, err = _ps(
+        "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('%s');"
+        "$s.TargetPath='%s';$s.Arguments='\"%s\"';$s.WorkingDirectory='%s';"
+        "$s.Description='CVD + cvd_start.csf (Projects toolbar)';$s.Save()"
+        % (q(lnk), q(CVD_EXE), q(start), q(os.path.dirname(CVD_EXE))))
+    if code != 0 or not os.path.isfile(lnk):
+        print("[경고] 시작 바로가기를 만들지 못했습니다: %s" % (err.strip() or lnk))
+        return None
+    return lnk
+
+
+def other_start_shortcuts():
+    """CVD.exe 를 가리키는 다른 시작 메뉴·바탕화면 바로가기 (안내용, 수정하지 않음)."""
+    code, out, _ = _ps(
+        "$sh=New-Object -ComObject WScript.Shell;"
+        "$d=@([Environment]::GetFolderPath('StartMenu'),[Environment]::GetFolderPath('CommonStartMenu'),"
+        "[Environment]::GetFolderPath('Desktop'),[Environment]::GetFolderPath('CommonDesktopDirectory'));"
+        "Get-ChildItem $d -Recurse -Filter *.lnk -ErrorAction SilentlyContinue | ForEach-Object {"
+        "$l=$sh.CreateShortcut($_.FullName); if ($l.TargetPath -like '*\\CVD.exe' -and $_.Name -ne '%s') {"
+        "$_.FullName + '|' + $l.Arguments } }" % SHORTCUT_NAME)
+    return [x.split("|", 1) for x in out.splitlines() if "|" in x] if code == 0 else []
+
+
+def print_shortcut(lnk):
+    if not lnk:
+        return
+    print("  - 시작 바로가기: %s" % lnk)
+    print("    시작 메뉴 'CVD Projects' 로 켜면 ED/PS 버튼이 붙은 상태로 시작합니다.")
+    for p, args in other_start_shortcuts():
+        if args.strip():
+            print("    (기존 바로가기 %s 는 %s 를 실행 — 그대로 둠)" % (p, args.strip()))
+
+
+def cmd_refresh(a):
+    """스킬 갱신 후 기존 과제의 생성 스크립트(PD 창·툴바 등)를 새 템플릿으로 다시 만든다.
+    config(경로·검증 지점)와 기본 틀 변환본(flash_host/hsm, connect, reset)은 건드리지 않는다."""
+    check_cvd(strict=True)
+    read_cfg(a.name)                              # 과제가 있는지 확인
+    d = proj_win(a.name)
+    files = {"flash": tpl_flash(a.name, d), "verify": tpl_verify(a.name, d),
+             "run": tpl_entry(a.name, d, True), "check": tpl_entry(a.name, d, False)}
+    print("[refresh] %s" % proj_fs(a.name))
+    for k in files:
+        print("  다시 생성  %s_%s.csf" % (a.name, k))
+    print("  다시 생성  %s (백업 후)" % os.path.join(FS_PROJECTS, "loadfile.csf"))
+    print("  유지       %s_config.csf, flash_host/hsm, connect, reset" % a.name)
+    if a.dry_run:
+        print("[dry-run] 파일을 만들지 않았습니다.")
+        return
+    for k, t in files.items():
+        wtext(os.path.join(proj_fs(a.name), "%s_%s.csf" % (a.name, k)), t)
+    bak = rebuild_loadfile()
+    if not os.path.isfile(os.path.join(FS_PROJECTS, "cvd_start.csf")):
+        wtext(os.path.join(FS_PROJECTS, "cvd_start.csf"), tpl_start())
+    print("[완료]" + ("  loadfile.csf 백업: %s" % bak if bak else ""))
+    print("CVD 에서 PS 로 과제를 다시 고르면 새 툴바가 붙습니다 (이미 붙은 버튼은 CVD 를 다시 켜야 정리됨).")
+
+
+def cmd_startup(a):
+    check_cvd(strict=True)
+    if not os.path.isfile(os.path.join(FS_PROJECTS, "cvd_start.csf")):
+        die("cvd_start.csf 가 없습니다. 먼저 init 으로 과제를 만드세요.")
+    print_shortcut(make_shortcut())
 
 
 def list_projects():
@@ -973,6 +1183,10 @@ def main():
         p.add_argument("--flash-timeout", type=int, default=900, help="쓰기 단계 한도(초). 넘어도 CVD 를 끄지 않음")
 
     sp.add_parser("list", parents=[common])
+    sp.add_parser("startup", parents=[common], help="시작 메뉴 'CVD Projects' 바로가기 생성 (init 도 만든다)")
+    p = sp.add_parser("refresh", parents=[common], help="기존 과제의 PD 창·툴바 스크립트를 새 템플릿으로 다시 생성")
+    p.add_argument("--name", required=True)
+    p.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     if getattr(a, "cvd_root", None):
         set_root(os.path.abspath(a.cvd_root))
@@ -986,6 +1200,10 @@ def main():
         cmd_flash(a, False)
     elif a.cmd == "list":
         cmd_list(a)
+    elif a.cmd == "startup":
+        cmd_startup(a)
+    elif a.cmd == "refresh":
+        cmd_refresh(a)
     else:
         ap.print_help()
 

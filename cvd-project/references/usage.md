@@ -26,42 +26,57 @@ CVD 화면이 켜져 있으면 포트가 겹치므로 닫고 실행한다.
 ## 라이팅 — CVD 화면
 
 ```
-1. CVD 실행, 보드 연결 (전원 + IGN)
-2. Program → Run Script File → C:\JnDTech\CVI\CVD\Projects\cvd_start.csf   (CVD 켤 때 한 번)
-3. 툴바 빨간 PS  ->  과제 선택
-4. 툴바 빨간 FL  ->  선택창 3개
-5. 보드 전원 재인가
+1. 보드 연결 (전원 + IGN), 시작 메뉴 "CVD Projects" 로 CVD 실행   (ED/PS 가 붙은 채 켜진다)
+2. 툴바 빨간 PS  ->  과제 선택
+3. 툴바 빨간 PD  ->  Image / Hsm / Image&Hsm 고르고, 파일 확인 후 file load start
+4. 보드 전원 재인가
 ```
 
-과제를 고르면 CPU 가 `CYT2BL-CM4` 로 잡히고 툴바에 `FL` `VF` `CN` `RE` `CF` 가
+CVD 는 스크립트로 붙인 툴바 버튼을 저장하지 않는다. 끄면 사라지고, 켤 때 실행 인수로
+넘긴 스크립트가 다시 붙인다. `CVD Projects` 바로가기는 init 이 만든다
+(`CVD.exe "Projects\cvd_start.csf"`, 다시 만들려면 `cvd_flash.py startup`).
+기존 `CVD.exe.lnk` 처럼 `S32_Config\autostart.cmm` 을 넘기는 바로가기로 켜면 S32 쪽
+ED/PS 가 뜬다 — 이름이 같으니 툴팁으로 구분한다. 그 상태에서 새 과제를 쓰려면
+Program → Run Script File → `Projects\cvd_start.csf` 를 한 번 실행한다.
+
+과제를 고르면 CPU 가 `CYT2BL-CM4` 로 잡히고 툴바에 `PD` `Ed` `PA` `VF` `RE` 가
 생긴다. 버튼에는 2글자만 찍히고, 마우스를 올리면 설명(툴팁)이 뜬다.
 
-### FL 선택창
+### PD 창
+
+기존 S32 과제의 PD 창(`loadimage.cmm`)과 같은 모양이다.
 
 ```
-Write FBL + APP ?                                    Yes / No
-Write HSM ?                                          Yes / No
-Erase data flash too? (DTC / NvM / learned values)   Yes / No
+┌ <과제명> Program DownLoad ───────────────────────────────┐
+│ Load:  (●) Image   ( ) Hsm   ( ) Image&Hsm               │
+│ [ ...he1i_psu_fbl_v3_0_17.sre            ] [boot_image]  │
+│ [ ...he1i_psu_app_v3_0_26_Writing.s19    ] [app_image ]  │
+│ [ ...HSM_Framework_..._V2_10_0.sre       ] [HSM       ]  │
+│ [              file load start                        ]  │
+└──────────────────────────────────────────────────────────┘
+→ Erase data flash too? (DTC / NvM / learned values)   Yes / No
 ```
 
-앞의 두 개가 모두 No 면 아무것도 하지 않고 끝난다. 파일 경로는 창을 띄우기 전에
-메시지 창에 `FL: FBL=...` `FL: APP=...` `FL: HSM=...` 로 찍힌다. APP 이
-`_Writing.s19` 인지 확인한다.
+- 경로 칸에는 **config 의 현재 이미지**가 채워져 있다(`flash --rescan` 이나 init 이 갱신).
+  APP 이 `_Writing.s19` 인지 확인한다. 옆 버튼으로 다른 파일을 고를 수 있다.
+- `Image` = FBL+APP, `Hsm` = HSM 만, `Image&Hsm` = 전부. 고르지 않은 칸은 흐리게 잠긴다.
+- 기존 창의 `Erase`(전체 소거)는 없다 — SFlash 가 복구 불가(`troubleshooting.md`).
+- 창에서 고른 파일은 이번 한 번만 쓰고 config 에 저장하지 않는다. 계속 쓸 파일이면
+  `cvd_flash.py flash --name <과제명> --app <경로>` 로 config 를 갱신한다(검증 지점도 같이 바뀜).
 
-### FL 결과 창
+### PD 결과 창
 
-쓰기가 끝나면 FL 이 이어서 검증(VF 와 같은 내용)을 돌리고 결과를 창으로 띄운다.
+쓰기가 끝나면 PD 가 이어서 검증(VF 와 같은 내용)을 돌리고 결과를 창으로 띄운다.
 
 ```
 Flash + Verify OK - all check points match the image files          성공
 Verify FAILED - flash does not match the image (first mismatch 0x…)  실패 — 다시 쓴다
+Written. Verify skipped - selected FBL/APP differ from the project config   창에서 다른 파일을 고름
 ```
 
+검증 지점은 config 의 FBL/APP 기준이라, 창에서 다른 파일을 골랐으면 검증을 건너뛴다.
 쓰는 도중 오류가 나면 스크립트가 그 자리에서 멈추므로 **결과 창이 뜨지 않는다.**
 창이 안 뜨면 메시지 창의 마지막 오류 줄을 본다.
-
-> 기존 S32_Config 과제(`PD` → `Image&Hsm` → `Erase flash memory?` 두 번)는 그대로
-> 계속 쓸 수 있다. 새 과제에는 그 창이 없고 위 선택창으로 대신한다.
 
 ### 데이터 영역 지움 / 유지
 
@@ -105,7 +120,7 @@ IDCODE = 0x6BA0xxxx.
 file "...HSM_Framework....sre" loaded.   HSM   1차
 file "...HSM_Framework....sre" loaded.   HSM   2차 (뱅크 스왑)
 Reset Target                             HSM 종료
-FL: done (ALL)
+PD: done (ALL)
 ```
 
 HOST 와 HSM 을 둘 다 쓰면 `Reset Target` 이 두 번 찍힌다. 상태 표시가 `SYSDOWN`
@@ -151,7 +166,7 @@ init 과 flash 때 도구가 FBL·APP 이미지에서 최대 16개 지점(주소
 ## 디버깅
 
 ```
-CN (Connect)    연결 + 워치독 해제 + 심볼 ELF 로드 + 소스 경로, CPU 정지  ->  DEBUG
+PA (Path Set)   연결 + 워치독 해제 + 심볼 ELF 로드 + 소스 경로, CPU 정지  ->  DEBUG
 RE (Reset)      sys.down/up 후 go main                                  ->  main 에서 멈춤
 ```
 
@@ -232,4 +247,4 @@ Configuration\Ecu\Mcal\Ecud_Wdg.arxml
 
 라이팅 중에 워치독과 ECC 가 꺼지는 것은 별개다. 그것은 플래시 로더가
 `wdtDisable` 로 직접 끄는 것이고(`<과제명>_flash_host.csf`), 애플리케이션을
-디버깅하는 상황과 다르다. `CN`(connect.csf)도 연결할 때 같은 방식으로 워치독을 끈다.
+디버깅하는 상황과 다르다. `PA`(connect.csf)도 연결할 때 같은 방식으로 워치독을 끈다.

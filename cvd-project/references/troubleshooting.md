@@ -91,10 +91,10 @@ Data.LOAD.auto &filename1 /NosYmbol /NoRegister /NoClear
 
 `/DIFF` 는 지원 여부가 확인되지 않았다. 그래서 이 스킬의 검증(`VF`)은
 `Data.Long` 으로 정해진 주소만 읽어 비교한다 — 심볼을 건드리지 않는다.
-더 강한 증거는 **`CN` → `RE` 로 `main` 에서 멈추는 것**이다 — 심볼 주소에 실제 코드가
+더 강한 증거는 **`PA` → `RE` 로 `main` 에서 멈추는 것**이다 — 심볼 주소에 실제 코드가
 있고 리셋부터 거기까지 실행이 도달했다는 뜻이라, 빈 플래시나 다른 빌드로는 불가능하다.
 
-심볼이 날아갔으면 `CN` 을 다시 누르면 된다.
+심볼이 날아갔으면 `PA` 를 다시 누르면 된다.
 
 ---
 
@@ -104,7 +104,7 @@ Data.LOAD.auto &filename1 /NosYmbol /NoRegister /NoClear
 |---|---|
 | `SYSOFF` | 디버거가 타겟에 안 붙음. 시작 전 정상 |
 | `SYSDOWN` | 라이팅 스크립트가 `sys.down` 으로 끝낸 상태. **실패 아님** |
-| `DEBUG` | `CN` 후 CPU 정지 상태로 붙어 있음. 디버깅 시작점 |
+| `DEBUG` | `PA` 후 CPU 정지 상태로 붙어 있음. 디버깅 시작점 |
 | `Warning : Not debug mode !` | CPU 가 실행 중이라 브레이크포인트 불가 |
 
 `SYSDOWN` 이 정상인 이유 — 라이팅 중에는 CPU 를 `CM0+` 로 잡고 ECC 와 워치독을
@@ -112,7 +112,7 @@ Data.LOAD.auto &filename1 /NosYmbol /NoRegister /NoClear
 상태로 내려놓는 것이 정상 종료다. 전원을 다시 넣으면 정상 부팅한다.
 
 `RE`(reset.csf)는 `go main` 까지 하므로 **연결 확인용이 아니다.**
-심볼이 없으면 실패한다. `CN` 을 먼저.
+심볼이 없으면 실패한다. `PA` 를 먼저.
 
 ---
 
@@ -125,11 +125,14 @@ Data.LOAD.auto &filename1 /NosYmbol /NoRegister /NoClear
 |---|---|---|
 | `ED` | 파랑 | 과제 목록(loadfile.csf) 편집 |
 | `PS` | 빨강 | Project Select |
-| `FL` | 빨강 | Flash — 선택창 후 소거 + 기록 |
+| `PD` | 빨강 | Program DownLoad — 기존 S32 PD 와 같은 창에서 골라 기록 + 검증 |
+| `Ed` | 파랑 | 과제 config.csf 편집 (이미지 경로) |
+| `PA` | 빨강 | Path Set — 연결 + 심볼 + 소스 경로 |
 | `VF` | 초록 | Verify — 검증 지점 읽기 |
-| `CN` | 빨강 | Connect — 연결 + 심볼 + 소스 경로 |
 | `RE` | 빨강 | Reset — main 까지 |
-| `CF` | 파랑 | 과제 config.csf 편집 |
+
+배치는 기존 S32 과제 툴바(`PD` / `Ed` | `PA` / `Ed` | `RE`)에 맞췄다. `refresh --name <과제명>` 이전에
+만든 과제는 `FL` `VF` `CN` `RE` `CF` 로 나온다 — `refresh` 로 다시 만든다.
 
 `PS` 가 없으면 `Program → Run Script File` 로 `cvd_start.csf` 를 실행하거나
 명령창에 직접 친다.
@@ -138,7 +141,7 @@ Data.LOAD.auto &filename1 /NosYmbol /NoRegister /NoClear
 CD.DO C:\JnDTech\CVI\CVD\Projects\loadfile.csf
 ```
 
-과제를 고른 뒤 `FL` `VF` `CN` `RE` `CF` 가 안 생기면 `loadfile.csf` 가 깨진 것이다.
+과제를 고른 뒤 `PD` `Ed` `PA` `VF` `RE` 가 안 생기면 `loadfile.csf` 가 깨진 것이다.
 도구로 과제를 하나 더 만들거나 백업(`loadfile.csf.bak_*`)을 확인한다.
 
 ---
