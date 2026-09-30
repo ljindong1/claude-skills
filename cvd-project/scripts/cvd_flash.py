@@ -1111,6 +1111,26 @@ def judge(log_fs, with_flash, why, flash_limit):
     return EXIT_OK
 
 
+MODE_KO = {"IMAGE": "FBL+APP", "HSM": "HSM 만", "ALL": "FBL+APP+HSM"}
+
+
+def print_flash_options(a, c):
+    """--yes 전에 고를 수 있는 옵션과 지금 선택값, 바꾸는 방법을 보여 준다."""
+    mark = lambda on: "▶" if on else " "
+    print("[옵션] 지금 선택값은 ▶. 바꾸려면 오른쪽 인자를 붙인다. 지정하지 않은 값은 기본값(이전 실행값을 이어 쓰지 않음).")
+    print("  무엇을 쓸지")
+    for m in MODES:
+        print("   %s %-5s %-12s --mode %s%s" % (mark(c["mode"] == m), m, MODE_KO.get(m, ""), m,
+                                              "   (기본)" if m == "IMAGE" else ""))
+    print("  데이터 영역 (DTC·NvM·학습값, 워크 플래시)")
+    print("   %s 지움         (인자 없음, 기본)   보드 이력을 모를 때" % mark(c["erase"] == "YES"))
+    print("   %s 유지         --keep-data        고장 기록을 남긴 채 새 빌드만 올릴 때 (실기 미확인)" % mark(c["erase"] == "NO"))
+    print("  이미지")
+    print("   %s 저장된 경로  (인자 없음)" % mark(not a.rescan and not any(getattr(a, k) for k in ("fbl", "app", "hsm"))))
+    print("   %s 최신 재탐색  --rescan           새 빌드가 나왔을 때 (저장소 git pull 먼저)" % mark(a.rescan))
+    print("   %s 직접 지정    --fbl/--app/--hsm <경로>" % mark(any(getattr(a, k) for k in ("fbl", "app", "hsm"))))
+
+
 def cmd_flash(a, with_flash=True):
     check_cvd(strict=True)
     c = prepare_cfg(a)
@@ -1123,7 +1143,8 @@ def cmd_flash(a, with_flash=True):
         if c["mode"] in ("HSM", "ALL"):
             print("  (HSM 영역은 CM4 에서 읽을 수 없어 검증은 FBL·APP 지점으로 한다)")
         if not a.yes:
-            print("[확인 필요] 위 내용으로 보드를 지우고 씁니다. 맞으면 --yes 를 붙여 다시 실행하세요.")
+            print_flash_options(a, c)
+            print("[확인 필요] 아직 보드에 아무것도 하지 않았습니다. 위 내용이 맞으면 같은 인자에 --yes 를 붙여 다시 실행하세요.")
             sys.exit(EXIT_OK)
     else:
         print("[%s] 검증만" % a.name)
