@@ -439,7 +439,7 @@ def tpl_flash(name, d):
     return """; {n}_flash.csf - PD: 기록 (+ 화면에서는 이어서 검증)
 ; CLI : do {n}_flash.csf <IMAGE|HSM|ALL> <YES|NO>   (YES = 데이터 영역까지 소거)
 ; 화면: PD 버튼 (인자 없음) -> Image / Hsm / Image&Hsm 선택, 파일 확인, file load start
-LOCAL &m &cvd_erase &src &e &p &filename1 &filename2 &filename3
+LOCAL &m &cvd_erase &src &e &p &filename1 &filename2 &filename3 &miss
 ENTRY &m &cvd_erase &src
 GLOBAL &gui_fbl &gui_app &gui_hsm
 do {d}\\{n}_config.csf
@@ -591,6 +591,45 @@ IF "&src"=="GUI"
 	&filename1="&gui_fbl"
 	&filename2="&gui_app"
 	&filename3="&gui_hsm"
+)
+; 쓰기 전에 파일부터 확인한다. 벤더 스크립트는 소거·FBL 기록 뒤에야 APP 를 읽으므로,
+; 파일이 없으면 보드를 지운 채 멈춘다. 없으면 여기서 아무것도 쓰지 않고 끝낸다.
+&miss=""
+IF ("&m"=="IMAGE")||("&m"=="ALL")
+(
+	IF OS.FILE("&filename1")
+	(
+	)
+	ELSE
+	(
+		&miss="&miss FBL=&filename1"
+	)
+	IF OS.FILE("&filename2")
+	(
+	)
+	ELSE
+	(
+		&miss="&miss APP=&filename2"
+	)
+)
+IF ("&m"=="HSM")||("&m"=="ALL")
+(
+	IF OS.FILE("&filename3")
+	(
+	)
+	ELSE
+	(
+		&miss="&miss HSM=&filename3"
+	)
+)
+IF "&miss"!=""
+(
+	print "PD: ERROR file not found - nothing written:&miss"
+	IF "&src"=="GUI"
+	(
+		DIALOG.OK "File not found - nothing written (board untouched).&miss"
+	)
+	ENDDO
 )
 print "PD: mode=&m erase_data=&cvd_erase"
 IF ("&m"=="IMAGE")||("&m"=="ALL")
