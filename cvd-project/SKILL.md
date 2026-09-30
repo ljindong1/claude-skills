@@ -14,8 +14,7 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 - 도구: 이 스킬 폴더의 `scripts\cvd_flash.py`. 설치·복사하지 않고 그 자리에서 실행한다.
   `python "<이 스킬 폴더>\scripts\cvd_flash.py" <명령>`
 - 라이팅 기본 틀: `assets\cyt2bl_dual\` (CYT2BL 듀얼뱅크). 원본은 CVD 의 `S32_Config\_BASE_CYT2BL_Dual` 이며 한 번 복사해 스킬에 넣은 것이다. **다른 과제 폴더(S32_Config 아래)는 참조하지 않는다.**
-- 생성된 .csf 는 손으로 고치지 않는다. 경로는 flash 인자(`--version`·`--rescan`·경로 직접 지정)로 갱신한다.
-- **APP·ELF 는 버전별 폴더에 있다.** Jenkins 훅(`PostPackage.bat`)이 `Debug\OEUK_xxxx\<버전>\` 에 산출물을 쌓는다(`<버전>` = `PJ_Define.h` `SOFTWARE_VERSION_0~4`, 예 `26810`). 도구는 버전 폴더가 하나면 그대로 쓴다. 여러 개일 때 **init 은 가장 낮은 버전으로 config 를 만들고**(묻지 않음), **flash 는 매번 멈춰 사용자에게 버전을 묻는다.** 다른 버전으로 바꾸는 요청이 오면 `set --version`(보드에 쓰지 않음) 또는 `flash --version … --yes` 로 config 도 함께 바꾼다. 빌드 결과(APP·ELF)가 하나도 없으면 init 은 config 의 APP·ELF 를 비워 둔 채 과제를 만든다. APP 와 ELF 는 고른 버전 폴더에서 함께 가져온다. `rom_<버전>\`(aSIMS 서명 입력)은 후보에서 뺀다.
+- 생성된 .csf 는 손으로 고치지 않는다. 경로는 flash 인자나 `--rescan` 으로 갱신한다.
 
 ## 폴더 구조 (도구가 만든다)
 
@@ -25,7 +24,7 @@ C:\JnDTech\CVI\CVD\Projects\
  ├── loadfile.csf        과제 목록. init으로 과제가 추가될 때만 재생성(백업 후)
  └── <과제명>\
       <과제명>_config.csf      경로·검증 지점 (flash 때 도구가 갱신)
-      <과제명>_connect.csf     PA  심볼+소스경로(버전 ELF) → 연결+워치독 해제
+      <과제명>_connect.csf     PA  연결+워치독 해제+심볼+소스경로
       <과제명>_flash.csf       PD  기록 (화면에서는 기존 S32 PD 와 같은 창)
       <과제명>_flash_host.csf  기본 틀 HOST .csf 변환본
       <과제명>_flash_hsm.csf   기본 틀 HSM .csf 변환본
@@ -48,57 +47,35 @@ C:\JnDTech\CVI\CVD\Projects\
 2. `scan --repo <폴더>` 로 조사하고 결과를 표로 보여 준다: FBL / APP(기록용 `_Writing.s19`) / ELF(심볼) / HSM / MCU / 뱅크 구성과 그 근거 / 과제명 제안 / CVD 설치 위치.
    - CVD 설치를 못 찾았으면 여기서 멈추고 설치 경로부터 확인한다(위 "도구" 참조).
    - **다른 후보가 있다고 나오면 반드시 짚는다.** 저장소에 다른 차종 파일(예: `BJ1_PSU` HSM, `SP3i_PSU_FBL`)이 섞여 있을 수 있고, 도구는 가장 최근 파일을 고른다. 경로의 차종명이 맞는지 확인받는다.
-   - FBL 을 못 찾으면 경로를 묻는다(`--fbl`). HSM 도 없으면 `--hsm`.
-   - `버전  선택 필요 — 버전 폴더 여러 개: …` 가 나오면, init 은 **가장 낮은 버전으로 설정한다**고 알린다(묻지 않는다). 사용자가 특정 버전을 말하면 `--version` 으로 넘긴다.
-   - `Debug\OEUK_*` 가 없으면(APP·ELF 없음) 빌드 산출물이 없는 것이다. **init 은 멈추지 않고 APP·ELF 를 비운 채 과제를 만든다.** 빌드가 나오면 `git pull` 후 `set --name <과제명> --version <버전>` 으로 채운다고 안내한다(Jenkins 가 산출물을 자동 커밋한다).
+   - 못 찾은 이미지는 경로를 묻는다(`--fbl --app --elf --hsm`).
+   - `Debug\OEUK_*` 가 없으면 빌드 산출물이 없는 것이다. 저장소에서 `git pull` 을 안내한다(Jenkins 가 산출물을 자동 커밋한다).
 3. AskUserQuestion 한 번으로 묻는다.
    - **과제명**: 제안값 기본. 영문 대문자·숫자·`_`.
    - **뱅크 구성(듀얼/싱글)**: 조사 결과를 근거와 함께 첫 옵션으로. 추론으로 넘기지 않고 반드시 답을 받는다. 틀리면 플래시가 엉뚱한 주소에 써진다.
    - 싱글뱅크이거나 MCU 가 CYT2BL 이 아니면 **기본 틀이 없으므로 중단하고 보고**한다.
-4. `init --repo <폴더> --name <과제명> --bank <dual|single> [--version <버전>] --yes --dry-run` 으로 계획을 보여 주고 확인받는다.
+4. `init --repo <폴더> --name <과제명> --bank <dual|single> --yes --dry-run` 으로 계획을 보여 주고 확인받는다.
 5. 확인되면 `--dry-run` 없이 실행하고 결과(변환 내역, 검증 지점 수, 시작 바로가기)를 보고한다.
    - init 은 시작 메뉴에 **`CVD Projects`** 바로가기를 만든다(있으면 다시 쓴다). CVD 는 스크립트로 붙인 툴바 버튼을 저장하지 않으므로, 켤 때 `cvd_start.csf` 를 인수로 넘겨야 ED/PS 가 뜬다. 이후 CVD 는 이 바로가기로 켜라고 안내한다.
    - 다른 CVD 바로가기(예: S32 `autostart.cmm` 을 넘기는 `CVD.exe.lnk`)는 건드리지 않고 목록만 알린다. 그쪽 버튼도 이름이 ED/PS 라 둘을 함께 띄우면 헷갈린다.
    - 이미 만든 과제에 바로가기만 필요하면 `startup`.
-6. 결과 보고에 **config 에 들어간 버전**(또는 "비어 있음")을 반드시 말한다. 원하는 버전이 아니면 `set --version` 으로 바꾼다.
-7. **보드가 연결돼 있으면 첫 기록 전에 `verify --name <과제명>` 을 먼저 돌린다** (아래 흐름 B 의 "먼저 verify"). verify 는 config 의 버전과 보드를 비교하므로, config 가 비어 있으면 먼저 `set`.
 
 도구가 스스로 막는 것: 이미 있는 과제(덮어쓰지 않음), 조사 결과와 다른 뱅크 지정, MCU 계열 불일치. `--force-bank` / `--force-mcu` 는 사용자가 명시적으로 요구할 때만 쓴다.
 
 ## 흐름 B — flash (빌드마다)
 
 ```
-flash --name <과제명> [--version <버전>] [--mode IMAGE|HSM|ALL] [--keep-data] [--rescan] [--fbl ..] [--app ..] [--elf ..] [--hsm ..] [--yes]
+flash --name <과제명> [--mode IMAGE|HSM|ALL] [--keep-data] [--rescan] [--fbl ..] [--app ..] [--elf ..] [--hsm ..] [--yes]
 ```
-
-### 먼저 verify — 과제를 만든 직후, 보드를 새로 연결했을 때, 연결이 불확실할 때
-
-`verify --name <과제명>` 은 연결해서 검증 지점을 **읽기만** 한다(보드에 쓰지 않으므로 확인 없이 실행). 연결 문제를 기록 시도 전에, 위험 없이 먼저 가려낸다.
-
-| 종료 코드 | 뜻 | 다음 |
-|---|---|---|
-| 6 | 연결 실패 | **기록하지 않는다.** 전원·IGN·케이블부터 (`troubleshooting.md` 0xEC2) |
-| 4 | 검증 미완료 (연결 도중 끊김) | 연결 재확인 후 다시 verify |
-| 3 | 연결 정상, 보드 내용이 config 이미지와 다름 | 새 보드·다른 빌드면 **정상**. 아래 flash 로 간다 |
-| 0 | 연결 정상, 이미 같은 이미지 | 사용자에게 알리고, 그래도 쓸지 묻는다 |
-
-config 의 이미지 파일이 없어 verify 가 멈추면(버전 폴더 정리 등) 먼저 `set --version <버전>` 으로 경로를 맞춘다. 같은 세션에서 이미 연결을 확인했고 보드를 떼지 않았으면 생략해도 된다.
-
-### 기록
 
 **쓰기 전에 반드시 사용자 확인을 받는다.** 순서:
 
-0. **버전 폴더가 여러 개면 `--version` 없이는 계획도 출력하지 않고 `[중단] 버전을 지정하세요: --version <26810|26820>` 으로 끝난다.** 인자 없는 flash 도 마찬가지다(flash 는 매번 저장소를 다시 본다). 목록을 AskUserQuestion 으로 보여 주고(`(직전 기록)` 표시가 있으면 함께 보여 주되 기본값으로 넘기지 않는다) 고른 값을 `--version` 으로 붙여 1로 간다. 버전 폴더가 하나면 묻지 않는다.
-1. `--yes` 없이 실행 → 도구가 계획과 **`[옵션]` 안내**(무엇을 쓸지 / 데이터 영역 지움·유지 / APP 버전 / 이미지 경로, 지금 선택값 ▶ 와 바꾸는 인자)만 출력하고 끝난다. 보드에도 config 에도 아무것도 하지 않는다.
-2. 출력된 **과제 · 버전 · 모드 · 데이터 영역 지움/유지 · FBL/APP/ELF/HSM 경로**와 `[옵션]` 안내를 그대로 보여 주고 AskUserQuestion으로 확인받는다. 사용자가 정하지 않았으면 함께 묻는다.
+1. `--yes` 없이 실행 → 도구가 계획과 **`[옵션]` 안내**(무엇을 쓸지 / 데이터 영역 지움·유지 / 이미지 경로, 지금 선택값 ▶ 와 바꾸는 인자)만 출력하고 끝난다. 보드에도 config 에도 아무것도 하지 않는다.
+2. 출력된 **과제 · 모드 · 데이터 영역 지움/유지 · FBL/APP/HSM 경로**와 `[옵션]` 안내를 그대로 보여 주고 AskUserQuestion으로 확인받는다. 사용자가 정하지 않았으면 함께 묻는다.
    - **무엇을 쓸지**: FBL+APP(IMAGE, 기본) / HSM / 전부(ALL)
    - **데이터 영역(DTC·NvM·학습값)을 지울지**: 지움(기본) / 유지(`--keep-data`). 보드 이력을 모르면 지움. 고장 기록을 남긴 채 새 빌드만 올릴 때 유지.
 3. 확인되면 같은 인자에 `--yes` 를 붙여 실행한다.
 
-- 새 빌드가 나왔으면 작업 전 저장소 `git pull` 을 안내한다. APP·ELF 는 flash 가 매번 저장소를 다시 보므로 따로 할 일이 없다(버전 폴더가 여러 개면 0단계). `--rescan` 은 FBL·HSM 까지 다시 찾을 때, 경로 직접 지정은 버전 폴더 밖 파일을 쓸 때.
-- `verify` 는 버전을 묻지 않고 config 에 저장된(마지막으로 기록한) 이미지와 비교한다. 그 파일이 저장소에서 없어졌으면 멈추므로 flash 로 다시 기록한 뒤 검증한다.
-- 화면 **PD** 는 버전을 묻지 못한다. config 에 저장된 경로를 쓴다. 사용자가 PD 로 다른 버전을 쓰려고 하면 **`set --name <과제명> --version <버전>`** 으로 config 만 바꾼다 — 보드에 쓰지 않으므로 확인 없이 실행해도 되고, 검증 지점도 새 파일 기준으로 다시 계산된다. 버전 폴더가 여러 개인데 버전을 말하지 않았으면 flash 0단계처럼 묻는다. 끝나면 CVD 에서 PS 로 과제를 다시 고르라고 안내한다. (창의 파일 버튼으로 골라도 쓸 수는 있지만 검증은 건너뛴다.)
-- `set` 은 `--rescan`(FBL·HSM 재탐색), `--fbl/--app/--elf/--hsm <경로>`, `--dry-run` 도 받는다.
+- 새 빌드가 나왔으면 `--rescan`(저장소에서 최신 이미지 재탐색) 또는 경로 직접 지정. 작업 전 저장소 `git pull` 을 안내한다.
 - CVD 화면이 켜져 있으면 포트가 겹치므로 닫고 실행하도록 안내한다.
 - 검증만: `verify --name <과제명>` (보드에 쓰지 않음, 확인 없이 실행 가능) / 목록: `list`
 
@@ -116,17 +93,13 @@ config 의 이미지 파일이 없어 verify 가 멈추면(버전 폴더 정리 
 
 로그 마지막 `STEP=`(start → connected → flashing → flashed → done)로 멈춘 단계를 말한다. 도구는 **쓰는 중(flashing)에는 CVD 를 강제로 끄지 않는다.** 그 밖의 단계는 `--timeout`(기본 120초) 동안 진전이 없으면 끈다. 쓰기 한도는 `--flash-timeout`(기본 900초). HSM 영역은 CM4에서 읽을 수 없어 검증은 FBL·APP 지점으로 한다.
 
-**성공하면 무엇을 썼는지까지 알린다.** CLI 성공 줄에 `— 버전 26820 · FBL <파일> · APP 26820\<파일>`(HSM 을 썼으면 `· HSM <파일>`)이 붙고, 결과 로그에 `WRITTEN_MODE=` / `FBL=` / `APP=` / `HSM=` / `RESULT=` / `VERSION=` 줄이 남는다. 사용자에게 결과를 전할 때 이 버전·파일을 함께 말한다.
-
 ## CVD 화면에서 쓰기
 
 시작 메뉴 **CVD Projects** 로 켠다(다른 바로가기로 켰으면 `Program → Run Script File → Projects\cvd_start.csf`) → **PS** → 과제 → **PD**(기록) / **Ed**(config 편집) | **PA**(연결·심볼·소스 경로) / **VF**(검증) | **RE**(리셋→main). 배치와 이름은 기존 S32 과제 툴바에 맞췄다(사용자 요청). CLI와 같은 파일을 쓴다.
 
-**PA 는 연결보다 먼저 config 의 버전 ELF·소스 경로를 잡는다.** 순서: CPU 지정 → ELF 가 있는지 확인(없으면 `ELF not found: <경로> - run: cvd_flash.py set --name <과제> --version <version>` 창, 옛 심볼로 진행하지 않음) → ELF 심볼 로드 + 소스 경로 → 연결·워치독 해제. 그래서 연결이 실패(0xEC2)해도 심볼·소스 창은 고른 버전 기준으로 바뀐다(기본 틀은 연결 뒤에 읽어서, 연결이 실패하면 예전 ELF 가 그대로 남았다). 연결 없이 ELF·소스 경로를 읽는 것은 CVD 에서 확인했다. PA 가 쓰는 버전은 config 의 것이므로, 다른 버전은 먼저 `set --version` 으로 바꾼다. Jenkins 빌드 ELF 에는 소스 경로가 `D:\Jenkins\workspace\...` 로 들어 있어 소스 창은 `&cfg_src`(저장소) 아래를 파일 이름으로 찾는다.
+화면의 **PD** 는 기존 S32 `loadimage.cmm` 과 같은 창을 띄운다: `Image` / `Hsm` / `Image&Hsm` 선택, config 의 FBL/APP/HSM 경로가 채워진 칸 3개(옆 버튼으로 다른 파일 선택 가능), `file load start` → `Erase data flash too? (DTC / NvM / learned values)`. 기존 창의 `Erase`(전체 소거)는 넣지 않았다. 창에서 고른 파일은 그 한 번만 쓰고 config 에 저장하지 않으며, config 와 다른 FBL/APP 를 골랐으면 검증 지점이 맞지 않으므로 검증을 건너뛰고 그렇게 알린다. 쓰기가 끝나면 **자동으로 검증까지 하고 결과를 창으로 띄운다** — `Flash + Verify OK - all check points match the image files` 또는 `Verify FAILED - ... (first mismatch <주소>)`. 쓰는 도중 오류가 나면 스크립트가 멈춰 결과 창이 뜨지 않는다 — 그때는 메시지 창의 오류 줄을 본다. **VF** 도 끝나면 결과 창을 띄운다. 기존 S32_Config 과제는 그대로 계속 쓸 수 있다. 자세한 조작은 `references/usage.md`.
 
-화면의 **PD** 는 기존 S32 `loadimage.cmm` 과 같은 창을 띄운다: `Image` / `Hsm` / `Image&Hsm` 선택, config 의 FBL/APP/HSM 경로가 채워진 칸 3개(옆 버튼으로 다른 파일 선택 가능), `file load start` → `Erase data flash too? (DTC / NvM / learned values)`. **벤더 스크립트를 부르기 전에 고른 모드에 필요한 파일(FBL·APP / HSM)이 있는지 확인하고, 하나라도 없으면 `File not found - nothing written (board untouched). APP=<경로>` 창을 띄우고 아무것도 쓰지 않는다.** 벤더 스크립트는 소거·FBL 기록 뒤에야 APP 를 읽어서, 이 확인이 없으면 보드를 지운 채 멈춘다(버전별 폴더로 바뀌어 config 의 옛 APP 경로가 없어진 경우 등). 그때는 옆 버튼으로 버전 폴더의 파일을 고르거나 CLI `flash --version <버전> --yes` 로 config 를 갱신한다. 기존 창의 `Erase`(전체 소거)는 넣지 않았다. 창에서 고른 파일은 그 한 번만 쓰고 config 에 저장하지 않으며, config 와 다른 FBL/APP 를 골랐으면 검증 지점이 맞지 않으므로 검증을 건너뛰고 그렇게 알린다. 쓰기가 끝나면 **자동으로 검증까지 하고 결과를 창으로 띄운다** — `Flash + Verify OK - all check points match. mode=IMAGE | FBL=<경로> | APP=<경로>` 또는 `Flash done but Verify FAILED (first mismatch <주소>). mode=… | …` — 창 끝에 이번에 쓴 모드·파일 경로가 붙어 APP 버전 폴더가 보인다(검증을 건너뛴 창도 같다). VF 창은 비교한 config 의 FBL·APP 경로를 붙인다. 쓰는 도중 오류가 나면 스크립트가 멈춰 결과 창이 뜨지 않는다 — 그때는 메시지 창의 오류 줄을 본다. **VF** 도 끝나면 결과 창을 띄운다. 기존 S32_Config 과제는 그대로 계속 쓸 수 있다. 자세한 조작은 `references/usage.md`.
-
-스킬을 갱신한 뒤 이미 만든 과제의 화면 스크립트(PD 창·툴바)만 새로 만들려면 `refresh --name <과제명>`(config·flash_host/hsm·reset 유지, connect.csf·loadfile.csf 는 백업 후 재생성).
+스킬을 갱신한 뒤 이미 만든 과제의 화면 스크립트(PD 창·툴바)만 새로 만들려면 `refresh --name <과제명>`(config·변환본 유지, loadfile.csf 는 백업 후 재생성).
 
 ## 규칙
 
@@ -146,10 +119,8 @@ config 의 이미지 파일이 없어 verify 가 멈추면(버전 폴더 정리 
 
 이 흐름은 아직 실기에서 끝까지 돌려 보지 않았다. 처음 쓸 때 아래를 사용자와 함께 확인하고 결과를 알린다.
 
-순서: **verify(쓰기 없음) → flash → (선택) verify → 화면 PD·PA·RE.** 1·2 는 verify 로 먼저 본다.
-
 1. `CVD.exe <파일>.csf` 로 CLI 실행되는지. 안 되면 결과를 사용자에게 보고하고 방법을 함께 정한다(.cmm 사본으로 우회하는 기능은 두지 않았다).
-2. verify 로그가 `STEP=connected` 까지 가는지 — 쓰기 전 연결 확인은 `connect.csf`(SWD)로 하고 기록은 벤더 스크립트(JTAG)로 한다. 보드에 따라 한쪽만 붙을 수 있다(verify 가 붙어도 flash 에서 JTAG 가 안 붙을 수 있음).
+2. 로그가 `STEP=connected` 까지 가는지 — 쓰기 전 연결 확인은 `connect.csf`(SWD)로 하고 기록은 벤더 스크립트(JTAG)로 한다. 보드에 따라 한쪽만 붙을 수 있다.
 3. `STEP=done` 까지 가고 검증 지점이 모두 일치하는지.
 4. 데이터 영역 **유지**(`--keep-data`)로 쓴 뒤 DTC 가 실제로 남아 있는지 — 벤더 스크립트의 `No` 경로를 그대로 쓰는 것이라 실기로 확인한 적이 없다.
 5. 화면 PD 창이 뜨고 경로 칸이 채워지는지, Image/Hsm 선택에 따라 칸이 잠기는지, 파일 버튼(`dialog.file`)이 열리는지, `file load start` 뒤 소거 질문과 결과 창(`DIALOG.OK`)이 뜨는지, PA → RE 로 main 에 도달하는지.
