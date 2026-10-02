@@ -415,6 +415,55 @@ _PACK_BLOCK = (
     b":skip_pack\r\n"
 )
 
+# 전용 훅에 끼워 넣는 ALL 분기 블록 (표준 훅의 "2) build" 바로 앞)
+# PJ_Define.h 의 #define JENKINS_BUILD_TARGET ALL 이면 BuildVariants.bat 이 빌드 1회 안에서
+# <기준> / <기준>_test / <기준+1> / <기준+1>_test 4개를 만들고 :all_push 로 넘어간다.
+_ALL_BLOCK = (
+    b"rem ---- 1-1) JENKINS_BUILD_TARGET = ALL : 4 variants in one run ---------------\r\n"
+    b"rem  PJ_Define.h  #define JENKINS_BUILD_TARGET ALL  -> BuildVariants.bat builds\r\n"
+    b"rem  <ver> / <ver>_test / <ver+1> / <ver+1>_test, then one Git Push.\r\n"
+    b"rem  CURRENT or no define -> the normal single build below.\r\n"
+    b'set "BUILD_TARGET=CURRENT"\r\n'
+    b'set "ALL_OK=0"\r\n'
+    b'set "PJ_FILE=%PROJ_DIR%\\Application\\app_code\\a_app_service\\src\\PJ_Define.h"\r\n'
+    b'if /i "!result!"=="Build -c"    goto :single_build\r\n'
+    b'if /i "!result!"=="GenerateAll" goto :single_build\r\n'
+    b'if not exist "%HOOK_DIR%BuildVariants.bat" goto :single_build\r\n'
+    b'if not exist "%HOOK_DIR%PJ_Variant.ps1"    goto :single_build\r\n'
+    b'if not exist "%PJ_FILE%"                   goto :single_build\r\n'
+    b'for /f "usebackq delims=" %%T in (`powershell -NoProfile -ExecutionPolicy Bypass'
+    b' -File "%HOOK_DIR%PJ_Variant.ps1" -Action target -File "%PJ_FILE%"`) do set "BUILD_TARGET=%%T"\r\n'
+    b"echo [HOOK] JENKINS_BUILD_TARGET : !BUILD_TARGET!\r\n"
+    b'if /i not "!BUILD_TARGET!"=="ALL" goto :single_build\r\n'
+    b'call "%HOOK_DIR%BuildVariants.bat" !result! !jopt!\r\n'
+    b'set "BUILD_RC=!ERRORLEVEL!"\r\n'
+    b"goto :all_push\r\n"
+    b":single_build\r\n"
+    b"\r\n"
+)
+
+# ALL 모드 push 블록 (표준 훅의 "4) push outputs" 바로 앞). 일부 조합이 실패해도
+# 만들어진 폴더는 커밋한다. 단일 빌드는 :std_push 로 건너뛰어 기존 흐름 그대로.
+_ALL_PUSH_BLOCK = (
+    b"goto :std_push\r\n"
+    b":all_push\r\n"
+    b"rem ---- 4-1) ALL mode push : commit the built variants even if some failed --\r\n"
+    b'if "!ALL_OK!"=="0" (\r\n'
+    b"    echo [HOOK] No variant built - skip Git Push.\r\n"
+    b"    goto :finish\r\n"
+    b")\r\n"
+    b'if not exist "%HOOK_DIR%GitPush.bat" (\r\n'
+    b"    echo [HOOK] GitPush.bat not found in %HOOK_DIR%\r\n"
+    b'    set "PUSH_RC=8"\r\n'
+    b"    goto :finish\r\n"
+    b")\r\n"
+    b'call "%HOOK_DIR%GitPush.bat"\r\n'
+    b'set "PUSH_RC=!ERRORLEVEL!"\r\n'
+    b"goto :finish\r\n"
+    b":std_push\r\n"
+    b"\r\n"
+)
+
 
 def hook_name(model):
     """차종 코드로 전용 훅 파일명을 만든다. 예: HE1i -> Build_Hook_HE1I.bat"""
@@ -424,8 +473,8 @@ def hook_name(model):
 def _render_project_hook(model):
     """표준 훅을 읽어 차종 전용 훅을 만든다. 표준 훅 자체는 건드리지 않는다.
 
-    차이는 두 가지뿐이다 - 머리말(이 파일이 랩 표준이 아니라 과제 전용임을 명시)과
-    :skip_check 뒤에 들어가는 PostPackage 호출 블록.
+    차이 - 머리말(이 파일이 랩 표준이 아니라 과제 전용임을 명시), :skip_check 뒤의
+    PostPackage 호출 블록, 그리고 JENKINS_BUILD_TARGET=ALL 분기(빌드 앞)와 그 push 블록.
     """
     if not re.fullmatch(r"[A-Za-z0-9]+", model or ""):
         out(False, "invalid", "차종 코드는 영문·숫자만 가능: " + str(model))
@@ -437,13 +486,19 @@ def _render_project_hook(model):
         (b"Build_Hook_GIT_ASEC.bat %BuildType% -j8", hk + b" %BuildType% -j8"),
         (b"rem             4) push outputs via GitPush.bat  5) return exit code",
          b"rem             3-1) package artifacts via PostPackage.bat\r\n"
-         b"rem             4) push outputs via GitPush.bat  5) return exit code"),
+         b"rem             4) push outputs via GitPush.bat  5) return exit code\r\n"
+         b"rem             1-1) JENKINS_BUILD_TARGET=ALL in PJ_Define.h ->\r\n"
+         b"rem                  BuildVariants.bat builds <ver>, <ver>_test,\r\n"
+         b"rem                  <ver+1>, <ver+1>_test, then 4-1) one Git Push"),
         (b"rem  Edit     : NOT required (paths and branch are detected automatically)",
          b"rem  Edit     : ALLOWED - project specific hook, not the LAB standard.\r\n"
          b"rem             Modify freely for this project. The standard file\r\n"
          b"rem             Build_Hook_GIT_ASEC.bat is kept untouched as a fallback.\r\n"
-         b"rem  Base     : copy of Build_Hook_GIT_ASEC.bat + step 3-1 packaging call"),
+         b"rem  Base     : copy of Build_Hook_GIT_ASEC.bat + step 3-1 packaging call\r\n"
+         b"rem             + step 1-1 / 4-1 ALL variant build"),
         (b"\r\n:skip_check\r\n", b"\r\n:skip_check\r\n" + _PACK_BLOCK),
+        (b"\r\nrem ---- 2) build ----", b"\r\n" + _ALL_BLOCK + b"rem ---- 2) build ----"),
+        (b"\r\nrem ---- 4) push outputs ----", b"\r\n" + _ALL_PUSH_BLOCK + b"rem ---- 4) push outputs ----"),
     ]
     for old, new in reps:
         if raw.count(old) != 1:
@@ -471,6 +526,20 @@ def build_command(project, model):
             'exit /b %ERRORLEVEL%').format(h=hk, s=std)
 
 
+def _build_target(build_dir):
+    """PJ_Define.h 의 JENKINS_BUILD_TARGET 상태. 공유 소스라 읽기만 하고 넣지 않는다.
+
+    없으면 훅은 CURRENT(켜진 OEUK 하나만 빌드)로 동작한다.
+    """
+    pj = os.path.join(build_dir, "..", "Application", "app_code", "a_app_service", "src", "PJ_Define.h")
+    if not os.path.isfile(pj):
+        return {"pj_define": False, "define": None}
+    t = open(pj, "rb").read().decode("latin-1")
+    m = re.search(r"(?m)^[ \t]*#define[ \t]+JENKINS_BUILD_TARGET[ \t]+(\w+)", t)
+    return {"pj_define": True, "define": m.group(1).upper() if m else None,
+            "has_oeuk_test": bool(re.search(r"(?m)^[ \t]*(?://[ \t]*)?#define[ \t]+OEUK_TEST\b", t))}
+
+
 def c_add_bat(a):
     root = os.path.abspath(a.path)
     cur = git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=root).stdout.strip()
@@ -484,6 +553,8 @@ def c_add_bat(a):
         "GitPush.bat": _render_gitpush(a.commit_name, a.email),
         hook_name(a.model): _render_project_hook(a.model),
         "PostPackage.bat": open(os.path.join(ASSETS, "PostPackage.bat"), "rb").read(),
+        "BuildVariants.bat": open(os.path.join(ASSETS, "BuildVariants.bat"), "rb").read(),
+        "PJ_Variant.ps1": open(os.path.join(ASSETS, "PJ_Variant.ps1"), "rb").read(),
     }
     added, same, conflict = [], [], []
     norm = lambda b: b.replace(b"\r\n", b"\n")
@@ -501,15 +572,16 @@ def c_add_bat(a):
     rel_all = [os.path.relpath(os.path.join(build_dir, f), root).replace("\\", "/") for f in files]
     tracked = [l for l in git(["ls-files", "--"] + rel_all, cwd=root).stdout.splitlines() if l.strip()]
     dirty = git(["status", "--porcelain", "--"] + rel_all, cwd=root).stdout.strip()
+    bt = _build_target(build_dir)
     if not added and len(tracked) == len(rel_all) and not dirty:
-        out(True, "exists", "표준 bat이 이미 커밋되어 있음", same=same)
+        out(True, "exists", "표준 bat이 이미 커밋되어 있음", same=same, build_target=bt)
     rel = rel_all
     git(["add", "--"] + rel, cwd=root)
     git(["-c", "user.name=" + a.commit_name, "-c", "user.email=" + a.email,
          "commit", "-m", "[Build] Add Jenkins build scripts (%s)" % ", ".join(sorted(files))], cwd=root)
     git(["push", "origin", a.name], cwd=root, auth=True)
     head = git(["rev-parse", "--short", "HEAD"], cwd=root).stdout.strip()
-    out(True, "created", "표준 bat 추가·커밋·push", added=rel, head=head)
+    out(True, "created", "표준 bat 추가·커밋·push", added=rel, head=head, build_target=bt)
 
 
 def c_job_info(a):

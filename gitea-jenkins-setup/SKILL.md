@@ -242,14 +242,37 @@ python gjsetup.py detect-project --path <target>
 python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name <작업 브랜치> --model <차종> --commit-name <이름> --email <이메일>
 ```
 
-`<프로젝트 폴더>\Build\`에 **4개**를 넣고 한 번에 커밋·push한다.
+`<프로젝트 폴더>\Build\`에 **6개**를 넣고 한 번에 커밋·push한다.
 
 | 파일 | 출처 | 역할 |
 | --- | --- | --- |
 | `Build_Hook_GIT_ASEC.bat` | `assets` 바이트 그대로 | 랩 표준 훅. **수정하지 않는다.** 전용 훅이 없는 브랜치를 위한 fallback |
 | `GitPush.bat` | `assets` + `[USER]` 2줄 치환 | 빌드 결과물 자동 커밋·push |
-| `Build_Hook_<차종>.bat` | 표준 훅에서 생성 | ⭐ **Job이 실제로 부르는 훅.** 표준 훅 + `PostPackage` 호출 1블록 |
-| `PostPackage.bat` | `assets` 바이트 그대로 | `Build_all.bat`의 `[Post-build] Archiving` 블록 기반. **버전별 폴더** `Debug\OEUK_xxxx\<버전>\`에 차종명 산출물(`_Writing.s19` 등)과 `rom_<버전>\`(aSIMS 서명 입력) 생성 |
+| `Build_Hook_<차종>.bat` | 표준 훅에서 생성 | ⭐ **Job이 실제로 부르는 훅.** 표준 훅 + `PostPackage` 호출 블록 + `ALL` 분기·push 블록 |
+| `PostPackage.bat` | `assets` 바이트 그대로 | `Build_all.bat`의 `[Post-build] Archiving` 블록 기반. **버전별 폴더** `Debug\OEUK_xxxx\<버전>\`에 차종명 산출물(`_Writing.s19` 등)과 `rom_<버전>\`(aSIMS 서명 입력) 생성. `OEUK_TEST` 빌드는 기준 OEUK 폴더의 `<버전>_test\`(같은 레벨)로 |
+| `BuildVariants.bat` | `assets` 바이트 그대로 | `JENKINS_BUILD_TARGET ALL`일 때 빌드 1회 안에서 4개 조합을 차례로 빌드·패키징 |
+| `PJ_Variant.ps1` | `assets` 바이트 그대로 | `PJ_Define.h` 읽기·임시 전환(설정값, 빌드 목록, OEUK 전환·버전 기록). 바이트·줄바꿈 보존 |
+
+> 🎯 **빌드 대상 설정 — `PJ_Define.h`의 `JENKINS_BUILD_TARGET`**
+>
+> 기준 OEUK 블록(예: `OEUK_HE1I`)의 `SOFTWARE_VERSION_4` 바로 아래에 둔다. bat만 읽고 C 코드는 쓰지 않는다.
+>
+> ```c
+> #define JENKINS_BUILD_TARGET CURRENT   /* CURRENT | ALL */
+> ```
+>
+> | 값 | 빌드 1회 결과 (기준 `OEUK_HE1I` 26810) |
+> | --- | --- |
+> | `CURRENT` 또는 define 없음 | 켜진 OEUK 하나만. HE1I → `OEUK_HE1I\26810\`, TEST → `OEUK_HE1I\<TEST 블록 버전>_test\` |
+> | `ALL` | `26810\`, `26810_test\`, `26811\`, `26811_test\` 4개 → 자동 커밋 1개 |
+>
+> - `ALL`은 조합마다 **켤 OEUK 하나만 살리고 나머지는 주석** 처리한다(`#if OEUK_HE1I`가 먼저라 둘 다 살면 TEST가 빌드되지 않는다). test 조합은 TEST 블록의 버전 칸에 기준 버전을 적어 빌드한다.
+> - 다음 버전은 **마지막 자리 +1, 받아올림**(26819 → 26820). 버전 칸은 한 글자씩이라 `10`은 넣을 수 없다. 99999는 오류.
+> - 올린 버전과 OEUK 전환은 **임시**다. 빌드가 끝나면 `PJ_Define.h`를 원본으로 되돌려 커밋에 들어가지 않는다. 기준 버전은 사람이 정한다.
+> - 한 조합이 실패해도 나머지를 빌드하고, 만들어진 폴더는 push한다. 빌드 결과는 실패로 표시된다(`[VARIANTS] [FAIL] …`).
+> - 기준 블록과 TEST 블록의 FOTA(`FOTA_OTA_0x`)·HSM(`HAE_HSM_x`) 설정이 다르면 아무것도 빌드하지 않고 멈춘다 — ARXML 재생성이 필요한 경우라 로컬 `Build_all.bat`을 쓴다.
+> - 시간은 빌드 4회분이다(첫 조합만 `Rebuild`, 나머지는 증분 `Build`).
+> - **`PJ_Define.h`는 공유 소스라 skill이 넣지 않는다.** `add-bat` 결과의 `build_target.define`이 `null`이면 CURRENT로 동작하며, ALL이 필요하면 위 줄을 사용자가 넣도록 안내한다. `has_oeuk_test`가 false면 ALL은 쓸 수 없다고 함께 알린다.
 
 > 📁 **산출물 폴더는 버전별로 쌓인다**
 >
@@ -326,7 +349,7 @@ python gjsetup.py job-verify --name <Job> --repo-url <…> --branch-spec "<…>"
 | 1. Fork | ✅ 생성 / ♻️ 재사용 / ⛔ 충돌 | <소유자>/<repo> |
 | 2. 공동작업자 | … | build 쓰기 [+ 인원] |
 | 3. Clone·브랜치 | … | <로컬 경로>, <작업 브랜치> (<커밋>) |
-| 4. 표준 bat | … | <프로젝트>\Build\ 2개, 커밋 <해시> |
+| 4. 표준 bat | … | <프로젝트>\Build\ 6개, 커밋 <해시>, 빌드 대상 <CURRENT/ALL/define 없음> |
 | 5. Job | ✅ 생성 / ♻️ 재사용 | <Job> (뷰 <뷰>, 비활성) 또는 <Job> 재사용 — 만들지 않음 |
 | 6. 검증 | ✅ 8/8 | 필터·URL·브랜치·명령·권한·매개변수 |
 

@@ -9,6 +9,8 @@ rem             that Jenkins builds also produce
 rem               - Debug\OEUK_xxxx\<ver>\<model>_psu_app_vX_Y_Z.*  artifacts
 rem               - Debug\OEUK_xxxx\<ver>\rom_<ver>\               aSIMS sign input
 rem  Layout   : one folder per software version (SOFTWARE_VERSION_0..4).
+rem             OEUK_TEST build -> <base OEUK>\<ver>_test\ (same level as <ver>)
+rem               e.g. Debug\OEUK_HE1I\26810\  Debug\OEUK_HE1I\26810_test\
 rem             same version  -> only that version folder is rebuilt
 rem             other versions -> kept as they are
 rem             loose files / rom_* folders directly under OEUK_xxxx (old flat
@@ -61,13 +63,31 @@ if not defined version (
 )
 echo [PostPackage] Software version : !version!
 
+rem ---- 3-1) OEUK_TEST -> <base>\<ver>_test ----------------------------------
+rem  test build goes next to the base build: Debug\OEUK_HE1I\26810_test\
+rem  base = first OEUK option (enabled or commented) other than OEUK_TEST
+set "FOLDER_VARIANT=!VARIANT!"
+set "VER_DIR=!version!"
+if /i "!VARIANT!"=="OEUK_TEST" (
+    set "BASE_VARIANT="
+    for /f "usebackq" %%i in (`powershell -Command "Select-String -Path '%VEHICLE_OPTION_FILE%' -Pattern '^\s*(//)?\s*#define\s+(OEUK_\w+)' -AllMatches | ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[2].Value } | Where-Object { $_ -ne 'OEUK_TEST' }"`) do (
+        if not defined BASE_VARIANT set "BASE_VARIANT=%%i"
+    )
+    if defined BASE_VARIANT (
+        set "FOLDER_VARIANT=!BASE_VARIANT!"
+        set "VER_DIR=!version!_test"
+    ) else (
+        echo [PostPackage] [WARNING] No base OEUK option - using OEUK_TEST folder.
+    )
+)
+
 rem ---- 4) compose model based name / version folder ------------------------
-set "PREFIX_UPPER=!VARIANT:OEUK_=!"
+set "PREFIX_UPPER=!FOLDER_VARIANT:OEUK_=!"
 for /f "usebackq" %%p in (`powershell -Command "'!PREFIX_UPPER!'.ToLower()"`) do set "PREFIX_LOWER=%%p"
 for /f "tokens=1,* delims=_" %%a in ("!ORIGINAL_BASE_NAME!") do set "SUFFIX=_%%b"
 set "NEW_BASE_NAME=!PREFIX_LOWER!!SUFFIX!"
-set "VARIANT_DIR=..\Debug\!VARIANT!"
-set "OUTPUT_DIR=!VARIANT_DIR!\!version!"
+set "VARIANT_DIR=..\Debug\!FOLDER_VARIANT!"
+set "OUTPUT_DIR=!VARIANT_DIR!\!VER_DIR!"
 
 rem old flat layout: files and rom_* folders directly under VARIANT_DIR
 if exist "!VARIANT_DIR!\" (
