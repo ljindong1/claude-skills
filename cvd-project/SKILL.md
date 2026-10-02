@@ -79,24 +79,26 @@ C:\JnDTech\CVI\CVD\Projects\
 ## 흐름 B — flash (빌드마다)
 
 ```
-flash --name <과제명> [--version <버전>] [--mode IMAGE|HSM|ALL] [--keep-data] [--rescan] [--fbl ..] [--hsm ..] [--app .. --elf ..] [--yes]
-set   --name <과제명> [--version <버전>] [--rescan] [--fbl/--app/--elf/--hsm ..] [--dry-run]     (보드에 쓰지 않음)
+flash --name <과제명> [--version <버전>] [--mode IMAGE|HSM|ALL] [--keep-data] [--banks A|AB] [--rescan] [--fbl ..] [--hsm ..] [--app .. --elf ..] [--yes]
+set   --name <과제명> [--version <버전>] [--banks A|AB] [--rescan] [--fbl/--app/--elf/--hsm ..] [--dry-run]     (보드에 쓰지 않음)
 ```
 
 `--version` 과 `--app/--elf` 는 함께 쓸 수 없다(버전을 고르면 APP·ELF 는 그 폴더에서 온다). `--app/--elf` 는 버전 폴더 밖 파일을 쓸 때만.
 
 **쓰기 전에 반드시 사용자 확인을 받는다.** 순서:
 
-1. `--yes` 없이 실행 → 도구가 계획과 **`[옵션]` 안내**(무엇을 쓸지 / 데이터 영역 지움·유지 / APP 버전 / 이미지 경로, 지금 선택값 ▶ 와 바꾸는 인자)만 출력하고 끝난다. 보드에도 config 에도 아무것도 하지 않는다.
-2. 출력된 **과제 · APP 버전 · 모드 · 데이터 영역 지움/유지 · FBL/APP/ELF/HSM 경로**와 `[옵션]`·`[알림]` 을 그대로 보여 주고 AskUserQuestion으로 확인받는다. 사용자가 정하지 않았으면 함께 묻는다.
+1. `--yes` 없이 실행 → 도구가 계획과 **`[옵션]` 안내**(무엇을 쓸지 / 데이터 영역 지움·유지 / APP 를 쓸 뱅크 / APP 버전 / 이미지 경로, 지금 선택값 ▶ 와 바꾸는 인자)만 출력하고 끝난다. 보드에도 config 에도 아무것도 하지 않는다.
+2. 출력된 **과제 · APP 버전 · 모드 · 데이터 영역 지움/유지 · APP 뱅크 · FBL/APP/ELF/HSM 경로**와 `[옵션]`·`[알림]` 을 그대로 보여 주고 AskUserQuestion으로 확인받는다. 사용자가 정하지 않았으면 함께 묻는다.
    - **APP 버전**: config 버전(기본). `[알림]` 에 현재 소스·더 새 버전이 나오면 그 버전도 옵션으로 보여 준다.
    - **무엇을 쓸지**: FBL+APP(IMAGE, 기본) / HSM / 전부(ALL)
    - **데이터 영역(DTC·NvM·학습값)을 지울지**: 지움(기본) / 유지(`--keep-data`). 보드 이력을 모르면 지움. 고장 기록을 남긴 채 새 빌드만 올릴 때 유지.
+   - **APP 를 쓸 뱅크**(듀얼뱅크, 모드 IMAGE/ALL 이면 매번 묻는다): config 설정(`[옵션]` 의 `(config)`)을 첫 옵션으로. `뱅크 A 만`(`--banks A`, 벤더 원본 — B 에는 FBL 만 쓰고 B 의 APP 는 예전 것 그대로) / `뱅크 A·B 모두`(`--banks AB`, B 에도 같은 APP). 고른 값은 `--yes` 실행 때 config 에 저장되어 다음 기본값이 된다(화면 PD 창 첫 줄에도 보임). A 를 고르면 B 에 다른 버전이 남아 FBL 이 B 로 부팅할 때 그 버전이 돈다는 점을 짚는다 — HE1i 2026-10-02 실기: A=26810, B=26820 으로 H-OTA 가 `E_NOTMATCHED_DESTINATION`(0x80004024) 실패. `AB` 는 아직 실기로 기록해 본 적이 없다(첫 사용 시 확인 6).
 3. 확인되면 같은 인자에 `--yes` 를 붙여 실행한다.
 
 - 새 빌드가 나왔으면 작업 전 저장소 `git pull` 을 안내한다. 새 APP 버전은 `--version`(또는 `set --version`)으로, FBL·HSM 이 바뀌었으면 `--rescan` 또는 경로 직접 지정.
 - CVD 화면이 켜져 있으면 포트가 겹치므로 닫고 실행하도록 안내한다.
 - 검증만: `verify --name <과제명>` (보드에 쓰지 않음, 확인 없이 실행 가능) / 목록: `list`
+- 설정만: `set --name <과제명> --banks A|AB` (보드에 쓰지 않음) — 화면 PD 의 기본값도 이것을 따른다.
 
 ## 결과 해석
 
@@ -106,17 +108,19 @@ set   --name <과제명> [--version <버전>] [--rescan] [--fbl/--app/--elf/--hs
 | 6 | 타깃 연결 실패 — **아무것도 쓰지 않음** | 전원·IGN·케이블. `references/troubleshooting.md` 의 0xEC2 항목 |
 | 2 | 기록 미완료 | CVD 메시지 창 오류 줄 |
 | 5 | 쓰기 단계 시간 초과 — **CVD 를 끄지 않았음** | CVD 화면 확인, 멈춰 있으면 사용자가 직접 닫고 다시 기록 |
-| 3 | 검증 불일치 | 불일치 주소와 이미지 확인, 다시 기록 |
+| 3 | 검증 불일치 | 불일치 주소와 이미지 확인, 다시 기록. 도구가 `→ … 버전 X 와 일치` 를 내면 그 버전이 들어 있는 것 |
 | 4 | 검증 미완료 | 연결 확인, `<과제명>_connect.csf` |
 | 1 | 사용 오류 | 메시지대로 인자 보완 |
 
 로그 마지막 `STEP=`(start → connected → flashing → flashed → done)로 멈춘 단계를 말한다. 도구는 **쓰는 중(flashing)에는 CVD 를 강제로 끄지 않는다.** 그 밖의 단계는 `--timeout`(기본 120초) 동안 진전이 없으면 끈다. 쓰기 한도는 `--flash-timeout`(기본 900초). HSM 영역은 CM4에서 읽을 수 없어 검증은 FBL·APP 지점으로 한다.
 
+**두 뱅크 확인**(듀얼뱅크): 검증은 실행 중인 뱅크(`0x10…`) 지점과 함께 **다른 뱅크(`0x12…`) 지점 4곳**(버전 구별 지점을 옮긴 것)도 읽는다. APP 뱅크가 `AB` 면 다른 뱅크도 일치해야 성공, `A` 면 판정에 넣지 않고 `[알림] 두 뱅크의 APP 가 다릅니다` 와 각 뱅크가 어느 버전인지만 알린다. 이 알림이 나오면 OTA·진단의 SW 버전이 기록한 버전과 다를 수 있으니 사용자에게 꼭 전한다. `0x10…` 은 그때 실행 중인 뱅크라, FBL 이 B 로 부팅해 있으면 방금 A 에 쓴 버전과 다르게 보일 수 있다.
+
 ## CVD 화면에서 쓰기
 
 시작 메뉴 **CVD Projects** 로 켠다(다른 바로가기로 켰으면 `Program → Run Script File → Projects\cvd_start.csf`) → **PS** → 과제 → **PD**(기록) / **Ed**(config 편집) | **PA**(연결·심볼·소스 경로) / **VF**(검증) | **RE**(리셋→main). 배치와 이름은 기존 S32 과제 툴바에 맞췄다(사용자 요청). CLI와 같은 파일을 쓴다.
 
-화면의 **PD** 는 기존 S32 `loadimage.cmm` 과 같은 창을 띄운다: `Image` / `Hsm` / `Image&Hsm` 선택, config 의 FBL/APP/HSM 경로가 채워진 칸 3개(옆 버튼으로 다른 파일 선택 가능), `file load start` → `Erase data flash too? (DTC / NvM / learned values)`. 창 첫 줄(잠긴 칸)에 config 의 APP 버전이 나온다(`APP version 26820 (config) ...`). DIALOG 정의 안(HEADER 등)에서는 CVD 가 `&매크로`를 풀지 않아 창 제목에는 넣지 않았다. 다른 버전을 쓰려면 CLI `set --version` 뒤 PD 를 다시 누른다. **벤더 스크립트를 부르기 전에 이번 모드에 필요한 파일이 있는지 보고, 없으면 `File not found - nothing written (board untouched)` 창만 띄우고 끝낸다** — 벤더 스크립트는 소거·FBL 기록 뒤에야 APP 를 읽어서, 이 확인이 없으면 보드를 지운 채 멈춘다. 기존 창의 `Erase`(전체 소거)는 넣지 않았다. 창에서 고른 파일은 그 한 번만 쓰고 config 에 저장하지 않으며, config 와 다른 FBL/APP 를 골랐으면 검증 지점이 맞지 않으므로 검증을 건너뛰고 그렇게 알린다. 쓰기가 끝나면 **자동으로 검증까지 하고 결과를 창으로 띄운다** — `Flash + Verify OK - all check points match the image files` 또는 `Verify FAILED - ... (first mismatch <주소>)`. 쓰는 도중 오류가 나면 스크립트가 멈춰 결과 창이 뜨지 않는다 — 그때는 메시지 창의 오류 줄을 본다. **VF** 도 끝나면 결과 창을 띄운다. 기존 S32_Config 과제는 그대로 계속 쓸 수 있다. 자세한 조작은 `references/usage.md`.
+화면의 **PD** 는 기존 S32 `loadimage.cmm` 과 같은 창을 띄운다: `Image` / `Hsm` / `Image&Hsm` 선택, config 의 FBL/APP/HSM 경로가 채워진 칸 3개(옆 버튼으로 다른 파일 선택 가능), `file load start` → `Erase data flash too? (DTC / NvM / learned values)` → (Image·Image&Hsm 이면) `Write the APP to bank B too?` (Yes = 뱅크 A·B 모두 / No = 뱅크 A 만). 창 첫 줄(잠긴 칸)에 config 의 APP 버전과 APP 뱅크 설정이 나온다(`APP version 26820 (config) / APP banks A (config: ...)`). 화면에서 고른 뱅크는 그 한 번만 쓰고 config 에 저장하지 않는다(기본값을 바꾸려면 CLI `set --banks`). A 만 썼는데 다른 뱅크가 다르면 결과 창이 `NOTE: bank B holds a different APP` 를 붙인다. DIALOG 정의 안(HEADER 등)에서는 CVD 가 `&매크로`를 풀지 않아 창 제목에는 넣지 않았다. 다른 버전을 쓰려면 CLI `set --version` 뒤 PD 를 다시 누른다. **벤더 스크립트를 부르기 전에 이번 모드에 필요한 파일이 있는지 보고, 없으면 `File not found - nothing written (board untouched)` 창만 띄우고 끝낸다** — 벤더 스크립트는 소거·FBL 기록 뒤에야 APP 를 읽어서, 이 확인이 없으면 보드를 지운 채 멈춘다. 기존 창의 `Erase`(전체 소거)는 넣지 않았다. 창에서 고른 파일은 그 한 번만 쓰고 config 에 저장하지 않으며, config 와 다른 FBL/APP 를 골랐으면 검증 지점이 맞지 않으므로 검증을 건너뛰고 그렇게 알린다. 쓰기가 끝나면 **자동으로 검증까지 하고 결과를 창으로 띄운다** — `Flash + Verify OK - all check points match the image files` 또는 `Verify FAILED - ... (first mismatch <주소>)`. 쓰는 도중 오류가 나면 스크립트가 멈춰 결과 창이 뜨지 않는다 — 그때는 메시지 창의 오류 줄을 본다. **VF** 도 끝나면 결과 창을 띄운다. 기존 S32_Config 과제는 그대로 계속 쓸 수 있다. 자세한 조작은 `references/usage.md`.
 
 스킬을 갱신한 뒤 이미 만든 과제의 화면 스크립트(PD 창·툴바)만 새로 만들려면 `refresh --name <과제명>`(config·변환본 유지, loadfile.csf 는 백업 후 재생성).
 
@@ -143,17 +147,19 @@ set   --name <과제명> [--version <버전>] [--rescan] [--fbl/--app/--elf/--hs
 3. `STEP=done` 까지 가고 검증 지점이 모두 일치하는지.
 4. 데이터 영역 **유지**(`--keep-data`)로 쓴 뒤 DTC 가 실제로 남아 있는지 — 벤더 스크립트의 `No` 경로를 그대로 쓰는 것이라 실기로 확인한 적이 없다.
 5. 화면 PD 창 첫 줄에 config 의 APP 버전이 나오고 경로 칸이 그 버전 폴더인지(`set --version` 으로 바꾼 뒤 PD 를 다시 눌러 따라오는지), config 의 APP 가 없을 때 `File not found - nothing written` 창만 뜨는지, Image/Hsm 선택에 따라 칸이 잠기는지, 파일 버튼(`dialog.file`)이 열리는지, `file load start` 뒤 소거 질문과 결과 창(`DIALOG.OK`)이 뜨는지, PA → RE 로 main 에 도달하는지.
+6. APP 뱅크 **A·B 모두**(`--banks AB` / PD 의 뱅크 질문 Yes)로 쓴 뒤 — 로그에 `PD: APP -> bank B (map B)` 가 찍히고, 검증의 다른 뱅크 지점(`RB 0x12…`)이 모두 일치하는지, 디버거를 떼고 전원 재투입 후 진단 SW 버전과 H-OTA 결과가 기록한 버전인지. 벤더 원본에 주석으로 있던 B 쪽 APP 기록을 켠 것이라 실기로 확인한 적이 없다.
 
 확인 기록 (HE1I_PSU, 2026-09-30, 보드 미연결):
 - 확인됨: `CVD Projects` 바로가기로 켜면 ED/PS 가 붙음 → PS → PD/Ed/PA/VF/RE 툴바. PD 창 표시·경로 3칸 채움·Image/Hsm 선택에 따른 칸 잠금·파일 선택 버튼 동작. `file load start` → 소거 질문 → `PD: mode=IMAGE erase_data=YES` → `PD: HOST <FBL> / <APP>` 까지 창의 값이 그대로 넘어감.
 - 보드 없이 실행하면 `flash_host.csf` 의 `initCpu` 안 `Connect`(391행)에서 `0xEC2` 로 멈춘다. 소거(`eraseFlash`)·기록(`writeFw`)보다 앞이라 아무것도 쓰지 않는다. 결과 창은 뜨지 않는 것이 정상.
 - 버전 폴더(2026-09-30, 보드 미연결): PD 창 첫 줄 `APP version 26810 (config)` 와 APP 칸 `...\26810\...` 확인 → `set --version 26820` 뒤 PD 를 다시 누르자 `26820` 과 `...\26820\...` 로 따라옴(과제 재선택 없이). DIALOG 정의 안(HEADER)에서는 `&매크로`가 안 풀리고, 칸 이름 `VER` 에는 `dialog.set` 값이 안 들어갔다 → `ADD0` 칸으로 표시.
 - 보드 연결(2026-09-30): PA 연결 성공(`IDCODE 0x6BA00477 → 0x6BA02477`, 26820 ELF 로드). CLI verify 가 `STEP=done` 까지 8초 — 항목 1~3 확인. 고르게 뽑은 16지점만으로는 전부 일치했지만 버전 구별 지점을 넣자 4곳 불일치 → 보드는 26810 (읽은 값이 26810 이미지와 일치). 첫 연결 실패 `Already port opened (0xF0000023)` = 다른 가상 데스크톱에 CVD 가 하나 더 떠 있었음, 이어진 `JTAG signals are something wrong ... Reset CodeViser (0xEC2)` 는 CVD 를 강제 종료한 뒤라 CodeViser USB 를 뽑았다 꽂아 해결.
-- 남음(보드 필요): 4, 실제 기록 후 `Flash + Verify OK (APP <버전>)` 결과 창, PA → RE 로 main 도달, PD 의 `File not found` 창(config APP 가 없을 때).
+- 두 뱅크(2026-10-02): 벤더 스크립트는 APP 를 뱅크 A 에만 쓰고 B 에는 FBL 만 쓴다(원본 주석 `; RTSW none at Bank B`). 26810 을 쓴 뒤 FBL 이 B(26820 남아 있음)로 부팅해 H-OTA 가 `E_NOTMATCHED_DESTINATION` 실패 — 읽어 보니 `0x10059004`="2682", `0x12059004`="2681". 그래서 APP 뱅크 선택(A / AB)과 다른 뱅크 검증을 넣었다(cvd_flash 1.4.0). 기존 과제는 `refresh --name <과제명>` 으로 flash_host 변환본·config 까지 다시 만든다.
+- 남음(보드 필요): 4, 6, 실제 기록 후 `Flash + Verify OK (APP <버전>)` 결과 창, PA → RE 로 main 도달, PD 의 `File not found` 창(config APP 가 없을 때).
 
 ## 범위 밖
 
 - T32(Lauterbach) 설정, CANoe 설정·측정
 - 싱글뱅크·CYT2BL 외 MCU (기본 틀 없음 — 필요하면 해당 기본 틀을 `assets\` 에 추가하는 작업부터)
-- 벤더 스크립트의 플래시 알고리즘 수정 — 소거 확인 창을 PD 선택값으로 바꾸는 것 외에는 그대로 쓴다
+- 벤더 스크립트의 플래시 알고리즘 수정 — 소거 확인 창을 PD 선택값으로 바꾸고, 원본에 주석으로 있던 뱅크 B APP 기록을 APP 뱅크 선택(`&cvd_banks`)으로 켜고 끄는 것 외에는 그대로 쓴다
 - OTA 리프로그래밍

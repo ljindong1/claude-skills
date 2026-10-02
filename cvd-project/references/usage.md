@@ -18,10 +18,12 @@ python <스킬>\scripts\cvd_flash.py flash --name <과제명> --yes      실제�
 | `--mode HSM` | HSM 만 |
 | `--mode ALL` | FBL + APP + HSM |
 | `--keep-data` | 데이터 영역(DTC·NvM·학습값)을 지우지 않음 |
+| `--banks A` / `--banks AB` | APP 를 쓸 뱅크 (듀얼뱅크). A = 뱅크 A 만(벤더 원본) / AB = 뱅크 B 에도. 없으면 config 설정, `--yes` 로 쓰면 config 에 저장 |
 | `--version <버전>` | APP·ELF 버전 폴더 (`Debug\OEUK_xxxx\<버전>\`). 없으면 config 의 버전 |
 | `--rescan` | 저장소에서 FBL·HSM 을 다시 찾음 (버전 폴더가 없는 저장소는 APP·ELF 도) |
 
 config 만 바꾸고 보드에는 쓰지 않으려면 `set --name <과제명> --version <버전>` (화면 PD 로 다른 버전을 쓸 때).
+APP 뱅크 기본값만 바꾸려면 `set --name <과제명> --banks AB`.
 
 CVD 가 스스로 실행되고 끝나면 닫힌다. 결과는 종료 코드와 `<과제명>_result.log` 로 남는다.
 CVD 화면이 켜져 있으면 포트가 겹치므로 닫고 실행한다.
@@ -59,6 +61,7 @@ Program → Run Script File → `Projects\cvd_start.csf` 를 한 번 실행한�
 │ [              file load start                        ]  │
 └──────────────────────────────────────────────────────────┘
 → Erase data flash too? (DTC / NvM / learned values)   Yes / No
+→ Write the APP to bank B too?   Yes = 뱅크 A·B 모두 / No = 뱅크 A 만   (Hsm 만 쓸 때는 묻지 않음)
 ```
 
 - 첫 줄 `APP version 26820 (config)` 이 config 의 APP 버전이다(잠긴 칸). 경로 칸에는 그 버전 폴더의 이미지가
@@ -86,6 +89,21 @@ Written. Verify skipped - selected FBL/APP differ from the project config   창�
 검증 지점은 config 의 FBL/APP 기준이라, 창에서 다른 파일을 골랐으면 검증을 건너뛴다.
 쓰는 도중 오류가 나면 스크립트가 그 자리에서 멈추므로 **결과 창이 뜨지 않는다.**
 창이 안 뜨면 메시지 창의 마지막 오류 줄을 본다.
+
+### APP 를 쓸 뱅크 (듀얼뱅크)
+
+CYT2BL 듀얼뱅크는 코드 플래시가 두 벌(`0x10000000` 쪽 = 지금 실행 중인 뱅크, `0x12000000` 쪽 = 다른 뱅크)이고,
+FBL 이 리셋 때 어느 뱅크로 부팅할지 고른다. 버전 정보는 `0x10059000` / `0x12059000` 에 있다.
+
+| 선택 | 뱅크 A | 뱅크 B | 언제 |
+|---|---|---|---|
+| **A 만** (`--banks A`, 벤더 원본) | FBL + APP | FBL 만 — APP 는 **예전 것 그대로** | 벤더 동작을 그대로 쓸 때 |
+| **A·B 모두** (`--banks AB`) | FBL + APP | FBL + 같은 APP | OTA 시험 전, 두 뱅크를 같은 버전으로 맞출 때 |
+
+A 만 쓰면 B 에 다른 버전이 남는다. FBL 이 B 로 부팅하면 그 버전이 돌아서 진단 SW 버전·OTA 결과가
+기록한 버전과 달라진다(HE1i 2026-10-02: A=26810, B=26820 → H-OTA `E_NOTMATCHED_DESTINATION` 0x80004024).
+검증은 다른 뱅크 지점 4곳도 읽어서 두 뱅크가 다르면 `[알림] 두 뱅크의 APP 가 다릅니다` 와 각 뱅크의 버전을 알린다.
+A·B 모두는 벤더 스크립트에 주석으로 있던 B 쪽 APP 기록을 켠 것이며, 아직 실기로 기록해 본 적이 없다.
 
 ### 데이터 영역 지움 / 유지
 

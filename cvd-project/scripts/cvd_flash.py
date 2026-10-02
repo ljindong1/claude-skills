@@ -35,7 +35,7 @@ import subprocess
 import sys
 import time
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 # 실제 파일 위치(FS)와 .csf 안에 적힐 윈도우 경로(WIN)를 나눈다. 평소에는 같다.
 # --cvd-root 로 바꿀 수 있다 (set_root). CVD_ROOT / CVD_ROOT_WIN / CVD_EXE 환경변수는 시험용이다.
@@ -504,8 +504,15 @@ def version_points(app, others, n=4):
 
 
 # ============================================================== config.csf 읽고 쓰기
-CFG_KEYS = ("name", "dir", "cpu", "bank", "mode", "erase", "repo", "version",
+CFG_KEYS = ("name", "dir", "cpu", "bank", "mode", "erase", "banks", "repo", "version",
             "fbl", "app", "elf", "hsm", "src", "log", "template", "app_stamp")
+# APP 를 쓸 뱅크 (듀얼뱅크). A = 벤더 원본대로 A 만(B 에는 FBL 만) / AB = B 에도 같은 APP
+BANKS = ("A", "AB")
+BANKS_KO = {"A": "뱅크 A 만", "AB": "뱅크 A·B 모두"}
+# 다른 뱅크 확인 지점: APP 지점을 0x12000000 쪽(지금 실행하지 않는 뱅크)으로 옮겨 읽는다.
+# AB 면 일치해야 성공, A 면 어느 버전이 들어 있는지 알리기만 한다.
+BANK_B_OFFSET = 0x02000000
+MAX_BPOINTS = 4
 
 
 def cfg_path(name):
@@ -533,14 +540,22 @@ def write_cfg(c):
         vp = version_points(c.get("app"), [(v, i["app"]) for v, i in sorted(vs.items()) if v != c["version"]])
     base = [p for p in verify_points([c.get("fbl"), c.get("app")]) if p[0] not in [q[0] for q in vp]]
     pts = (vp + base)[:MAX_POINTS]
+    c["banks"] = c.get("banks") if c.get("banks") in BANKS else "A"
+    # 다른 뱅크 지점: 버전 구별 지점이 있으면 그것, 없으면 APP 지점 앞쪽
+    app_bn = os.path.basename(c.get("app") or "")
+    bsrc = vp or ([p for p in pts if p[2].startswith(app_bn)] if app_bn else [])
+    bpts = [(a + BANK_B_OFFSET, v, s) for a, v, s in bsrc][:MAX_BPOINTS] if c.get("bank") == "dual" else []
     names = " ".join("&cfg_%s" % k for k in CFG_KEYS)
     vnames = " ".join("&cfg_va%d &cfg_ve%d" % (i, i) for i in range(1, MAX_POINTS + 1))
+    bnames = " ".join("&cfg_vb%d &cfg_vbe%d" % (i, i) for i in range(1, MAX_BPOINTS + 1))
     L = [
         "; %s_config.csf - cvd_flash.py %s 가 생성. 경로는 cvd_flash.py 로 갱신한다." % (name, VERSION),
         "; 갱신: %s" % time.strftime("%Y-%m-%d %H:%M:%S"),
         "; cfg_erase: YES = 데이터 영역(DTC·NvM)까지 소거 / NO = 유지. CLI 에서 인자가 없을 때만 쓴다.",
+        "; cfg_banks: A = APP 를 뱅크 A 에만(벤더 원본, B 에는 FBL 만) / AB = 뱅크 B 에도 같은 APP. PD·CLI 의 기본값.",
         "GLOBAL %s" % names,
         "GLOBAL %s" % vnames,
+        "GLOBAL %s" % bnames,
     ]
     for k in CFG_KEYS:
         L.append('&cfg_%s="%s"' % (k, c.get(k, "") or ""))
@@ -553,6 +568,15 @@ def write_cfg(c):
         else:
             L.append('&cfg_va%d=""' % i)
             L.append('&cfg_ve%d=""' % i)
+    L.append("; 다른 뱅크(0x12000000 쪽) 지점: cfg_banks=AB 면 일치해야 성공, A 면 로그에 남기기만 한다")
+    for i in range(1, MAX_BPOINTS + 1):
+        if i <= len(bpts):
+            a, v, src = bpts[i - 1]
+            L.append('&cfg_vb%d="0x%08X"' % (i, a))
+            L.append('&cfg_vbe%d="0x%08X"   ; %s (bank B)' % (i, v, src))
+        else:
+            L.append('&cfg_vb%d=""' % i)
+            L.append('&cfg_vbe%d=""' % i)
     L.append("ENDDO")
     wtext(cfg_path(name), "\n".join(L) + "\n")
     return pts
@@ -565,10 +589,10 @@ def tpl_flash(name, d):
     # 기존 창의 Erase(전체 소거)는 넣지 않는다 — SFlash 복구 불가 (troubleshooting.md).
     # 창에서 쓰이는 요소는 loadimage.cmm 에서 동작이 확인된 것만 쓴다.
     return """; {n}_flash.csf - PD: 기록 (+ 화면에서는 이어서 검증)
-; CLI : do {n}_flash.csf <IMAGE|HSM|ALL> <YES|NO>   (YES = 데이터 영역까지 소거)
-; 화면: PD 버튼 (인자 없음) -> Image / Hsm / Image&Hsm 선택, 파일 확인, file load start
-LOCAL &m &cvd_erase &src &e &p &filename1 &filename2 &filename3 &miss &ver
-ENTRY &m &cvd_erase &src
+; CLI : do {n}_flash.csf <IMAGE|HSM|ALL> <YES|NO> CLI <A|AB>   (YES = 데이터 영역까지 소거, AB = 뱅크 B 에도 APP)
+; 화면: PD 버튼 (인자 없음) -> Image / Hsm / Image&Hsm 선택, 파일 확인, file load start -> 소거 질문 -> 뱅크 질문
+LOCAL &m &cvd_erase &src &cvd_banks &e &b &p &filename1 &filename2 &filename3 &miss &ver
+ENTRY &m &cvd_erase &src &cvd_banks
 GLOBAL &gui_fbl &gui_app &gui_hsm
 do {d}\\{n}_config.csf
 ; 버전 표시: config 의 APP 버전 (버전 폴더가 아니면 -)
@@ -702,7 +726,18 @@ IF "&m"==""
 		(
 			&cvd_erase="YES"
 		)
-		do {d}\\{n}_flash.csf &m &cvd_erase GUI
+		; 듀얼뱅크: APP 를 뱅크 B 에도 쓸지 매번 묻는다 (config 값은 창 첫 줄에 보인다)
+		&cvd_banks="A"
+		IF "&m"!="HSM"
+		(
+			DIALOG.YESNO "Write the APP to bank B too? Yes = bank A + B (same APP) / No = bank A only (vendor default, bank B keeps its old APP)"
+			ENTRY &b
+			IF &b
+			(
+				&cvd_banks="AB"
+			)
+		)
+		do {d}\\{n}_flash.csf &m &cvd_erase GUI &cvd_banks
 		ENDDO
 	)
 	)
@@ -710,7 +745,7 @@ IF "&m"==""
 	dialog.set LN.one
 	dialog.disable ADD3
 	dialog.disable BT3
-	dialog.set ADD0 "APP version &ver (config)"
+	dialog.set ADD0 "APP version &ver (config) / APP banks &cfg_banks (config: A = bank A only, AB = A+B)"
 	dialog.disable ADD0
 	dialog.set ADD1 "&cfg_fbl"
 	dialog.set ADD2 "&cfg_app"
@@ -722,6 +757,14 @@ IF "&m"==""
 IF "&cvd_erase"==""
 (
 	&cvd_erase="&cfg_erase"
+)
+IF "&cvd_banks"==""
+(
+	&cvd_banks="&cfg_banks"
+)
+IF "&cvd_banks"!="AB"
+(
+	&cvd_banks="A"
 )
 ; 원본 .csf 가 이 LOCAL 변수들을 읽는다. 화면(GUI)에서는 창에서 확인한 파일을 쓴다.
 &filename1="&cfg_fbl"
@@ -767,10 +810,10 @@ IF "&miss"!=""
 	)
 	ENDDO
 )
-print "PD: mode=&m erase_data=&cvd_erase APP version &ver"
+print "PD: mode=&m erase_data=&cvd_erase app_banks=&cvd_banks APP version &ver"
 IF ("&m"=="IMAGE")||("&m"=="ALL")
 (
-	print "PD: HOST (FBL+APP) &filename1 / &filename2"
+	print "PD: HOST (FBL+APP, APP banks &cvd_banks) &filename1 / &filename2"
 	do {d}\\{n}_flash_host.csf
 )
 IF ("&m"=="HSM")||("&m"=="ALL")
@@ -778,7 +821,7 @@ IF ("&m"=="HSM")||("&m"=="ALL")
 	print "PD: HSM &filename3"
 	do {d}\\{n}_flash_hsm.csf
 )
-print "PD: done (&m) APP version &ver"
+print "PD: done (&m, APP banks &cvd_banks) APP version &ver"
 ; 화면에서 눌렀으면 이어서 검증하고 결과를 창으로 알린다 (CLI 는 run.csf 가 따로 검증).
 ; 검증 지점은 config 의 FBL/APP 기준이라, 창에서 다른 파일을 골랐으면 검증하지 않는다.
 IF "&src"=="GUI"
@@ -800,9 +843,10 @@ ENDDO
 def tpl_verify(name, d):
     L = ["; %s_verify.csf - VF: 연결 후 검증 지점을 읽어 로그에 남긴다" % name,
          "; 인자: CLI = 결과 창 없음 / FL = FL 버튼이 부름 / 없음 = VF 버튼",
-         "LOCAL &v &ctx &bad &first",
+         "LOCAL &v &ctx &bad &first &bdiff",
          "ENTRY &ctx",
          '&bad="NO"',
+         '&bdiff="NO"',
          '&first=""',
          "do %s\\%s_config.csf" % (d, name),
          "do %s\\%s_connect.csf" % (d, name),
@@ -828,7 +872,31 @@ def tpl_verify(name, d):
               "\t\t)",
               "\t)",
               ")"]
+    # 다른 뱅크(0x12000000 쪽): AB 면 판정에 넣고, A 면 다르다는 것만 알린다
+    for i in range(1, MAX_BPOINTS + 1):
+        L += ['IF "&cfg_vb%d"!=""' % i,
+              "(",
+              "\t&v=Data.Long(AD:&cfg_vb%d)" % i,
+              '\tWRITE #1 "RB &cfg_vb%d &v &cfg_vbe%d"' % (i, i),
+              '\tprint "VF: bank B &cfg_vb%d read=&v expect=&cfg_vbe%d"' % (i, i),
+              "\tIF &v!=&cfg_vbe%d" % i,
+              "\t(",
+              '\t\t&bdiff="YES"',
+              '\t\tIF ("&cfg_banks"=="AB")&&("&first"=="")',
+              "\t\t(",
+              '\t\t\t&first="&cfg_vb%d (bank B)"' % i,
+              "\t\t)",
+              '\t\tIF "&cfg_banks"=="AB"',
+              "\t\t(",
+              '\t\t\t&bad="YES"',
+              "\t\t)",
+              "\t)",
+              ")"]
     L += ['WRITE #1 "VERIFY=end"', "CLOSE #1",
+          'IF ("&bdiff"=="YES")&&("&cfg_banks"!="AB")',
+          "(",
+          '\tprint "VF: note - bank B holds a different APP (APP banks A: bank B was not written)"',
+          ")",
           'IF "&bad"=="YES"',
           "(",
           '\tprint "VF: FAILED - first mismatch at &first (log: &cfg_log)"',
@@ -840,13 +908,27 @@ def tpl_verify(name, d):
           "ELSE",
           "(",
           '\tprint "VF: OK - all check points match"',
-          '\tIF "&ctx"=="FL"',
+          '\tIF "&bdiff"=="YES"',
           "\t(",
-          '\t\tDIALOG.OK "Flash + Verify OK (APP &cfg_version) - all check points match the image files"',
+          '\t\tIF "&ctx"=="FL"',
+          "\t\t(",
+          '\t\t\tDIALOG.OK "Flash + Verify OK (APP &cfg_version, bank A) - NOTE: bank B holds a different APP. If the FBL boots bank B, another version runs. Write with APP banks A+B to align both."',
+          "\t\t)",
+          '\t\tIF "&ctx"==""',
+          "\t\t(",
+          '\t\t\tDIALOG.OK "Verify OK (APP &cfg_version, bank A) - NOTE: bank B holds a different APP."',
+          "\t\t)",
           "\t)",
-          '\tIF "&ctx"==""',
+          "\tELSE",
           "\t(",
-          '\t\tDIALOG.OK "Verify OK (APP &cfg_version) - all check points match the image files"',
+          '\t\tIF "&ctx"=="FL"',
+          "\t\t(",
+          '\t\t\tDIALOG.OK "Flash + Verify OK (APP &cfg_version) - all check points match the image files"',
+          "\t\t)",
+          '\t\tIF "&ctx"==""',
+          "\t\t(",
+          '\t\t\tDIALOG.OK "Verify OK (APP &cfg_version) - all check points match the image files"',
+          "\t\t)",
           "\t)",
           ")",
           "ENDDO"]
@@ -867,6 +949,7 @@ def tpl_entry(name, d, with_flash):
          'WRITE #1 "PROJECT=&cfg_name"',
          'WRITE #1 "MODE=&cfg_mode"',
          'WRITE #1 "ERASE=&cfg_erase"',
+         'WRITE #1 "BANKS=&cfg_banks"',
          "CLOSE #1",
          "; 쓰기 전에 타깃이 붙는지 먼저 본다 (여기서 멈추면 아무것도 쓰지 않은 상태)",
          "do %s\\%s_connect.csf" % (d, name)]
@@ -874,7 +957,7 @@ def tpl_entry(name, d, with_flash):
     if with_flash:
         L += ["sys.down"]
         L += _step("flashing")
-        L += ["do %s\\%s_flash.csf &cfg_mode &cfg_erase" % (d, name)]
+        L += ["do %s\\%s_flash.csf &cfg_mode &cfg_erase CLI &cfg_banks" % (d, name)]
         L += _step("flashed")
     L += ["do %s\\%s_verify.csf CLI" % (d, name)]
     L += _step("done")
@@ -962,6 +1045,23 @@ def convert_flash_csf(src_file, src_folder_win, dst_win):
     t, n = re.subn(r"(OPTION\.JTAGCLOCK)\s+5\.MHz", r"\1 10.MHz   ; [cvd_flash] 5.MHz -> 10.MHz (HE1i 실기 검증본 값)", t)
     if n:
         notes.append("JTAGCLOCK 5.MHz -> 10.MHz")
+    # 원본은 뱅크 B 에 FBL 만 쓰고 APP(RTSW) 기록은 주석으로 막아 두었다. 그대로면 B 에 옛 APP 가 남아
+    # FBL 이 B 로 부팅하면 다른 버전이 돈다 (HE1i 2026-10-02 실기: A=26810, B=26820 → OTA 실패).
+    # 주석을 PD 선택(&cvd_banks)으로 바꾼다: A = 원본대로 A 만 / AB = B 에도 같은 APP.
+    pat = re.compile(r'([ \t]*);cflash\.reprogram all[ \t]*\n[ \t]*; RTSW none at Bank B[^\n]*\n'
+                     r'[ \t]*;Data\.LOAD\.auto "&filename2"[^\n]*\n[ \t]*;cflash\.reprogram off', re.I)
+
+    def repl_b(m):
+        i = m.group(1)
+        return ("{i}; [cvd_flash] APP(RTSW) 를 뱅크 B 에도 쓸지: &cvd_banks (A = 원본대로 B 에는 FBL 만 / AB = B 에도 APP)\n"
+                "{i}IF \"&cvd_banks\"==\"AB\"\n{i}(\n"
+                "{i}\tprint \"PD: APP -> bank B (map B)\"\n"
+                "{i}\tcflash.reprogram all\n{i}\tData.LOAD.auto \"&filename2\"\n{i}\tcflash.reprogram off\n{i})").format(i=i)
+    t, n = pat.subn(repl_b, t)
+    if n == 1:
+        notes.append("뱅크 B APP 기록 -> PD 선택값(&cvd_banks)")
+    elif "&filename2" in t:
+        die("%s: 뱅크 B APP 기록 패턴을 찾지 못했습니다(%d). 원본 구조가 다릅니다." % (os.path.basename(src_file), n))
     return t, notes
 
 
@@ -1107,7 +1207,7 @@ def cmd_init(a):
     wtext(os.path.join(dst_fs, "%s_verify.csf" % name), tpl_verify(name, dst_win))
     wtext(os.path.join(dst_fs, "%s_run.csf" % name), tpl_entry(name, dst_win, True))
     wtext(os.path.join(dst_fs, "%s_check.csf" % name), tpl_entry(name, dst_win, False))
-    cfg = {"name": name, "dir": dst_win, "cpu": tcpu, "bank": bank, "mode": "IMAGE", "erase": "YES",
+    cfg = {"name": name, "dir": dst_win, "cpu": tcpu, "bank": bank, "mode": "IMAGE", "erase": "YES", "banks": "A",
            "repo": d["repo"], "version": d["version"],
            "fbl": d["fbl"], "app": d["app"], "elf": d["elf"], "hsm": d["hsm"] or "",
            "src": d["repo"], "log": wpath(dst_win, "%s_result.log" % name),
@@ -1184,23 +1284,36 @@ def print_shortcut(lnk):
 
 
 def cmd_refresh(a):
-    """스킬 갱신 후 기존 과제의 생성 스크립트(PD 창·툴바 등)를 새 템플릿으로 다시 만든다.
-    config(경로·검증 지점)와 기본 틀 변환본(flash_host/hsm, connect, reset)은 건드리지 않는다."""
+    """스킬 갱신 후 기존 과제의 생성 스크립트(PD 창·툴바 등)와 기본 틀 변환본(flash_host/hsm)을
+    새 템플릿으로 다시 만든다. config 는 값(경로·버전·설정)을 그대로 두고 새 항목만 채워 다시 쓴다
+    (검증 지점 재계산). connect·reset 은 건드리지 않는다."""
     check_cvd(strict=True)
-    read_cfg(a.name)                              # 과제가 있는지 확인
+    template_check()
+    c = read_cfg(a.name)                          # 과제가 있는지 확인
     d = proj_win(a.name)
     files = {"flash": tpl_flash(a.name, d), "verify": tpl_verify(a.name, d),
              "run": tpl_entry(a.name, d, True), "check": tpl_entry(a.name, d, False)}
+    notes = []
+    for k, f in (("flash_host", TEMPLATE_HOST), ("flash_hsm", TEMPLATE_HSM)):
+        t, n = convert_flash_csf(os.path.join(TEMPLATE_DIR, f), TEMPLATE_ORIGIN_WIN, d)
+        files[k] = t
+        notes += ["%s: %s" % (k, x) for x in n]
+    if c["banks"] not in BANKS:
+        c["banks"] = "A"                          # 옛 config: 벤더 원본 동작
     print("[refresh] %s" % proj_fs(a.name))
     for k in files:
         print("  다시 생성  %s_%s.csf" % (a.name, k))
     print("  다시 생성  %s (백업 후)" % os.path.join(FS_PROJECTS, "loadfile.csf"))
-    print("  유지       %s_config.csf, flash_host/hsm, connect, reset" % a.name)
+    print("  다시 쓰기  %s_config.csf (값 유지, APP 뱅크 %s, 검증 지점 재계산)" % (a.name, c["banks"]))
+    print("  유지       %s_connect.csf, reset" % a.name)
     if a.dry_run:
         print("[dry-run] 파일을 만들지 않았습니다.")
         return
     for k, t in files.items():
         wtext(os.path.join(proj_fs(a.name), "%s_%s.csf" % (a.name, k)), t)
+    write_cfg(c)
+    for x in notes:
+        print("  - " + x)
     bak = rebuild_loadfile()
     if not os.path.isfile(os.path.join(FS_PROJECTS, "cvd_start.csf")):
         wtext(os.path.join(FS_PROJECTS, "cvd_start.csf"), tpl_start())
@@ -1277,6 +1390,9 @@ def prepare_cfg(a):
     if hasattr(a, "mode"):                       # flash: 매번 지정값, 없으면 IMAGE (저장값을 이어 쓰지 않음)
         c["mode"] = a.mode or "IMAGE"
         c["erase"] = "NO" if a.keep_data else "YES"
+    c["_cfg_banks"] = c["banks"] if c["banks"] in BANKS else "A"
+    # APP 뱅크는 config 설정을 이어 쓴다 (flash --yes / set 때 저장). 옛 config 는 A(벤더 원본 동작)
+    c["banks"] = getattr(a, "banks", None) or c["_cfg_banks"]
     need = {"IMAGE": ("fbl", "app"), "HSM": ("hsm",), "ALL": ("fbl", "app", "hsm")}.get(c["mode"], ("fbl", "app"))
     for k in need + ("elf",):
         if not c[k] or not os.path.isfile(c[k]):
@@ -1330,11 +1446,31 @@ def run_cvd(entry_fs, log_fs, timeout, flash_limit):
     return why, int(time.time() - t0)
 
 
-def judge(log_fs, with_flash, why, flash_limit):
-    t = rb(log_fs).decode(ENC, "replace") if os.path.isfile(log_fs) else ""
-    steps = re.findall(r"STEP=(\w+)", t)
-    last = steps[-1] if steps else "없음"
-    rows = re.findall(r"RD\s+(0x[0-9A-Fa-f]+)\s+(\S+)\s+(0x[0-9A-Fa-f]+)", t)
+def which_version(c, rows):
+    """읽은 (주소, 값) 이 어느 버전 폴더 APP 와 일치하는지. 0x12… 는 0x10… 으로 옮겨 비교한다."""
+    found = []
+    for v, info in sorted(c.get("_versions", {}).items(), key=lambda kv: ver_key(kv[0])):
+        try:
+            segs = load_image(info["app"])
+        except OSError:
+            continue
+        ok = bool(rows)
+        for addr, got in rows:
+            a = addr - BANK_B_OFFSET if addr >= VERIFY_RANGE[1] else addr
+            w = None
+            for s, d in segs:
+                if s <= a and a + 4 <= s + len(d):
+                    w = struct.unpack_from("<I", d, a - s)[0]
+                    break
+            if w != got:
+                ok = False
+                break
+        if ok:
+            found.append(v)
+    return found
+
+
+def _mismatch(rows):
     bad = []
     for addr, got, exp in rows:
         try:
@@ -1343,10 +1479,54 @@ def judge(log_fs, with_flash, why, flash_limit):
             ok = False
         if not ok:
             bad.append((addr, got, exp))
+    return bad
+
+
+def _ints(rows):
+    out = []
+    for addr, got, _ in rows:
+        try:
+            out.append((int(addr, 16), int(got, 16)))
+        except ValueError:
+            pass
+    return out
+
+
+def judge(log_fs, with_flash, why, flash_limit, c=None):
+    c = c or {}
+    t = rb(log_fs).decode(ENC, "replace") if os.path.isfile(log_fs) else ""
+    steps = re.findall(r"STEP=(\w+)", t)
+    last = steps[-1] if steps else "없음"
+    rows = re.findall(r"RD\s+(0x[0-9A-Fa-f]+)\s+(\S+)\s+(0x[0-9A-Fa-f]+)", t)
+    brows = re.findall(r"RB\s+(0x[0-9A-Fa-f]+)\s+(\S+)\s+(0x[0-9A-Fa-f]+)", t)
+    bad = _mismatch(rows)
+    bbad = _mismatch(brows)
+    banks_ab = c.get("banks") == "AB"
     print("[로그] %s  (마지막 단계: %s)" % (log_fs, last))
     print("  검증 지점 %d개, 불일치 %d개" % (len(rows), len(bad)))
     for addr, got, exp in bad[:8]:
         print("    %s  읽음 %s  기대 %s" % (addr, got, exp))
+    if bad and c.get("_versions"):
+        vs = which_version(c, _ints([r for r in rows if r[0] in [b[0] for b in bad]]))
+        if vs:
+            print("  → 실행 중인 뱅크(0x10…)의 APP 는 버전 %s 와 일치합니다." % ", ".join(vs))
+    if brows:
+        print("  다른 뱅크(0x12…) 지점 %d개, 불일치 %d개%s" % (
+            len(brows), len(bbad), "" if banks_ab else "  (APP 뱅크 A 설정 — 판정에 넣지 않음)"))
+        for addr, got, exp in bbad[:4]:
+            print("    %s  읽음 %s  기대 %s" % (addr, got, exp))
+        if bbad:
+            vs = which_version(c, _ints(brows)) if c.get("_versions") else []
+            print("  → 다른 뱅크의 APP 는 %s" % ("버전 %s 와 일치합니다." % ", ".join(vs) if vs else "어느 버전 폴더와도 맞지 않습니다(지워졌거나 다른 빌드)."))
+        # 같은 지점을 두 뱅크에서 읽은 값이 다르면 두 뱅크의 APP 가 다르다
+        main = dict(_ints(rows))
+        differ = any(main.get(a - BANK_B_OFFSET, g) != g for a, g in _ints(brows))
+        if differ:
+            print("  [알림] 두 뱅크의 APP 가 다릅니다. FBL 이 어느 뱅크로 부팅하느냐에 따라 다른 버전이 돕니다(OTA 버전 불일치 원인).")
+            if not banks_ab:
+                print("         두 뱅크를 맞추려면 --banks AB 로 다시 기록하세요.")
+    if bbad and banks_ab and not bad:
+        bad = bbad
     if "connected" not in steps:
         print("[실패] 타깃에 연결되지 않았습니다 — 아무것도 쓰지 않았습니다. 전원·IGN·케이블을 확인하세요.")
         return EXIT_CONNECT
@@ -1381,6 +1561,12 @@ def print_flash_options(a, c):
     print("  데이터 영역 (DTC·NvM·학습값, 워크 플래시)")
     print("   %s 지움         (인자 없음, 기본)   보드 이력을 모를 때" % mark(c["erase"] == "YES"))
     print("   %s 유지         --keep-data        고장 기록을 남긴 채 새 빌드만 올릴 때 (실기 미확인)" % mark(c["erase"] == "NO"))
+    if c["bank"] == "dual":
+        print("  APP 를 쓸 뱅크 (듀얼뱅크)  기본 = config 설정(마지막으로 쓴 값), --yes 로 쓰면 config 에 저장")
+        for b, how, why in (("A", "--banks A ", "벤더 원본. B 에는 FBL 만, B 의 APP 는 예전 것 그대로"),
+                            ("AB", "--banks AB", "B 에도 같은 APP. FBL 이 어느 뱅크로 부팅해도 같은 버전 (실기 미확인)")):
+            print("   %s %-3s %-14s %s%s   %s" % (mark(c["banks"] == b), b, BANKS_KO[b], how,
+                                               " (config)" if b == c["_cfg_banks"] else "         ", why))
     vs = c["_versions"]
     if vs:
         print("  APP 버전 (APP _Writing.s19 + ELF 를 그 버전 폴더에서)  기본 = config 의 버전(마지막 설정)")
@@ -1421,7 +1607,9 @@ def cmd_flash(a, with_flash=True):
     c = prepare_cfg(a)
     d = proj_fs(a.name)
     if with_flash:
-        print("[%s] 모드 %s, 데이터 영역(DTC·NvM) %s" % (a.name, c["mode"], "지움" if c["erase"] == "YES" else "유지"))
+        print("[%s] 모드 %s, 데이터 영역(DTC·NvM) %s%s" % (
+            a.name, c["mode"], "지움" if c["erase"] == "YES" else "유지",
+            ", APP 를 %s" % BANKS_KO[c["banks"]] if c["bank"] == "dual" and c["mode"] != "HSM" else ""))
         print_image_head(a, c, c["mode"])
         if c["mode"] in ("HSM", "ALL"):
             print("  (HSM 영역은 CM4 에서 읽을 수 없어 검증은 FBL·APP 지점으로 한다)")
@@ -1430,14 +1618,15 @@ def cmd_flash(a, with_flash=True):
             print("[확인 필요] 아직 보드에 아무것도 하지 않았습니다. 위 내용이 맞으면 같은 인자에 --yes 를 붙여 다시 실행하세요.")
             sys.exit(EXIT_OK)
     else:
-        print("[%s] 검증만 — 보드를 config 의 이미지와 비교 (보드에 쓰지 않음)" % a.name)
+        print("[%s] 검증만 — 보드를 config 의 이미지와 비교 (보드에 쓰지 않음)%s" % (
+            a.name, ", APP 뱅크 설정: %s" % BANKS_KO[c["banks"]] if c["bank"] == "dual" else ""))
         print_image_head(a, c)
     write_cfg(c)
     entry = os.path.join(d, "%s_%s.csf" % (a.name, "run" if with_flash else "check"))
     log_fs = os.path.join(d, "%s_result.log" % a.name)
     why, sec = run_cvd(entry, log_fs, a.timeout, a.flash_timeout)
     print("  CVD 종료: %s, %d초" % (why, sec))
-    sys.exit(judge(log_fs, with_flash, why, a.flash_timeout))
+    sys.exit(judge(log_fs, with_flash, why, a.flash_timeout, c))
 
 
 def cmd_set(a):
@@ -1447,7 +1636,7 @@ def cmd_set(a):
     c = prepare_cfg(a)
     print("[%s] config 변경 (보드에는 쓰지 않음)" % a.name)
     print_image_head(a, c)
-    changed = [k for k in ("version", "fbl", "app", "elf", "hsm") if (old[k] or "") != (c[k] or "")]
+    changed = [k for k in ("version", "banks", "fbl", "app", "elf", "hsm") if (old[k] or "") != (c[k] or "")]
     for k in changed:
         print("  바뀜 %-7s %s\n       %-7s → %s" % (k.upper(), old[k] or "(없음)", "", c[k] or "(없음)"))
     if not changed and not c["_rebuilt"]:
@@ -1466,7 +1655,8 @@ def cmd_list(a):
         print("생성된 과제가 없습니다: %s" % FS_PROJECTS)
     for n, cpu in ps:
         c = read_cfg(n)
-        print("%-16s %-14s %-6s 버전 %-8s 저장소 %s" % (n, cpu, c["bank"], c["version"] or "-", c["repo"]))
+        print("%-16s %-14s %-6s 버전 %-8s APP뱅크 %-3s 저장소 %s" % (n, cpu, c["bank"], c["version"] or "-",
+                                                                c["banks"] or "A", c["repo"]))
 
 
 # ============================================================== main
@@ -1501,6 +1691,7 @@ def main():
         if cmd == "flash":
             p.add_argument("--mode", choices=MODES, help="IMAGE(기본) / HSM / ALL")
             p.add_argument("--keep-data", action="store_true", help="데이터 영역(DTC·NvM)을 지우지 않음")
+            p.add_argument("--banks", choices=BANKS, help="APP 를 쓸 뱅크: A(벤더 원본, A 만) / AB(B 에도). 없으면 config 설정")
             p.add_argument("--version", help="APP·ELF 버전 폴더 (없으면 config 의 버전)")
             for k in ("fbl", "app", "elf", "hsm"):
                 p.add_argument("--" + k)
@@ -1512,6 +1703,7 @@ def main():
     p = sp.add_parser("set", parents=[common], help="보드에 쓰지 않고 config 의 버전·이미지 경로만 변경")
     p.add_argument("--name", required=True)
     p.add_argument("--version", help="APP·ELF 버전 폴더")
+    p.add_argument("--banks", choices=BANKS, help="APP 를 쓸 뱅크 기본값: A / AB (화면 PD 창 첫 줄에 보임)")
     for k in ("fbl", "app", "elf", "hsm"):
         p.add_argument("--" + k)
     p.add_argument("--rescan", action="store_true", help="FBL·HSM 재탐색")
