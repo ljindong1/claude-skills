@@ -1515,12 +1515,20 @@ def judge(log_fs, with_flash, why, flash_limit, c=None):
             len(brows), len(bbad), "" if banks_ab else "  (APP 뱅크 A 설정 — 판정에 넣지 않음)"))
         for addr, got, exp in bbad[:4]:
             print("    %s  읽음 %s  기대 %s" % (addr, got, exp))
+        # 모두 0xFFFFFFFF = 지워진 뱅크 (OTA 가 erase 뒤 전송 중에 실패했을 때 등). FBL 은 빈 뱅크로 부팅하지 않는다
+        blank = all(g == 0xFFFFFFFF for _, g in _ints(brows))
         if bbad:
-            vs = which_version(c, _ints(brows)) if c.get("_versions") else []
-            print("  → 다른 뱅크의 APP 는 %s" % ("버전 %s 와 일치합니다." % ", ".join(vs) if vs else "어느 버전 폴더와도 맞지 않습니다(지워졌거나 다른 빌드)."))
-        # 같은 지점을 두 뱅크에서 읽은 값이 다르면 두 뱅크의 APP 가 다르다
+            vs = which_version(c, _ints(brows)) if c.get("_versions") and not blank else []
+            if blank:
+                print("  → 다른 뱅크는 지워져 있습니다(빈 뱅크). OTA 가 erase 뒤 실패하면 이렇게 남는다 — 실행 중인 뱅크만 돈다.")
+                if not bad:
+                    print("     실행 중인 뱅크는 이미지와 일치합니다. 두 뱅크를 채우려면 --banks AB 로 다시 기록하거나 OTA 를 성공시킨다.")
+            else:
+                print("  → 다른 뱅크의 APP 는 %s" % ("버전 %s 와 일치합니다." % ", ".join(vs) if vs
+                                                 else "어느 버전 폴더와도 맞지 않습니다(다른 빌드)."))
+        # 같은 지점을 두 뱅크에서 읽은 값이 다르면 두 뱅크의 APP 가 다르다 (빈 뱅크는 제외)
         main = dict(_ints(rows))
-        differ = any(main.get(a - BANK_B_OFFSET, g) != g for a, g in _ints(brows))
+        differ = not blank and any(main.get(a - BANK_B_OFFSET, g) != g for a, g in _ints(brows))
         if differ:
             print("  [알림] 두 뱅크의 APP 가 다릅니다. FBL 이 어느 뱅크로 부팅하느냐에 따라 다른 버전이 돕니다(OTA 버전 불일치 원인).")
             if not banks_ab:
