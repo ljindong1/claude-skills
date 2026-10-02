@@ -9,8 +9,10 @@ rem             that Jenkins builds also produce
 rem               - Debug\OEUK_xxxx\<ver>\<model>_psu_app_vX_Y_Z.*  artifacts
 rem               - Debug\OEUK_xxxx\<ver>\rom_<ver>\               aSIMS sign input
 rem  Layout   : one folder per software version (SOFTWARE_VERSION_0..4).
-rem             OEUK_TEST build -> <base OEUK>\<ver>_test\ (same level as <ver>)
+rem             OEUK_TEST build -> <base OEUK>\<base ver>_test\ (same level)
 rem               e.g. Debug\OEUK_HE1I\26810\  Debug\OEUK_HE1I\26810_test\
+rem                    FBL Debug\OEUK_HE1I\HE130I02\  ...\HE130I02_test\
+rem             folder / version come from PJ_Variant.ps1 (-Action folder)
 rem             same version  -> only that version folder is rebuilt
 rem             other versions -> kept as they are
 rem             loose files / rom_* folders directly under OEUK_xxxx (old flat
@@ -52,34 +54,32 @@ if not defined ORIGINAL_BASE_NAME (
 )
 echo [PostPackage] Built artifact  : !ORIGINAL_BASE_NAME!
 
-rem ---- 3) software version of the variant ----------------------------------
-set "version="
-for /f "usebackq" %%V in (`powershell -Command "$c = Get-Content '%VEHICLE_OPTION_FILE%' | Out-String; if ($c -match '(?s)defined\s*\(\s*!VARIANT!\s*\)(.*?)#(elif|else|endif)') { $b = $matches[1]; $v = ''; 0..4 | ForEach-Object { if ($b -match ('#define\s+SOFTWARE_VERSION_' + $_ + '\s+\(u8\)''(.)''')) { $v += $matches[1] } }; Write-Output $v }"`) do (
-    set "version=%%V"
+rem ---- 3) output folder / software version ---------------------------------
+rem  PJ_Variant.ps1 -Action folder :
+rem    OEUK_HE1I -> OEUK_HE1I 26810         OEUK_TEST -> OEUK_HE1I 26810_test
+rem  test build goes next to the base build, named by the BASE version.
+rem  version digits: OEUK block first, then the common area (FBL HE130I02).
+set "FOLDER_VARIANT="
+set "VER_DIR="
+if exist "%SCRIPT_DIR%PJ_Variant.ps1" (
+    for /f "usebackq tokens=1,2" %%a in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%PJ_Variant.ps1" -Action folder -File "%VEHICLE_OPTION_FILE%" -Variant !VARIANT!`) do (
+        if not defined FOLDER_VARIANT (
+            set "FOLDER_VARIANT=%%a"
+            set "VER_DIR=%%b"
+        )
+    )
+) else (
+    echo [PostPackage] [WARNING] PJ_Variant.ps1 not found - version UNKNOWN.
 )
-if not defined version (
-    echo [PostPackage] [WARNING] Could not extract software version. Defaulting to UNKNOWN.
-    set "version=UNKNOWN"
+if not defined VER_DIR set "VER_DIR=UNKNOWN"
+if not defined FOLDER_VARIANT set "FOLDER_VARIANT=!VARIANT!"
+if "!FOLDER_VARIANT!"=="[PJ_Variant]" (
+    echo [PostPackage] [WARNING] PJ_Variant.ps1 error - version UNKNOWN.
+    set "FOLDER_VARIANT=!VARIANT!"
+    set "VER_DIR=UNKNOWN"
 )
+set "version=!VER_DIR:_test=!"
 echo [PostPackage] Software version : !version!
-
-rem ---- 3-1) OEUK_TEST -> <base>\<ver>_test ----------------------------------
-rem  test build goes next to the base build: Debug\OEUK_HE1I\26810_test\
-rem  base = first OEUK option (enabled or commented) other than OEUK_TEST
-set "FOLDER_VARIANT=!VARIANT!"
-set "VER_DIR=!version!"
-if /i "!VARIANT!"=="OEUK_TEST" (
-    set "BASE_VARIANT="
-    for /f "usebackq" %%i in (`powershell -Command "Select-String -Path '%VEHICLE_OPTION_FILE%' -Pattern '^\s*(//)?\s*#define\s+(OEUK_\w+)' -AllMatches | ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[2].Value } | Where-Object { $_ -ne 'OEUK_TEST' }"`) do (
-        if not defined BASE_VARIANT set "BASE_VARIANT=%%i"
-    )
-    if defined BASE_VARIANT (
-        set "FOLDER_VARIANT=!BASE_VARIANT!"
-        set "VER_DIR=!version!_test"
-    ) else (
-        echo [PostPackage] [WARNING] No base OEUK option - using OEUK_TEST folder.
-    )
-)
 
 rem ---- 4) compose model based name / version folder ------------------------
 set "PREFIX_UPPER=!FOLDER_VARIANT:OEUK_=!"
@@ -128,7 +128,11 @@ if not "!NEW_BASE_NAME!"=="!ORIGINAL_BASE_NAME!" (
 )
 
 rem ---- 8) rom_<version> package (aSIMS sign input) -------------------------
-if not "!version!"=="UNKNOWN" (
+rem  only when a .s19 was built (FBL Build.bat makes no .s19 -> skipped)
+set "HAS_S19=0"
+if exist "!OUTPUT_DIR!\!NEW_BASE_NAME!.s19" set "HAS_S19=1"
+if "!HAS_S19!"=="0" echo [PostPackage] No .s19 - rom package skipped.
+if "!HAS_S19!"=="1" if not "!version!"=="UNKNOWN" (
     echo [PostPackage] Packaging for version !version! ...
     pushd "!OUTPUT_DIR!" > nul
     if not exist "rom_!version!" mkdir "rom_!version!"

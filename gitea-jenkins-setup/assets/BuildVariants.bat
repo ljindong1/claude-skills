@@ -1,16 +1,20 @@
 @echo off
 rem ==========================================================================
-rem  BuildVariants.bat  -  JENKINS_BUILD_TARGET = ALL : 4 builds in one run
+rem  BuildVariants.bat  -  JENKINS_BUILD_TARGET = TEST | ALL : several builds
 rem --------------------------------------------------------------------------
 rem  Location : <project folder>\Build\   (same folder as Build.bat)
 rem  Called by: Build_Hook_<MODEL>.bat when PJ_Define.h has
-rem               #define JENKINS_BUILD_TARGET ALL
+rem               #define JENKINS_BUILD_TARGET TEST   or   ALL
 rem  Usage    : BuildVariants.bat <Build.bat action> [-jN]
 rem  Steps    : base = OEUK option other than OEUK_TEST (e.g. OEUK_HE1I 26810)
-rem             1) OEUK_HE1I 26810 -> Debug\OEUK_HE1I\26810\
-rem             2) OEUK_TEST 26810 -> Debug\OEUK_HE1I\26810_test\
-rem             3) OEUK_HE1I 26811 -> Debug\OEUK_HE1I\26811\       (version +1)
-rem             4) OEUK_TEST 26811 -> Debug\OEUK_HE1I\26811_test\
+rem             TEST (versions untouched, 2 builds)
+rem               1) OEUK_HE1I -> Debug\OEUK_HE1I\<ver>\
+rem               2) OEUK_TEST -> Debug\OEUK_HE1I\<ver>_test\
+rem             ALL (4 builds, numeric version inside the OEUK block only)
+rem               1) OEUK_HE1I 26810 -> Debug\OEUK_HE1I\26810\
+rem               2) OEUK_TEST 26810 -> Debug\OEUK_HE1I\26810_test\
+rem               3) OEUK_HE1I 26811 -> Debug\OEUK_HE1I\26811\     (version +1)
+rem               4) OEUK_TEST 26811 -> Debug\OEUK_HE1I\26811_test\
 rem             only one OEUK option is enabled per build (others commented).
 rem             PJ_Define.h is restored at the end - the temporary edits and
 rem             the +1 version are NOT committed.
@@ -65,7 +69,7 @@ if exist "%PLAN%" del /q "%PLAN%"
 if exist "%BACKUP%" del /q "%BACKUP%"
 endlocal & set "ALL_OK=%OK%" & exit /b %RC%
 
-rem ---- one variant : %1 = OEUK option, %2 = version ---------------------------
+rem ---- one variant : %1 = OEUK option, %2 = version (KEEP = unchanged) -------
 :one
 set /a N+=1
 set "ACT=%NEXT_ACT%"

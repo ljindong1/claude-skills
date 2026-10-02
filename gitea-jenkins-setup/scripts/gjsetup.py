@@ -415,13 +415,16 @@ _PACK_BLOCK = (
     b":skip_pack\r\n"
 )
 
-# 전용 훅에 끼워 넣는 ALL 분기 블록 (표준 훅의 "2) build" 바로 앞)
-# PJ_Define.h 의 #define JENKINS_BUILD_TARGET ALL 이면 BuildVariants.bat 이 빌드 1회 안에서
-# <기준> / <기준>_test / <기준+1> / <기준+1>_test 4개를 만들고 :all_push 로 넘어간다.
+# 전용 훅에 끼워 넣는 TEST/ALL 분기 블록 (표준 훅의 "2) build" 바로 앞)
+# PJ_Define.h 의 #define JENKINS_BUILD_TARGET 이 TEST 면 <기준>, <기준>_test 2개,
+# ALL 이면 <기준> / <기준>_test / <기준+1> / <기준+1>_test 4개를 BuildVariants.bat 이
+# 빌드 1회 안에서 만들고 :all_push 로 넘어간다. CURRENT·define 없음은 기존 단일 빌드.
 _ALL_BLOCK = (
-    b"rem ---- 1-1) JENKINS_BUILD_TARGET = ALL : 4 variants in one run ---------------\r\n"
-    b"rem  PJ_Define.h  #define JENKINS_BUILD_TARGET ALL  -> BuildVariants.bat builds\r\n"
-    b"rem  <ver> / <ver>_test / <ver+1> / <ver+1>_test, then one Git Push.\r\n"
+    b"rem ---- 1-1) JENKINS_BUILD_TARGET = TEST | ALL : variants in one run ----------\r\n"
+    b"rem  PJ_Define.h  #define JENKINS_BUILD_TARGET <value>  -> BuildVariants.bat\r\n"
+    b"rem    TEST : <ver> / <ver>_test                          (2 builds)\r\n"
+    b"rem    ALL  : <ver> / <ver>_test / <ver+1> / <ver+1>_test (4 builds)\r\n"
+    b"rem  then one Git Push.\r\n"
     b"rem  CURRENT or no define -> the normal single build below.\r\n"
     b'set "BUILD_TARGET=CURRENT"\r\n'
     b'set "ALL_OK=0"\r\n'
@@ -434,7 +437,11 @@ _ALL_BLOCK = (
     b'for /f "usebackq delims=" %%T in (`powershell -NoProfile -ExecutionPolicy Bypass'
     b' -File "%HOOK_DIR%PJ_Variant.ps1" -Action target -File "%PJ_FILE%"`) do set "BUILD_TARGET=%%T"\r\n'
     b"echo [HOOK] JENKINS_BUILD_TARGET : !BUILD_TARGET!\r\n"
-    b'if /i not "!BUILD_TARGET!"=="ALL" goto :single_build\r\n'
+    b'if /i "!BUILD_TARGET!"=="CURRENT" goto :single_build\r\n'
+    b'if /i not "!BUILD_TARGET!"=="TEST" if /i not "!BUILD_TARGET!"=="ALL" (\r\n'
+    b"    echo [HOOK] unknown JENKINS_BUILD_TARGET - single build\r\n"
+    b"    goto :single_build\r\n"
+    b")\r\n"
     b'call "%HOOK_DIR%BuildVariants.bat" !result! !jopt!\r\n'
     b'set "BUILD_RC=!ERRORLEVEL!"\r\n'
     b"goto :all_push\r\n"
@@ -442,12 +449,12 @@ _ALL_BLOCK = (
     b"\r\n"
 )
 
-# ALL 모드 push 블록 (표준 훅의 "4) push outputs" 바로 앞). 일부 조합이 실패해도
+# TEST/ALL 모드 push 블록 (표준 훅의 "4) push outputs" 바로 앞). 일부 조합이 실패해도
 # 만들어진 폴더는 커밋한다. 단일 빌드는 :std_push 로 건너뛰어 기존 흐름 그대로.
 _ALL_PUSH_BLOCK = (
     b"goto :std_push\r\n"
     b":all_push\r\n"
-    b"rem ---- 4-1) ALL mode push : commit the built variants even if some failed --\r\n"
+    b"rem ---- 4-1) TEST/ALL push : commit the built variants even if some failed --\r\n"
     b'if "!ALL_OK!"=="0" (\r\n'
     b"    echo [HOOK] No variant built - skip Git Push.\r\n"
     b"    goto :finish\r\n"
@@ -474,7 +481,7 @@ def _render_project_hook(model):
     """표준 훅을 읽어 차종 전용 훅을 만든다. 표준 훅 자체는 건드리지 않는다.
 
     차이 - 머리말(이 파일이 랩 표준이 아니라 과제 전용임을 명시), :skip_check 뒤의
-    PostPackage 호출 블록, 그리고 JENKINS_BUILD_TARGET=ALL 분기(빌드 앞)와 그 push 블록.
+    PostPackage 호출 블록, 그리고 JENKINS_BUILD_TARGET=TEST|ALL 분기(빌드 앞)와 그 push 블록.
     """
     if not re.fullmatch(r"[A-Za-z0-9]+", model or ""):
         out(False, "invalid", "차종 코드는 영문·숫자만 가능: " + str(model))
@@ -487,15 +494,15 @@ def _render_project_hook(model):
         (b"rem             4) push outputs via GitPush.bat  5) return exit code",
          b"rem             3-1) package artifacts via PostPackage.bat\r\n"
          b"rem             4) push outputs via GitPush.bat  5) return exit code\r\n"
-         b"rem             1-1) JENKINS_BUILD_TARGET=ALL in PJ_Define.h ->\r\n"
-         b"rem                  BuildVariants.bat builds <ver>, <ver>_test,\r\n"
-         b"rem                  <ver+1>, <ver+1>_test, then 4-1) one Git Push"),
+         b"rem             1-1) JENKINS_BUILD_TARGET=TEST|ALL in PJ_Define.h ->\r\n"
+         b"rem                  BuildVariants.bat builds <ver>, <ver>_test\r\n"
+         b"rem                  (ALL: + <ver+1>, <ver+1>_test), 4-1) one Git Push"),
         (b"rem  Edit     : NOT required (paths and branch are detected automatically)",
          b"rem  Edit     : ALLOWED - project specific hook, not the LAB standard.\r\n"
          b"rem             Modify freely for this project. The standard file\r\n"
          b"rem             Build_Hook_GIT_ASEC.bat is kept untouched as a fallback.\r\n"
          b"rem  Base     : copy of Build_Hook_GIT_ASEC.bat + step 3-1 packaging call\r\n"
-         b"rem             + step 1-1 / 4-1 ALL variant build"),
+         b"rem             + step 1-1 / 4-1 TEST/ALL variant build"),
         (b"\r\n:skip_check\r\n", b"\r\n:skip_check\r\n" + _PACK_BLOCK),
         (b"\r\nrem ---- 2) build ----", b"\r\n" + _ALL_BLOCK + b"rem ---- 2) build ----"),
         (b"\r\nrem ---- 4) push outputs ----", b"\r\n" + _ALL_PUSH_BLOCK + b"rem ---- 4) push outputs ----"),
