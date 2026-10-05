@@ -6,12 +6,15 @@
 #             BuildVariants.bat      (-Action plan / apply)
 #             PostPackage.bat        (-Action folder)
 #  Actions  :
-#    target  print JENKINS_BUILD_TARGET (CURRENT | TEST | ALL), default CURRENT
+#    target  print JENKINS_BUILD_TARGET (CURRENT | ALL), default CURRENT
 #    plan    print the build list, one "<OEUK> <version|KEEP>" per line
 #              base = first OEUK option that is not OEUK_TEST
-#              TEST : <base> KEEP / OEUK_TEST KEEP     (versions untouched)
-#              ALL  : <base> <ver> / OEUK_TEST <ver> /
-#                     <base> <ver+1> / OEUK_TEST <ver+1>  (+1 with carry)
+#              ALL = every combination the project allows
+#                version +1 possible (all digits, all inside the OEUK block)
+#                  -> <base> <ver> / OEUK_TEST <ver> /
+#                     <base> <ver+1> / OEUK_TEST <ver+1>   (APP, +1 with carry)
+#                otherwise (reason on stderr)
+#                  -> <base> KEEP / OEUK_TEST KEEP          (FBL, versions untouched)
 #    apply   enable -Variant (other OEUK options are commented out) and,
 #            unless -Version is KEEP, write it into that block
 #    folder  print "<folder OEUK> <version folder>" for -Variant
@@ -86,7 +89,7 @@ function Get-Markers([string]$t, [string]$name) {
 }
 
 function Get-NextVersion([string]$v) {
-    if ($v -notmatch '^\d+$') { throw "version '$v' is not all digits - ALL (version +1) cannot be used, use TEST" }
+    if ($v -notmatch '^\d+$') { throw "version '$v' is not all digits" }
     $n = [long]$v + 1
     $s = $n.ToString().PadLeft($v.Length, '0')
     if ($s.Length -gt $v.Length) { throw "version '$v' + 1 overflows $($v.Length) digits" }
@@ -108,7 +111,7 @@ try {
         }
         'plan' {
             $mode = Get-Target $text
-            if ($mode -ne 'TEST' -and $mode -ne 'ALL') { throw "JENKINS_BUILD_TARGET is '$mode' - plan is only for TEST or ALL" }
+            if ($mode -ne 'ALL') { throw "JENKINS_BUILD_TARGET is '$mode' - plan is only for ALL" }
             $opts = Get-Options $text
             if ($opts -notcontains $TestVariant) { throw "$TestVariant option not found in PJ_Define.h" }
             $base = Get-Base $text
@@ -121,19 +124,26 @@ try {
             }
             $ver = Get-Version $text $base
             if (-not $ver) { throw "SOFTWARE_VERSION digits not found for $base" }
-            if ($mode -eq 'TEST') {
-                Write-Output "$base KEEP"
-                Write-Output "$TestVariant KEEP"
-            }
+            # version +1 only when every digit is a number inside the base block (APP)
+            $next = $null
+            $why = ''
+            $map = Get-VersionMap $text $base
+            $outside = @($map.Keys | Sort-Object | Where-Object { -not $map[$_].InBlock })
+            if ($outside.Count -gt 0) { $why = "version digits $($outside -join ',') are outside the $base block" }
             else {
-                $map = Get-VersionMap $text $base
-                $outside = @($map.Keys | Where-Object { -not $map[$_].InBlock })
-                if ($outside.Count -gt 0) { throw "version digits $($outside -join ',') are outside the $base block - ALL cannot be used, use TEST" }
-                $next = Get-NextVersion $ver
+                try { $next = Get-NextVersion $ver } catch { $why = $_.Exception.Message }
+            }
+            if ($next) {
                 Write-Output "$base $ver"
                 Write-Output "$TestVariant $ver"
                 Write-Output "$base $next"
                 Write-Output "$TestVariant $next"
+            }
+            else {
+                # stderr : shown in the console, not part of the build list file
+                [Console]::Error.WriteLine("[PJ_Variant] version +1 not possible ($why) - base + test only")
+                Write-Output "$base KEEP"
+                Write-Output "$TestVariant KEEP"
             }
         }
         'apply' {

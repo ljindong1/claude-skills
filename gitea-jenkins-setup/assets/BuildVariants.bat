@@ -1,20 +1,20 @@
 @echo off
 rem ==========================================================================
-rem  BuildVariants.bat  -  JENKINS_BUILD_TARGET = TEST | ALL : several builds
+rem  BuildVariants.bat  -  JENKINS_BUILD_TARGET = ALL : every combination
 rem --------------------------------------------------------------------------
 rem  Location : <project folder>\Build\   (same folder as Build.bat)
 rem  Called by: Build_Hook_<MODEL>.bat when PJ_Define.h has
-rem               #define JENKINS_BUILD_TARGET TEST   or   ALL
+rem               #define JENKINS_BUILD_TARGET ALL
 rem  Usage    : BuildVariants.bat <Build.bat action> [-jN]
 rem  Steps    : base = OEUK option other than OEUK_TEST (e.g. OEUK_HE1I 26810)
-rem             TEST (versions untouched, 2 builds)
-rem               1) OEUK_HE1I -> Debug\OEUK_HE1I\<ver>\
-rem               2) OEUK_TEST -> Debug\OEUK_HE1I\<ver>_test\
-rem             ALL (4 builds, numeric version inside the OEUK block only)
+rem             version +1 possible (all digits inside the OEUK block, APP)
 rem               1) OEUK_HE1I 26810 -> Debug\OEUK_HE1I\26810\
 rem               2) OEUK_TEST 26810 -> Debug\OEUK_HE1I\26810_test\
 rem               3) OEUK_HE1I 26811 -> Debug\OEUK_HE1I\26811\     (version +1)
 rem               4) OEUK_TEST 26811 -> Debug\OEUK_HE1I\26811_test\
+rem             otherwise (FBL HE130I02 : digits outside the block / letters)
+rem               1) OEUK_HE1I -> Debug\OEUK_HE1I\HE130I02\       (version kept)
+rem               2) OEUK_TEST -> Debug\OEUK_HE1I\HE130I02_test\
 rem             only one OEUK option is enabled per build (others commented).
 rem             PJ_Define.h is restored at the end - the temporary edits and
 rem             the +1 version are NOT committed.

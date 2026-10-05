@@ -248,9 +248,9 @@ python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name
 | --- | --- | --- |
 | `Build_Hook_GIT_ASEC.bat` | `assets` 바이트 그대로 | 랩 표준 훅. **수정하지 않는다.** 전용 훅이 없는 브랜치를 위한 fallback |
 | `GitPush.bat` | `assets` + `[USER]` 2줄 치환 | 빌드 결과물 자동 커밋·push |
-| `Build_Hook_<차종>.bat` | 표준 훅에서 생성 | ⭐ **Job이 실제로 부르는 훅.** 표준 훅 + `PostPackage` 호출 블록 + `TEST`/`ALL` 분기·push 블록 |
+| `Build_Hook_<차종>.bat` | 표준 훅에서 생성 | ⭐ **Job이 실제로 부르는 훅.** 표준 훅 + `PostPackage` 호출 블록 + `ALL` 분기·push 블록 |
 | `PostPackage.bat` | `assets` 바이트 그대로 | `Build_all.bat`의 `[Post-build] Archiving` 블록 기반. **버전별 폴더** `Debug\OEUK_xxxx\<버전>\`에 차종명 산출물(`_Writing.s19` 등)과 `rom_<버전>\`(aSIMS 서명 입력) 생성. `OEUK_TEST` 빌드는 기준 OEUK 폴더의 `<기준 버전>_test\`(같은 레벨)로. `.s19`가 없으면(FBL) `rom` 패키징 생략 |
-| `BuildVariants.bat` | `assets` 바이트 그대로 | `JENKINS_BUILD_TARGET`이 `TEST`/`ALL`일 때 빌드 1회 안에서 2개/4개 조합을 차례로 빌드·패키징 |
+| `BuildVariants.bat` | `assets` 바이트 그대로 | `JENKINS_BUILD_TARGET ALL`일 때 빌드 1회 안에서 가능한 조합(APP 4개, FBL 2개)을 차례로 빌드·패키징 |
 | `PJ_Variant.ps1` | `assets` 바이트 그대로 | `PJ_Define.h` 읽기·임시 전환(설정값, 빌드 목록, OEUK 전환·버전 기록, 산출물 폴더 이름). 바이트·줄바꿈 보존 |
 
 APP·FBL이 **같은 파일 한 벌**을 쓴다. 차이는 `PJ_Define.h`의 버전 배치뿐이고 스크립트가 알아서 읽는다.
@@ -260,26 +260,28 @@ APP·FBL이 **같은 파일 한 벌**을 쓴다. 차이는 `PJ_Define.h`의 버�
 > 기준 OEUK 블록(예: `OEUK_HE1I`)의 버전 define 근처에 둔다. bat만 읽고 C 코드는 쓰지 않는다(쓰지 않는 매크로라 MISRA 2.5 권고 경고가 날 수 있다).
 >
 > ```c
-> #define JENKINS_BUILD_TARGET CURRENT   /* CURRENT | TEST | ALL */
+> #define JENKINS_BUILD_TARGET CURRENT   /* CURRENT | ALL */
 > ```
 >
-> | 값 | 빌드 1회 결과 | 쓰는 곳 |
+> | 값 | APP (`26810`) | FBL (`HE130I02`) |
 > | --- | --- | --- |
-> | `CURRENT` 또는 define 없음 | 켜진 OEUK 하나만. HE1I → `OEUK_HE1I\<버전>\`, TEST → `OEUK_HE1I\<기준 버전>_test\` | 공통 기본값 |
-> | `TEST` | `<버전>\`, `<버전>_test\` 2개 (버전 그대로) | FBL (APP도 가능) |
-> | `ALL` | `26810\`, `26810_test\`, `26811\`, `26811_test\` 4개 | APP |
+> | `CURRENT` 또는 define 없음 (기본값) | 켜진 OEUK 하나만. HE1I → `26810\`, TEST → `26810_test\` | 켜진 OEUK 하나만. HE1I → `HE130I02\`, TEST → `HE130I02_test\` |
+> | `ALL` | 4개: `26810\`, `26810_test\`, `26811\`, `26811_test\` | 2개: `HE130I02\`, `HE130I02_test\` |
+>
+> 값은 **`CURRENT`와 `ALL` 둘뿐**이다. `ALL`은 "그 프로젝트에서 가능한 조합 전부"이고, 버전 +1이 가능한지 스크립트가 판단한다. TEST 하나만 빌드하려면 `CURRENT`로 두고 OEUK 선택 줄을 `OEUK_TEST`로 바꾼다. 그 밖의 값(옛 `TEST` 등)은 알 수 없는 값으로 보고 단일 빌드한다.
 >
 > - 조합마다 **켤 OEUK 하나만 살리고 나머지는 주석** 처리한다(`#if OEUK_HE1I`가 먼저라 둘 다 살면 TEST가 빌드되지 않는다).
 > - **버전 읽기**: `SOFTWARE_VERSION_<n>`을 OEUK 블록에서 먼저, 블록에 없는 자리는 모든 OEUK 블록 밖의 공통 영역에서 읽어 자리 순으로 붙인다. APP `0~4` 블록 안 → `26810`, FBL `0~2` 블록 안 + `3~7` 공통 → `HE130I02`.
 > - **test 폴더 이름은 기준 버전 + `_test`** 다. FBL TEST 빌드의 실제 버전은 `DEV30I02`지만 폴더는 `HE130I02_test`.
-> - `TEST`는 버전을 건드리지 않는다. TEST 블록의 원래 버전(FBL `DEV…`) 그대로 빌드한다.
-> - `ALL`의 test 조합은 TEST 블록 버전 칸에 기준 버전을 적어 빌드한다. 다음 버전은 **마지막 자리 +1, 받아올림**(26819 → 26820) — 버전 칸은 한 글자씩이라 `10`은 넣을 수 없다. 버전이 전부 숫자이고 **전부 OEUK 블록 안**에 있어야 한다. 아니면(FBL) 빌드하지 않고 `use TEST`로 멈춘다.
+> - **버전 +1 가능**(버전이 전부 숫자이고 **전부 OEUK 블록 안**, APP) → 4개. test 조합은 TEST 블록 버전 칸에 기준 버전을 적어 빌드한다. 다음 버전은 **마지막 자리 +1, 받아올림**(26819 → 26820) — 버전 칸은 한 글자씩이라 `10`은 넣을 수 없다.
+> - **버전 +1 불가**(블록 밖 공통 자리·글자가 섞임, FBL) → 기준과 test 2개. 버전은 건드리지 않으므로 TEST 블록의 원래 버전(FBL `DEV…`) 그대로 빌드한다. 콘솔에 `version +1 not possible (...) - base + test only`로 이유를 남긴다.
 > - 올린 버전과 OEUK 전환은 **임시**다. 빌드가 끝나면 `PJ_Define.h`를 원본으로 되돌려 커밋에 들어가지 않는다. 기준 버전은 사람이 정한다.
 > - 한 조합이 실패해도 나머지를 빌드하고, 만들어진 폴더는 push한다. 빌드 결과는 실패로 표시된다(`[VARIANTS] [FAIL] …`).
 > - 기준 블록과 TEST 블록의 FOTA(`FOTA_OTA_0x`)·HSM(`HAE_HSM_x`) 설정이 다르면 아무것도 빌드하지 않고 멈춘다 — ARXML 재생성이 필요한 경우라 로컬 `build_all.bat`을 쓴다.
 > - 시간은 조합 수만큼이다(첫 조합만 `Rebuild`, 나머지는 증분 `Build`). HE1I APP 실측: ALL 4개 20.7분.
-> - **`PJ_Define.h`는 공유 소스라 skill이 넣지 않는다.** `add-bat` 결과의 `build_target.define`이 `null`이면 CURRENT로 동작하며, TEST/ALL이 필요하면 위 줄을 사용자가 넣도록 안내한다. `has_oeuk_test`가 false면 TEST/ALL은 쓸 수 없다고 함께 알린다.
-> - 평소에는 `CURRENT`로 두고, 필요할 때만 `TEST`/`ALL`로 바꿔 커밋한 뒤 확인하고 되돌리도록 안내한다(매 push마다 여러 번 빌드하지 않도록).
+> - **`PJ_Define.h`는 공유 소스라 skill이 넣지 않는다.** `add-bat` 결과의 `build_target.define`이 `null`이면 CURRENT로 동작하며, ALL이 필요하면 위 줄을 사용자가 넣도록 안내한다. `has_oeuk_test`가 false면 ALL은 쓸 수 없다고 함께 알린다.
+> - 평소에는 `CURRENT`로 두고, 필요할 때만 `ALL`로 바꿔 커밋한 뒤 결과를 받고 되돌리도록 안내한다(매 push마다 여러 번 빌드하지 않도록).
+> - 실측(HE1I): APP ALL 4개 약 21~23분, FBL ALL 2개 약 0.5분.
 
 > 📁 **산출물 폴더는 버전별로 쌓인다**
 >
