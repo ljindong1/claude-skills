@@ -18,6 +18,8 @@ HE1I PSU 첫 적용(2026-09-16~17)에서 실제로 겪은 사례 중심. 모든 
 | `fork` conflict: 같은 이름 저장소가 Fork가 아님 | 본인 계정에 동명 저장소 존재 | 사용자에게 알리고 중단. 기존 저장소 처리는 사용자가 결정 |
 | `collab` conflict: 권한 read | 이전에 읽기로 추가됨 | 사용자가 저장소 설정 → 공동작업자에서 쓰기로 변경 |
 | 원본 저장소 404 | 권한 없는 비공개 저장소는 404로 보임 | 원본 담당자에게 읽기 권한 요청 (예: `git/psu_master`는 일반 계정에 404) |
+| 모드 C `collab --check-only` missing | 공유 Fork 에 build 계정 쓰기 권한 없음 | 남의 저장소라 skill 이 추가하지 않는다. 저장소 소유자(예: tglee)에게 build 쓰기 권한을 요청하고 중단 |
+| 일반 `git push`가 `Failed to authenticate user` | 저장된 자격 증명이 다른 계정이거나 없음 | skill 명령은 토큰 헤더(`git_auth_args`)로 push 한다. 손으로 push 할 때도 같은 방식을 쓰거나 자격 증명 관리자에서 Gitea 항목을 갱신 |
 
 ## 로컬 git
 
@@ -38,6 +40,9 @@ HE1I PSU 첫 적용(2026-09-16~17)에서 실제로 겪은 사례 중심. 모든 
 | `job-create` HTTP 400/500 | 플러그인 XML 형식 차이 | 응답 문구를 사용자에게 보여주고 중단. 참고 Job의 `config.xml` 구조와 비교 |
 | **연속 빌드** (결과물 커밋에 반응) | 제외 필터 앞뒤 공백, `(?s)` 누락 | 실제 사례: 붙여 넣기로 앞 공백 3칸 + `(?s)` 누락 → #1 뒤 #2·#3 연속. skill은 값을 직접 넣고 `job-verify`의 `exclusion_exact`로 확인하므로 재발하지 않음. 이미 발생하면 사용자가 추가 빌드를 ✕로 중단하고 필터를 `(?s).*Auto commit from Jenkins.*`로 수정 |
 | `Build ERROR LEVEL` 9 | 새 `.elf`가 없음 (컴파일 실패) | 로그의 컴파일 오류 확인. `Build.bat` 종료 코드만으로는 실패가 가려질 수 있어 표준 Hook이 `.elf`로 재판정 |
+| `Build ERROR LEVEL` 9 인데 로그에 `scons: 'Build' is up to date` | 소스 변경 없는 커밋(bat 만 추가 등) + 이전 `.elf`가 `Debug\`에 그대로 → 새 `.elf` 없음 | 실패가 아니다(FBL #4 사례). `PostPackage.bat`이 매 빌드 `.elf`를 버전 폴더로 옮기므로 이후 빌드부터는 다시 링크된다. 다음 push 로 재빌드 |
+| Job 이름 변경이 400 `The name … is already in use` | 대소문자만 다른 이름(`HE1I_…` → `HE1i_…`). Windows 서버라 Jenkins 가 같은 이름으로 본다 | `job-rename` 이 임시 이름(`<새 이름>_renaming`)을 거쳐 두 번에 바꾼다. 새로 만들 때도 대소문자만 다른 Job 이 있으면 `job-info`가 `exists`로 본다 — 다른 이름을 고른다 |
+| 백그라운드 감시 스크립트가 Job 을 못 찾음(404) | 저장소 전환으로 Job 이름이 바뀜 | `job-match --repo-url <현재 origin> --branch <브랜치>`로 지금 Job 을 찾는다 |
 | `Git Push ERROR LEVEL` ≠ 0 | build 계정 권한, 빌드 중 같은 브랜치 push | 공동작업자 쓰기 확인, 다음 push로 재빌드 |
 | 첫 `git fetch`에서 `Failed to authenticate user` 후 재시도 성공 | 일시적 인증 지연 | 무시. 반복되면 Jenkins 인증정보 확인 |
 

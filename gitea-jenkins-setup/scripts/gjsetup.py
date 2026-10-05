@@ -30,6 +30,15 @@ Commands
   job-verify  --name J --repo-url URL --branch-spec S --project P --user U
   job-enable  --name J
   job-match   --repo-url URL --branch B   이 브랜치를 이미 받아주는 Job이 있는지 (읽기 전용)
+  collab      ... --check-only          모드 C: 남의 저장소라 추가하지 않고 권한만 확인
+
+Migration (references/migrate_to_shared_fork.md) - ONLY on explicit user request.
+These are the only commands that modify or delete existing resources.
+  job-retarget --name J --repo-url URL --branch-spec S [--description D] --backup DIR
+  job-rename   --name J --new-name N    case-only rename goes through a temporary name
+  fork-retire  --fork O/R --target O/R --path DIR [--map old=new ...] [--delete]
+               compare every fork branch with the target; delete only with --delete
+               and only when no fork-only commit exists
 """
 import argparse
 import base64
@@ -241,6 +250,10 @@ def c_repo_info(a):
     info["owner_is_me"] = bool(me) and owner.lower() == me.lower()
     # 내 Fork를 직접 준 경우: 원본은 parent
     info["upstream"] = info["parent"] if (info["owner_is_me"] and info["is_fork"]) else None
+    # 모드 C: 남의 Fork(예: tglee/psu_master)인데 내가 쓰기 권한이 있으면 Fork 없이 직접 작업
+    info["can_push"] = bool((js.get("permissions") or {}).get("push"))
+    info["shared_fork"] = bool(info["is_fork"]) and not info["owner_is_me"] and info["can_push"]
+    info["mode"] = "B" if (info["owner_is_me"] and info["is_fork"]) else ("C" if info["shared_fork"] else "A")
     if me:
         st, mine, _ = gitea("GET", "/repos/%s/%s" % (me, repo))
         info["my_repo_same_name"] = None if st != 200 else {
@@ -273,6 +286,14 @@ def c_collab(a):
     owner, repo = a.repo.split("/", 1)
     st, js, _ = gitea("GET", "/repos/%s/%s/collaborators/%s/permission" % (owner, repo, a.user))
     is_collab_st, _, _ = gitea("GET", "/repos/%s/%s/collaborators/%s" % (owner, repo, a.user))
+    if getattr(a, "check_only", False):
+        # 모드 C: 남의 저장소라 추가하지 않는다. 권한이 모자라면 소유자에게 요청
+        perm = (js or {}).get("permission") if st == 200 else None
+        rank = {"read": 1, "write": 2, "admin": 3, "owner": 4}
+        if rank.get(perm, 0) >= rank.get(a.perm, 2):
+            out(True, "exists", "권한 확인 (%s)" % perm, permission=perm)
+        out(False, "missing", "%s 권한이 %s - 저장소 소유자(%s)에게 %s 권한 요청 필요" % (a.user, perm, owner, a.perm),
+            permission=perm)
     if is_collab_st == 204:
         perm = (js or {}).get("permission")
         rank = {"read": 1, "write": 2, "admin": 3, "owner": 4}
@@ -588,7 +609,7 @@ def c_add_bat(a):
          "commit", "-m", "[Build] Add Jenkins build scripts (%s)" % ", ".join(sorted(files))], cwd=root)
     git(["push", "origin", a.name], cwd=root, auth=True)
     head = git(["rev-parse", "--short", "HEAD"], cwd=root).stdout.strip()
-    out(True, "created", "표준 bat 추가·커밋·push", added=rel, head=head, build_target=bt)
+    out(True, "created", "표준 bat 추가·커밋·push", added=added, same=same, head=head, build_target=bt)
 
 
 def c_job_info(a):
@@ -715,6 +736,109 @@ def c_job_enable(a):
 
 
 # ----------------------------------------------------------------- main
+# ----------------------------------------------------------------- migration
+# references/migrate_to_shared_fork.md 절차 전용. 사용자가 명시적으로 요청한 경우에만 쓴다.
+def c_job_retarget(a):
+    """기존 Job 의 저장소 URL·Branch Specifier·설명만 바꾼다. 그 밖의 설정은 그대로인지 다시 읽어 확인."""
+    st, xml = jenkins("GET", job_path(a.name) + "/config.xml")
+    if st != 200:
+        out(False, "not_found", "Job 없음 (HTTP %s)" % st, name=a.name)
+    os.makedirs(a.backup, exist_ok=True)
+    bak = os.path.join(a.backup, "%s.config.backup.xml" % a.name)
+    open(bak, "w", encoding="utf-8").write(xml)
+    urls = re.findall(r"<url>(.*?)</url>", xml)
+    specs = re.findall(r"<hudson.plugins.git.BranchSpec>\s*<name>(.*?)</name>", xml)
+    if len(urls) != 1 or len(specs) != 1:
+        out(False, "invalid", "저장소 URL/Branch Specifier 가 하나가 아님 - 수정하지 않음", urls=urls, specs=specs)
+    new = xml.replace("<url>%s</url>" % urls[0], "<url>%s</url>" % xml_escape(a.repo_url), 1)
+    new = re.sub(r"(<hudson.plugins.git.BranchSpec>\s*<name>).*?(</name>)",
+                 lambda m: m.group(1) + xml_escape(a.branch_spec) + m.group(2), new, count=1)
+    if a.description:
+        if "<description>" in new:
+            new = re.sub(r"<description>.*?</description>", lambda m: "<description>%s</description>"
+                         % xml_escape(a.description), new, count=1, flags=re.S)
+    st, txt = jenkins("POST", job_path(a.name) + "/config.xml", new, {"Content-Type": "application/xml; charset=utf-8"})
+    if st not in (200, 204):
+        out(False, "api_error", "Job 설정 변경 실패 (HTTP %s)" % st, backup=bak, detail=re.sub(r"<[^>]+>", " ", txt)[:400])
+    st, chk = jenkins("GET", job_path(a.name) + "/config.xml")
+    strip = lambda t: re.sub(r"\s+", "", re.sub(r"<(description|url)>.*?</\1>|<hudson.plugins.git.BranchSpec>.*?"
+                                                r"</hudson.plugins.git.BranchSpec>", "", t, flags=re.S))
+    got_url = re.findall(r"<url>(.*?)</url>", chk)
+    got_spec = re.findall(r"<hudson.plugins.git.BranchSpec>\s*<name>(.*?)</name>", chk)
+    checks = {"url": got_url == [xml_escape(a.repo_url)], "branch_spec": got_spec == [xml_escape(a.branch_spec)],
+              "other_unchanged": strip(xml) == strip(chk)}
+    out(all(checks.values()), "retargeted" if all(checks.values()) else "verify_failed",
+        "Job 저장소 전환", name=a.name, before={"url": urls[0], "branch_spec": specs[0]}, checks=checks, backup=bak)
+
+
+def c_job_rename(a):
+    """Job 이름 변경. Jenkins 는 대소문자만 다른 이름을 '이미 사용 중'으로 거절하므로 임시 이름을 거친다."""
+    st, _ = jenkins("GET", job_path(a.name) + "/api/json?tree=name")
+    if st != 200:
+        out(False, "not_found", "Job 없음 (HTTP %s)" % st, name=a.name)
+    steps = [a.new_name]
+    if a.name.lower() == a.new_name.lower():
+        steps = [a.new_name + "_renaming", a.new_name]
+    cur = a.name
+    for nm in steps:
+        st, txt = jenkins("POST", job_path(cur) + "/confirmRename?newName=" + urllib.parse.quote(nm), "")
+        if st not in (200, 302):
+            out(False, "api_error", "이름 변경 실패 %s -> %s (HTTP %s)" % (cur, nm, st),
+                current=cur, detail=re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", txt))[:300])
+        cur = nm
+    st, js = jenkins("GET", "/api/json?tree=jobs[name]")
+    names = [j["name"] for j in json.loads(js)["jobs"]] if st == 200 else []
+    out(a.new_name in names, "renamed" if a.new_name in names else "verify_failed",
+        "Job 이름 변경", old=a.name, new=a.new_name, via=steps)
+
+
+def c_fork_retire(a):
+    """Fork 를 지우기 전 확인: Fork 의 모든 브랜치 끝 커밋이 target 쪽 원격 브랜치에 들어 있는지.
+
+    --path 는 target 을 origin 으로 둔 로컬 clone. Fork 는 임시 참조로 받았다가 지운다.
+    --delete 가 있고 Fork 에만 있는 커밋이 하나도 없을 때만 Fork 저장소를 삭제한다.
+    """
+    root = os.path.abspath(a.path)
+    fowner, frepo = a.fork.split("/", 1)
+    st, fjs, _ = gitea("GET", "/repos/%s/%s" % (fowner, frepo))
+    if st != 200:
+        out(False, "not_found", "Fork 조회 실패 (HTTP %s)" % st, fork=a.fork)
+    if not fjs.get("fork"):
+        out(False, "invalid", "Fork 가 아닌 저장소는 다루지 않음", fork=a.fork)
+    me = gitea_login()
+    if not me or fowner.lower() != me.lower():
+        out(False, "invalid", "내 소유 Fork 만 다룸", fork=a.fork, me=me)
+    origin = git(["remote", "get-url", "origin"], cwd=root).stdout.strip()
+    if _norm_url(origin) != _norm_url("%s/%s.git" % (g_base(), a.target)):
+        out(False, "invalid", "로컬 clone 의 origin 이 target 이 아님", origin=origin, target=a.target)
+    git(["fetch", "-q", "--prune", "origin"], cwd=root, auth=True)
+    git(["fetch", "-q", "--no-tags", "%s/%s.git" % (g_base(), a.fork), "+refs/heads/*:refs/fork-retire/*"],
+        cwd=root, auth=True)
+    mp = dict(m.split("=", 1) for m in (a.map or []))
+    rows, missing = [], 0
+    try:
+        refs = git(["for-each-ref", "--format=%(refname)", "refs/fork-retire/"], cwd=root).stdout.split()
+        for r in refs:
+            b = r[len("refs/fork-retire/"):]
+            t = "origin/" + mp.get(b, b)
+            has_t = git(["rev-parse", "-q", "--verify", t], cwd=root, check=False).returncode == 0
+            n = int(git(["rev-list", "--count", "%s..%s" % (t, r)], cwd=root).stdout.strip()) if has_t else -1
+            if n != 0:
+                missing += 1
+            rows.append({"branch": b, "target": t if has_t else None, "fork_only_commits": n})
+    finally:
+        for r in git(["for-each-ref", "--format=%(refname)", "refs/fork-retire/"], cwd=root).stdout.split():
+            git(["update-ref", "-d", r], cwd=root)
+    if missing:
+        out(False, "not_contained", "Fork 에만 있는 커밋/브랜치가 있음 - 삭제하지 않음", branches=rows)
+    if not a.delete:
+        out(True, "contained", "Fork 의 모든 브랜치가 target 에 있음 (삭제는 --delete)", branches=rows)
+    st, _, txt = gitea("DELETE", "/repos/%s/%s" % (fowner, frepo))
+    st2, _, _ = gitea("GET", "/repos/%s/%s" % (fowner, frepo))
+    out(st == 204 and st2 == 404, "deleted" if st == 204 else "api_error", "Fork 삭제", fork=a.fork,
+        http=st, after=st2, branches=rows)
+
+
 def main():
     ap = argparse.ArgumentParser(description="gitea-jenkins-setup helper")
     sp = ap.add_subparsers(dest="cmd", required=True)
@@ -723,6 +847,7 @@ def main():
     p = sp.add_parser("fork"); p.add_argument("--repo", required=True); p.add_argument("--org")
     p = sp.add_parser("collab"); p.add_argument("--repo", required=True); p.add_argument("--user", required=True)
     p.add_argument("--perm", default="write")
+    p.add_argument("--check-only", action="store_true", help="모드 C: 추가하지 않고 권한만 확인")
     p = sp.add_parser("clone"); p.add_argument("--repo", required=True); p.add_argument("--dest")
     p.add_argument("--gitea-url")
     p = sp.add_parser("resolve-path"); p.add_argument("--repo", required=True); p.add_argument("--path")
@@ -746,12 +871,20 @@ def main():
     p = sp.add_parser("job-enable"); p.add_argument("--name", required=True)
     p = sp.add_parser("job-match"); p.add_argument("--repo-url", required=True)
     p.add_argument("--branch", required=True)
+    p = sp.add_parser("job-retarget")
+    for k in ["--name", "--repo-url", "--branch-spec", "--backup"]:
+        p.add_argument(k, required=True)
+    p.add_argument("--description", default="")
+    p = sp.add_parser("job-rename"); p.add_argument("--name", required=True); p.add_argument("--new-name", required=True)
+    p = sp.add_parser("fork-retire"); p.add_argument("--fork", required=True); p.add_argument("--target", required=True)
+    p.add_argument("--path", required=True); p.add_argument("--map", nargs="*", help="fork브랜치=target브랜치")
+    p.add_argument("--delete", action="store_true")
     a = ap.parse_args()
 
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    needs_gitea = {"repo-info", "fork", "collab"}
-    needs_jenkins = {"job-info", "job-create", "job-verify", "job-enable", "job-match"}
+    needs_gitea = {"repo-info", "fork", "collab", "fork-retire"}
+    needs_jenkins = {"job-info", "job-create", "job-verify", "job-enable", "job-match", "job-retarget", "job-rename"}
     if a.cmd in needs_gitea and not (env("GITEA_URL") and env("GITEA_TOKEN")):
         out(False, "no_api", "GITEA_URL/GITEA_TOKEN 없음 - Chrome 모드로 진행 (references/chrome_mode.md)")
     if a.cmd in needs_jenkins and not (env("JENKINS_URL") and env("JENKINS_USER") and env("JENKINS_TOKEN")):
@@ -761,6 +894,7 @@ def main():
         "clone": c_clone, "resolve-path": c_resolve_path, "detect-project": c_detect_project, "branch": c_branch, "add-bat": c_add_bat,
         "job-info": c_job_info, "render-job": c_render_job, "job-create": c_job_create,
         "job-verify": c_job_verify, "job-enable": c_job_enable, "job-match": c_job_match,
+        "job-retarget": c_job_retarget, "job-rename": c_job_rename, "fork-retire": c_fork_retire,
     }[a.cmd](a)
 
 

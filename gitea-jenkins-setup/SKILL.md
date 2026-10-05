@@ -1,11 +1,11 @@
 ---
 name: gitea-jenkins-setup
-description: 사내 Gitea 저장소로 Jenkins 자동 빌드 환경을 구축하는 스킬. 모드 A(처음 구축) — Fork → build 계정 공동작업자(쓰기) → Clone·devel_ 작업 브랜치 생성 → 표준 배치 파일(Build_Hook_GIT_ASEC.bat, GitPush.bat) 추가·push → Jenkins Job 생성(비활성)·검증까지 한 번에 진행한다. 모드 B(브랜치 추가) — 이미 Fork된 내 저장소의 아무 브랜치(develop_*·feature/* 등)를 기준으로 devel_ 작업 브랜치를 새로 만들고 bat을 넣은 뒤, 그 브랜치를 이미 받아주는 Job이 있으면 재사용하고 없을 때만 새로 만든다. 사용자가 "젠킨스 빌드 환경 만들어줘", "새 과제 젠킨스 설정", "Gitea 포크하고 Job 만들어줘", "빌드 자동화 세팅", "Jenkins Job 생성", "fork부터 젠킨스까지", "새 제어기 빌드 서버 등록", "랩원 젠킨스 환경 구축", "gitea jenkins setup", "이미 포크한 저장소에 브랜치 추가해줘", "devel_ 브랜치 새로 만들어줘", "이 브랜치로 작업 브랜치 만들어줘", "빌드용 브랜치 추가" 등을 말하거나, AUTOSAR 제어기 저장소를 Jenkins 빌드에 처음 연결하려는 의도를 보이면 반드시 이 스킬을 사용하라. Claude Code CLI(사용자 PC, 사내망) 전용이며, API 토큰(GITEA_TOKEN·JENKINS_TOKEN)이 있으면 API로, 없으면 Claude in Chrome 연동으로 진행한다. 생성만 하고 기존 저장소·브랜치·파일·Job은 절대 수정·삭제하지 않는다. 첫 빌드 실행·패치 작업·PR 생성은 범위가 아니다.
+description: 사내 Gitea 저장소로 Jenkins 자동 빌드 환경을 구축하는 스킬. 모드 A(처음 구축) — Fork → build 계정 공동작업자(쓰기) → Clone·devel_ 작업 브랜치 생성 → 표준 배치 파일(Build_Hook_GIT_ASEC.bat, GitPush.bat) 추가·push → Jenkins Job 생성(비활성)·검증까지 한 번에 진행한다. 모드 B(브랜치 추가) — 이미 Fork된 내 저장소의 아무 브랜치(develop_*·feature/* 등)를 기준으로 devel_ 작업 브랜치를 새로 만들고 bat을 넣은 뒤, 그 브랜치를 이미 받아주는 Job이 있으면 재사용하고 없을 때만 새로 만든다. 모드 C(공유 Fork 직접 작업) — 다른 사람의 Fork(예: tglee/psu_master)에 내가 쓰기 권한이 있으면 개인 Fork 없이 그 저장소에서 바로 clone·작업 브랜치·bat·Job 을 진행한다. 개인 Fork 를 공유 Fork 로 옮기고 개인 Fork 를 없애는 이전 절차(references/migrate_to_shared_fork.md)는 사용자가 명시적으로 요청할 때만 쓴다. 사용자가 "젠킨스 빌드 환경 만들어줘", "새 과제 젠킨스 설정", "Gitea 포크하고 Job 만들어줘", "빌드 자동화 세팅", "Jenkins Job 생성", "fork부터 젠킨스까지", "새 제어기 빌드 서버 등록", "랩원 젠킨스 환경 구축", "gitea jenkins setup", "이미 포크한 저장소에 브랜치 추가해줘", "devel_ 브랜치 새로 만들어줘", "이 브랜치로 작업 브랜치 만들어줘", "빌드용 브랜치 추가", "tglee 저장소에서 바로 작업", "jdlee fork 없애줘", "개인 fork 제거", "공유 fork 로 옮겨줘" 등을 말하거나, AUTOSAR 제어기 저장소를 Jenkins 빌드에 처음 연결하려는 의도를 보이면 반드시 이 스킬을 사용하라. Claude Code CLI(사용자 PC, 사내망) 전용이며, API 토큰(GITEA_TOKEN·JENKINS_TOKEN)이 있으면 API로, 없으면 Claude in Chrome 연동으로 진행한다. 생성만 하고 기존 저장소·브랜치·파일·Job은 수정·삭제하지 않는다(사용자가 요청한 이전 절차만 예외). 첫 빌드 실행·패치 작업·PR 생성은 범위가 아니다.
 ---
 
 # gitea-jenkins-setup
 
-사내 Gitea(`ccm.mobaseelec.com:3000`)의 제어기 저장소를 Fork하고, Jenkins(`wiki.mobaseelec.com:5151`)에 자동 빌드 Job을 만들어 **"작업 브랜치에 push하면 Jenkins가 빌드하고 결과물을 같은 브랜치에 커밋"**하는 환경을 구축한다.
+사내 Gitea(`ccm.mobaseelec.com:3000`)의 제어기 저장소를 Fork하거나(쓰기 권한이 있는 공유 Fork면 그대로 쓰고), Jenkins(`wiki.mobaseelec.com:5151`)에 자동 빌드 Job을 만들어 **"작업 브랜치에 push하면 Jenkins가 빌드하고 결과물을 같은 브랜치에 커밋"**하는 환경을 구축한다.
 
 HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실수(제외 필터 앞 공백·`(?s)` 누락으로 인한 연속 빌드, bat 줄바꿈 깨짐, 권한 누락)를 없애는 것이 목적이다. 값은 skill이 직접 넣고, 넣은 뒤 다시 읽어 확인한다.
 
@@ -16,6 +16,7 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
    - 이미 있고 기대와 같으면 → 재사용하고 다음 단계로 (`status: exists`)
    - 이미 있는데 기대와 다르면 → 건드리지 않고 사용자에게 보고, 해당 단계에서 멈춤 (`status: conflict`)
    - 예외: skill이 이번 실행에서 **방금 만든 것**의 초기값 조정(Chrome 모드에서 방금 추가한 공동작업자 권한을 쓰기로)은 허용
+   - 예외: **사용자가 명시적으로 요청한 이전 절차**(`references/migrate_to_shared_fork.md` — 개인 Fork → 공유 Fork, 기존 Job 전환·이름 변경, 개인 Fork 삭제). 계획을 보여 주고 승인받은 뒤에만 하고, Fork 삭제는 실행 직전에 한 번 더 묻는다
 3. **생성 단계마다 확인을 받지 않는다.** 입력을 모두 받은 뒤 **요약 1회 확인** 후 끝까지 진행한다. 단, Job **활성화**는 첫 빌드가 바로 시작되므로 마지막에 따로 묻는다.
 4. **토큰은 출력하지 않는다.** 환경변수 값을 echo·print하지 않고, 존재 여부만 확인한다.
 5. **남의 자원은 읽기만.** 원본 저장소, 다른 사람의 Job(인증정보 ID를 읽는 참고 Job 포함)은 GET만 한다.
@@ -24,10 +25,11 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
 
 - `scripts/gjsetup.py` — 모든 API·git 작업. 명령마다 JSON 한 개를 출력한다 (`ok`, `status`, `message`, 추가 필드).
   실행: `python "<이 SKILL.md가 있는 폴더>\scripts\gjsetup.py" <명령> [옵션]`
-- `assets/` — 배포용 bat 3개(CRLF·ASCII, 수정 금지: 표준 훅 `Build_Hook_GIT_ASEC.bat`, `GitPush.bat`, `PostPackage.bat`), Job XML 템플릿
+- `assets/` — 배포용 파일(CRLF·ASCII, 수정 금지: 표준 훅 `Build_Hook_GIT_ASEC.bat`, `GitPush.bat`, `PostPackage.bat`, `BuildVariants.bat`, `PJ_Variant.ps1`), Job XML 템플릿
 - `references/token_guide.md` — 토큰 발급·등록 (토큰이 없을 때 사용자에게 안내)
 - `references/chrome_mode.md` — 토큰이 없는 시스템을 Chrome으로 처리하는 절차
 - `references/troubleshooting.md` — 실패·conflict 대응
+- `references/migrate_to_shared_fork.md` — 개인 Fork → 공유 Fork 이전 (요청 시에만)
 
 ## 실행 위치
 
@@ -37,7 +39,7 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
 
 ## 전체 흐름
 
-두 가지 모드가 있다. **입력받은 저장소가 내 소유의 Fork인지**로 갈린다 (`repo-info`의 `owner_is_me`·`is_fork`).
+세 가지 모드가 있다. **입력받은 저장소가 누구의 무엇인지**로 갈린다 (`repo-info`의 `mode` — `owner_is_me`·`is_fork`·`can_push`로 판정).
 
 ```
 [모드 A] 처음 구축 — 원본 저장소를 준 경우
@@ -49,7 +51,14 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
 0 사전 점검 → 입력 수집 → 요약 확인 1회
 → 1·2 확인만(Fork·build 권한이 있는지) → 3 Clone(재사용)·작업 브랜치 → 4 표준 bat
 → 5 job-match: 받아주는 Job이 있으면 재사용, 없으면 생성 → 6 검증·보고
+
+[모드 C] 공유 Fork 직접 작업 — 남의 Fork(예: tglee/psu_master)인데 내가 쓰기 권한이 있는 경우
+0 사전 점검 → 입력 수집 → 요약 확인 1회
+→ 1 Fork 안 함 → 2 build 권한 확인만(--check-only) → 3 Clone·작업 브랜치 → 4 표준 bat
+→ 5 job-match: 받아주는 Job이 있으면 재사용, 없으면 생성 → 6 검증·보고
 ```
+
+모드 C 는 `원본 → tglee(공유 Fork) → jdlee(개인 Fork) → clone` 에서 개인 Fork 층을 뺀 구조다. 작업 브랜치와 Jenkins 결과물이 공유 Fork 에 바로 쌓인다. HE1i PSU APP·FBL 이 2026-10 부터 이 구조다. 이미 개인 Fork 로 구축된 과제를 이 구조로 옮기는 것은 별도 절차(`references/migrate_to_shared_fork.md`)이고, 사용자가 요청할 때만 한다.
 
 모드 B는 **새 기능이 아니라 같은 단계의 축약**이다. 1·2·5단계가 대개 `exists`/재사용으로 지나갈 뿐, 실제 작업(3·4)과 검증(6)은 같다.
 
@@ -84,12 +93,12 @@ Chrome 모드 시스템의 모든 단계는 `references/chrome_mode.md`의 해�
 | --- | --- |
 | 저장소 `owner/repo` | 사용자 입력 (URL을 주면 `owner/repo`로 변환). **원본이든 내 Fork든 받는다** |
 | 조회 | `repo-info --repo owner/repo` → 기본 브랜치, 브랜치 목록, 서브모듈, `owner_is_me`·`is_fork`·`upstream` |
-| **모드 판정** | `owner_is_me`와 `is_fork`가 모두 true면 **모드 B**(브랜치 추가), 아니면 **모드 A**(처음 구축) |
+| **모드 판정** | `repo-info`의 `mode`. 내 Fork → **B**(브랜치 추가) / 남의 Fork + `can_push` → **C**(공유 Fork 직접 작업) / 그 밖(원본 등) → **A**(처음 구축). C 로 판정돼도 사용자가 개인 Fork 를 원하면 A 로 진행한다 |
 | 기준 브랜치 | 브랜치 목록에서 선택. **제한하지 않는다** — `develop_*`·`feature/*`·다른 `devel_*` 모두 가능 (기본값: 모드 A는 기본 브랜치, 모드 B는 사용자가 고르게 한다) |
 | Fork 방식 | 모드 A만. 개인 Fork(기본, 소유자 = 로그인 ID) / 랩 공용 Fork(조직 이름 입력) |
 | 추가 공동작업자 | 모드 A만. 랩원 Gitea ID 목록 (없으면 `build`만) |
 
-모드 B에서는 Fork 방식·추가 공동작업자를 **묻지 않는다.** 이미 정해져 있다.
+모드 B·C에서는 Fork 방식·추가 공동작업자를 **묻지 않는다.** B 는 이미 정해져 있고, C 는 남의 저장소라 공동작업자를 바꾸지 않는다.
 
 원본이 404면 권한 문제일 수 있다 — `troubleshooting.md` 참고 후 사용자에게 확인.
 
@@ -115,10 +124,10 @@ Chrome 모드 시스템의 모든 단계는 `references/chrome_mode.md`의 해�
 
 | 기준 브랜치 | `<기준표식>` | 작업 브랜치 예 |
 | --- | --- | --- |
-| `develop_he1i` | `he1i` | `devel_LP2_jdlee_he1i_FBL_patch_Update` |
-| `develop_bj1` | `bj1` | `devel_LP2_jdlee_bj1_R44_DeliveryPatch` |
-| `develop` | `dev` | `devel_LP2_jdlee_dev_R44_DeliveryPatch` |
-| `main` | `main` | `devel_LP2_jdlee_main_R44_DeliveryPatch` |
+| `develop_he1i` | `he1i` | `devel_HE1i_jdlee_he1i_FBL_patch_Update` |
+| `develop_bj1` | `bj1` | `devel_BJ1_jdlee_bj1_R44_DeliveryPatch` |
+| `develop` | `dev` | `devel_HE1i_jdlee_dev_R44_DeliveryPatch` |
+| `main` | `main` | `devel_HE1i_jdlee_main_R44_DeliveryPatch` |
 
 표식은 `<로그인ID>` **뒤**에 온다. Branch Specifier가 `*/devel_<차종>_<ID>_*`로 앞 3칸만 고정하므로 매칭에는 영향이 없다. 사용자가 표식을 빼고 싶어 하면 그대로 따른다 — 강제하지 않는다.
 
@@ -155,14 +164,14 @@ A 묶음(원본 저장소)이 정해지면 바로 진행한다.
 | 항목 | 받는 방법 |
 | --- | --- |
 | 제어기 | 사용자 입력 (예: `PSU`). 차종은 B 묶음에서 이미 받았다 |
-| Job 이름 | 제안: `<차종>_<제어기>_AUTOSAR_<로그인ID>` (대문자 차종·제어기) |
+| Job 이름 | 제안: `<차종>_<제어기>_<AUTOSAR\|FBL>_<로그인ID>` — **차종은 입력한 표기 그대로**, 제어기는 대문자 (예: `HE1i_PSU_AUTOSAR_jdlee`, `HE1i_PSU_FBL_jdlee`). 전용 훅 파일명만 대문자(`Build_Hook_HE1I.bat`) |
 | 조회 | `job-info --name <Job> --ref-job <참고 Job>` → Job 존재, 뷰 목록, 인증정보 ID 후보 |
 | 뷰 | 뷰 목록에서 선택 (예: `PSU`), 없으면 뷰 없이 생성 |
 | 참고 Job (인증정보 ID용) | 기본 `ASEC_BJ1_PSU`. 읽기만 한다. 후보가 1개면 그 값, 여럿·0개면 사용자에게 확인. 사내 `build` 계정 인증정보 ID 확인값: `4c818a67-cf87-405f-a290-c24aae743ac9` (2026-09 기준) |
 | 커밋 작성자 | 이름 제안: 로그인 ID. 이메일: 사용자 입력. **영문·숫자·기호만**(한글은 Jenkins 콘솔에서 깨짐) |
-| Job 설명 | 제안: `<차종> <제어기> <작업주제> - <로그인ID> Fork 빌드` |
+| Job 설명 | 제안: 모드 A·B `<차종> <제어기> <작업주제> - <로그인ID> Fork 빌드`, 모드 C `<차종> <제어기> <APP\|FBL> - <공유 Fork> 작업 브랜치(devel_<차종>_<ID>_*) 빌드` |
 
-Job이 이미 있으면(`exists: true`) 입력 단계에서 알리고, 이름을 바꿀지 사용자에게 묻는다(기존 Job은 수정하지 않는다).
+Job이 이미 있으면(`exists: true`) 입력 단계에서 알리고, 이름을 바꿀지 사용자에게 묻는다(기존 Job은 수정하지 않는다). **Jenkins 는 대소문자만 다른 이름을 같은 이름으로 본다**(Windows 서버) — `HE1I_PSU_FBL_jdlee` 가 있으면 `HE1i_PSU_FBL_jdlee` 도 `exists` 로 나온다.
 
 ### 요약 확인 (1회)
 
@@ -175,9 +184,9 @@ Job이 이미 있으면(`exists: true`) 입력 단계에서 알리고, 이름을
 Fork           jdlee/psu_master (개인)
 공동작업자      build(쓰기) [+ 추가 인원]
 로컬 경로       D:\Mobase\psu_master (CLI 위치: <cwd>)
-작업 브랜치     devel_LP2_jdlee_dev_R44_DeliveryPatch
+작업 브랜치     devel_HE1i_jdlee_dev_R44_DeliveryPatch
 커밋 작성자     jdlee / jdlee@…
-Jenkins Job    HE1I_PSU_AUTOSAR_jdlee (뷰 PSU, 비활성 생성)
+Jenkins Job    HE1i_PSU_AUTOSAR_jdlee (뷰 PSU, 비활성 생성)
 진행 방식       Gitea: API|Chrome, Jenkins: API|Chrome
 ```
 
@@ -188,9 +197,22 @@ Jenkins Job    HE1I_PSU_AUTOSAR_jdlee (뷰 PSU, 비활성 생성)
 기준 브랜치     feature/swp_patch_v3.0.17
 공동작업자      build(쓰기) — 확인만
 로컬 경로       D:\Mobase\psu_fbl_master (이미 받아져 있어 재사용)
-작업 브랜치     devel_LP2_jdlee_swp_v3017   ← 새로 생성
+작업 브랜치     devel_HE1i_jdlee_swp_v3017   ← 새로 생성
 표준 bat        기준 브랜치에 없으면 추가·커밋
-Jenkins Job     HE1I_PSU_FBL_jdlee 재사용 (새로 만들지 않음)
+Jenkins Job     HE1i_PSU_FBL_jdlee 재사용 (새로 만들지 않음)
+진행 방식       Gitea: API, Jenkins: API
+```
+
+모드 C:
+
+```
+저장소          tglee/psu_fbl_master (공유 Fork, 원본 git/psu_fbl_master, 쓰기 권한 있음)
+Fork            만들지 않음
+기준 브랜치     develop_he1i
+build 권한      write — 확인만 (남의 저장소라 추가하지 않음)
+로컬 경로       D:\Mobase\psu_fbl_master (새로 받음)
+작업 브랜치     devel_HE1i_jdlee_he1i_FBL_patch_Update   ← tglee 에 생성
+Jenkins Job     HE1i_PSU_FBL_jdlee 새로 생성 (뷰 PSU, 비활성)
 진행 방식       Gitea: API, Jenkins: API
 ```
 
@@ -208,7 +230,7 @@ python gjsetup.py fork --repo <원본 owner/repo> [--org <조직>]
 - `conflict` → 사용자에게 보고하고 중단
 - Fork 대상 주소는 이후 `<GITEA_URL>/<소유자>/<repo>.git`
 
-**모드 B에서는 이 명령을 실행하지 않는다.** 입력받은 저장소가 이미 내 Fork임을 `repo-info`로 확인했으므로 `exists`가 자명하다. `fork --repo`는 **원본**을 받는 자리라 Fork 주소를 주면 `conflict`가 난다 — 넘기지 않는다.
+**모드 B·C에서는 이 명령을 실행하지 않는다.** C 는 공유 Fork 를 그대로 쓴다. B 는 입력받은 저장소가 이미 내 Fork임을 `repo-info`로 확인했으므로 `exists`가 자명하다. `fork --repo`는 **원본**을 받는 자리라 Fork 주소를 주면 `conflict`가 난다 — 넘기지 않는다.
 
 ## 2. 공동작업자
 
@@ -219,6 +241,12 @@ python gjsetup.py collab --repo <소유자>/<repo> --user build --perm write
 추가 인원도 같은 명령을 사람마다 실행한다 (`--perm write`). `conflict`(이미 읽기 권한)는 보고만 하고 계속 진행하되, `build`가 conflict면 결과물 push가 실패하므로 **중단**하고 사용자에게 권한 변경을 요청한다.
 
 **모드 B에서도 이 명령은 실행한다.** 이미 있으면 `exists`로 지나가고, 빠져 있으면 그때 붙는다 — 결과물 push 권한은 브랜치를 추가할 때마다 확인할 값어치가 있다.
+
+**모드 C에서는 `--check-only`를 붙인다.** 남의 저장소라 공동작업자를 추가하지 않고 권한만 본다. `missing`이면 결과물 push 가 실패하므로 **중단**하고, 저장소 소유자에게 build 쓰기 권한을 요청하도록 안내한다.
+
+```
+python gjsetup.py collab --repo tglee/<repo> --user build --check-only
+```
 
 ## 3. Clone · 작업 브랜치
 
@@ -378,4 +406,4 @@ Jenkins: <JENKINS_URL>/job/<Job>/
 
 ## 범위 밖
 
-첫 빌드 결과 판정, 패치 작업·커밋, 원본 동기화(upstream merge), PR 생성, 기존 Job·저장소 설정 변경은 하지 않는다. 작업 브랜치를 공유 브랜치로 되돌리는 일(체리픽·머지)도 범위 밖이다 — `GitPush.bat`이 `git add -f .`로 중간 산출물까지 담으므로 그대로 머지하면 안 된다는 점만 알린다. 요청받으면 이 skill의 범위가 아님을 알리고 필요한 절차만 안내한다.
+첫 빌드 결과 판정, 패치 작업·커밋, 원본 동기화(upstream merge), PR 생성, 기존 Job·저장소 설정 변경은 하지 않는다(사용자가 요청한 이전 절차 `references/migrate_to_shared_fork.md`만 예외). 작업 브랜치를 공유 브랜치로 되돌리는 일(체리픽·머지)도 범위 밖이다 — `GitPush.bat`이 `git add -f .`로 중간 산출물까지 담으므로 그대로 머지하면 안 된다는 점만 알린다. 요청받으면 이 skill의 범위가 아님을 알리고 필요한 절차만 안내한다.
