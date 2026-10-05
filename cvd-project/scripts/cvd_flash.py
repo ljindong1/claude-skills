@@ -35,7 +35,7 @@ import subprocess
 import sys
 import time
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 
 # 실제 파일 위치(FS)와 .csf 안에 적힐 윈도우 경로(WIN)를 나눈다. 평소에는 같다.
 # --cvd-root 로 바꿀 수 있다 (set_root). CVD_ROOT / CVD_ROOT_WIN / CVD_EXE 환경변수는 시험용이다.
@@ -160,7 +160,25 @@ def _by_time(files):
 # ---- 버전별 빌드 폴더 (Jenkins PostPackage.bat: Debug\OEUK_xxxx\<버전>\)
 # 파일 이름은 버전마다 같고(he1i_psu_app_v3_0_26*) 폴더 이름만 다르다. 그래서 APP(_Writing.s19)와
 # ELF 는 항상 고른 버전 폴더에서 한 쌍으로 가져온다. rom_<버전>\ 은 aSIMS 서명 입력이라 제외.
-VER_DIR_RE = re.compile(r"^\d{3,8}$")
+# <버전>_test\ = OEUK_TEST 빌드(H-OTA 테스트용, 기준 버전으로 이름 붙음). 고르면 FBL 도 TEST 짝으로 바뀐다.
+VER_DIR_RE = re.compile(r"^\d{3,8}(_test)?$")
+TEST_SUFFIX = "_test"
+
+
+def is_test(v):
+    return bool(v) and v.endswith(TEST_SUFFIX)
+
+
+def ver_num(v):
+    """'26810_test' → 26810. 버전 비교(더 새 버전)는 이 숫자로만 한다."""
+    b = v[:-len(TEST_SUFFIX)] if is_test(v) else (v or "")
+    return int(b) if b.isdigit() else 0
+
+
+def newest_ver(vs):
+    """가장 새 버전 = test 가 아닌 것 중 가장 큰 번호 (test 만 있으면 그중에서)."""
+    base = [v for v in vs if not is_test(v)] or list(vs)
+    return max(base, key=ver_key) if base else None
 
 
 def find_versions(repo):
@@ -199,18 +217,21 @@ def source_version(repo):
 
 
 def ver_key(v):
-    return int(v) if v.isdigit() else 0
+    """정렬용: 26810, 26810_test, 26811, … (같은 번호면 test 가 뒤)."""
+    return (ver_num(v), 1 if is_test(v) else 0)
 
 
 def print_versions(vs, cur=None, src=None, indent="  "):
     """버전 목록. ▶ = 지금 선택, (현재 소스) = PJ_Define.h 버전."""
-    newest = max(vs, key=ver_key) if vs else None
+    newest = newest_ver(vs)
     for v in sorted(vs, key=ver_key):
         tags = []
         if v == src:
             tags.append("현재 소스")
         if v == newest:
             tags.append("가장 새 버전")
+        if is_test(v):
+            tags.append("TEST")
         print("%s%s %-8s %-22s %s" % (indent, "▶" if v == cur else " ", v, " · ".join(tags),
                                      os.path.relpath(vs[v]["dir"], os.path.dirname(os.path.dirname(vs[v]["dir"])))))
 
@@ -222,6 +243,70 @@ def stamp(p):
         return "%d_%d" % (st.st_size, int(st.st_mtime))
     except OSError:
         return ""
+
+
+# ---- FBL : APP 저장소 References\02_Fbl_Binary\OEUK_<차종>[_TEST]\
+# FBL 저장소 Jenkins 결과(Debug\OEUK_HE1I\, Debug\OEUK_HE1I_TEST\)를 같은 이름 폴더로 복사해 커밋해 둔 곳.
+# 파일 이름은 두 폴더가 같으므로(he1i_psu_fbl_v3_0_18.*) 폴더로 고른다. TEST FBL 은 --fbl 로 직접 지정.
+FBL_BIN_DIR = "02_fbl_binary"
+
+
+def fbl_folder(p):
+    """02_Fbl_Binary 아래 파일이면 그 OEUK 폴더 이름, 아니면 None."""
+    parent = os.path.dirname(p)
+    if os.path.basename(os.path.dirname(parent)).lower() == FBL_BIN_DIR:
+        return os.path.basename(parent)
+    return None
+
+
+def order_fbl(files, variant):
+    """(정렬된 후보, 고른 이유). 02_Fbl_Binary\\<variant>\\ 의 .sre 를 맨 앞에, 나머지는 최근 순."""
+    if variant:
+        own = [p for p in files if (fbl_folder(p) or "").upper() == variant.upper()]
+        if own:
+            own = sorted(_by_time(own), key=lambda p: not p.lower().endswith(".sre"))
+            return own + [p for p in _by_time(files) if p not in own], \
+                "02_Fbl_Binary\\%s (APP 차종 %s)" % (fbl_folder(own[0]), variant)
+    return _by_time(files), ""
+
+
+def paired_fbl(repo, versions, ver):
+    """APP 버전에 짝이 되는 FBL: <버전> → 02_Fbl_Binary\\OEUK_<차종>\\, <버전>_test → OEUK_<차종>_TEST\\ 의 .sre.
+    (경로, 폴더 이름). 그 폴더가 없으면 (None, 찾아본 폴더 이름)."""
+    info = (versions or {}).get(ver)
+    if not info:
+        return None, ""
+    folder = info["variant"] + ("_TEST" if is_test(ver) else "")
+    hits = []
+    for pat in (os.path.join(repo, "References", "02_Fbl_Binary", folder, "*.sre"),
+                os.path.join(repo, "*", "References", "02_Fbl_Binary", folder, "*.sre")):
+        hits += glob.glob(pat)
+    return (_by_time(hits)[0] if hits else None), folder
+
+
+def apply_paired_fbl(c, versions, given):
+    """c["fbl"] 를 APP 버전의 짝으로 맞춘다. --fbl 을 줬으면 그대로. 짝 폴더가 없을 때:
+    test 버전이면 멈춘다(엉뚱한 FBL 로 쓰지 않도록), 일반 버전이면 지금 값을 둔다(02_Fbl_Binary 없는 저장소)."""
+    c["_fbl_why"] = ""
+    if given or not c.get("version"):
+        return
+    p, folder = paired_fbl(c["repo"], versions, c["version"])
+    if p:
+        c["fbl"] = p
+        c["_fbl_why"] = "APP %s 의 짝 — 02_Fbl_Binary\\%s" % (c["version"], folder)
+    elif is_test(c["version"]):
+        die("APP %s(TEST) 의 짝 FBL 이 없습니다: References\\02_Fbl_Binary\\%s\\*.sre. "
+            "아무것도 쓰지 않았습니다. APP 저장소를 git pull 하거나 --fbl <경로> 로 지정하세요." % (c["version"], folder))
+
+
+def other_versions(vs, ver):
+    """버전 구별 지점을 고를 비교 순서. 앞쪽 버전과의 차이가 먼저 뽑힌다.
+    일반 버전: 다른 일반 버전 먼저(SW 버전 문자열 차이). test: 같은 번호 일반 버전 먼저(OEUK 차이)."""
+    rest = [v for v in sorted(vs, key=ver_key) if v != ver]
+    if is_test(ver):
+        twin = ver[:-len(TEST_SUFFIX)]
+        return [v for v in rest if v == twin] + [v for v in rest if v != twin]
+    return [v for v in rest if not is_test(v)] + [v for v in rest if is_test(v)]
 
 
 def discover(repo):
@@ -253,13 +338,18 @@ def discover(repo):
     app_w = [p for p in rest if "_writing" in low(p)] or [p for p in rest if "app" in low(p)] or rest
     elf = [p for p in elfs if "fbl" not in low(p) and "hsm" not in low(p)]
     elf = [p for p in elf if "app" in low(p)] or elf
-    cands = {"fbl": _by_time(fbl), "hsm": _by_time(hsm), "elf": _by_time(elf), "app": _by_time(app_w)}
-    d = {"repo": repo, "cands": cands}
+    src_variant, src_ver = source_version(repo)
+    # FBL 차종 = APP 버전 폴더의 OEUK(Debug\OEUK_HE1I\<버전>\), 없으면 PJ_Define.h 에서 켜진 OEUK
+    ver_variants = {v["variant"] for v in versions.values()}
+    fbl_variant = ver_variants.pop() if len(ver_variants) == 1 else src_variant
+    fbl_sorted, fbl_why = order_fbl(fbl, fbl_variant)
+    cands = {"fbl": fbl_sorted, "hsm": _by_time(hsm), "elf": _by_time(elf), "app": _by_time(app_w)}
+    d = {"repo": repo, "cands": cands, "fbl_why": fbl_why}
     for k in ("fbl", "hsm", "elf"):
         d[k] = cands[k][0] if cands[k] else None
     d["app"] = cands["app"][0] if cands["app"] else d["elf"]      # 기록용 APP (없으면 ELF 로 기록)
     d["versions"] = versions
-    d["src_variant"], d["src_ver"] = source_version(repo)
+    d["src_variant"], d["src_ver"] = src_variant, src_ver
     d["version"] = ""
     if versions:                                  # 버전 폴더 구조: 하나면 그것, 여러 개면 사용자가 고른다
         d["app"] = d["elf"] = None
@@ -293,7 +383,7 @@ def choose_version(d, want, keep, what):
     if not ver or ver not in vs:
         print("[버전] %s 폴더 목록 (_Writing.s19 + .elf 가 있는 것)" % d["repo"])
         print_versions(vs, None, d.get("src_ver"))
-        rec = d.get("src_ver") if d.get("src_ver") in vs else max(vs, key=ver_key)
+        rec = d.get("src_ver") if d.get("src_ver") in vs else newest_ver(vs)
         if not ver:
             die("%s: 버전 폴더가 여러 개입니다. --version <버전> 으로 고르세요 (추천 %s)." % (what, rec))
         if want:
@@ -537,7 +627,7 @@ def write_cfg(c):
     vp = []
     if c.get("version") and c.get("repo"):         # 다른 버전과 구별되는 지점을 먼저 넣는다
         vs = find_versions(c["repo"])
-        vp = version_points(c.get("app"), [(v, i["app"]) for v, i in sorted(vs.items()) if v != c["version"]])
+        vp = version_points(c.get("app"), [(v, vs[v]["app"]) for v in other_versions(vs, c["version"])])
     base = [p for p in verify_points([c.get("fbl"), c.get("app")]) if p[0] not in [q[0] for q in vp]]
     pts = (vp + base)[:MAX_POINTS]
     c["banks"] = c.get("banks") if c.get("banks") in BANKS else "A"
@@ -1103,9 +1193,12 @@ def print_scan(d):
             print("  %-10s   → 여러 개라 고르지 않았음. init/flash 에 --version <버전>" % "")
     for k, lab in (("fbl", "FBL"), ("app", "APP(기록)"), ("elf", "ELF(심볼)"), ("hsm", "HSM")):
         print("  %-10s %s" % (lab, d[k] or ("버전 선택 필요" if d.get("versions") and k in ("app", "elf") else "없음")))
+        if k == "fbl" and d.get("fbl_why") and d[k]:
+            print("  %-10s   → %s 에서 고름" % ("", d["fbl_why"]))
         others = [p for p in d["cands"].get(k, []) if p != d[k]]
         if others:
-            print("  %-10s   (다른 후보 %d개 — 가장 최근 파일을 골랐음. 차종·사양이 맞는지 확인)" % ("", len(others)))
+            why = "위 폴더를 우선함" if k == "fbl" and d.get("fbl_why") else "가장 최근 파일을 골랐음"
+            print("  %-10s   (다른 후보 %d개 — %s. 차종·사양이 맞는지 확인)" % ("", len(others), why))
             for p in others[:5]:
                 print("  %-10s     - %s" % ("", p))
     print("  %-10s %s" % ("MCU", d["mcu"] or "인식 못함"))
@@ -1135,6 +1228,9 @@ def cmd_init(a):
     print_scan(d)
     if not (a.app or a.elf):
         choose_version(d, a.version, None, "init")
+        apply_paired_fbl(d, d["versions"], a.fbl)
+        if d.get("_fbl_why"):
+            print("  → FBL %s" % d["_fbl_why"])
     for k in ("fbl", "app", "elf", "hsm"):
         v = getattr(a, k)
         if v:
@@ -1378,6 +1474,9 @@ def prepare_cfg(a):
             c["_version_why"] = d["version_why"]
         else:
             c["version"] = ""
+        apply_paired_fbl(c, d["versions"], getattr(a, "fbl", None))
+    else:
+        c["_fbl_why"] = ""
     for k in ("fbl", "app", "elf", "hsm"):
         v = getattr(a, k, None)
         if v:
@@ -1578,10 +1677,10 @@ def print_flash_options(a, c):
     vs = c["_versions"]
     if vs:
         print("  APP 버전 (APP _Writing.s19 + ELF 를 그 버전 폴더에서)  기본 = config 의 버전(마지막 설정)")
-        newest = max(vs, key=ver_key)
+        newest = newest_ver(vs)
         for v in sorted(vs, key=ver_key):
             tags = [t for t, on in (("config", v == c["_cfg_version"]), ("현재 소스", v == c["_src_ver"]),
-                                    ("가장 새 버전", v == newest)) if on]
+                                    ("가장 새 버전", v == newest), ("TEST, FBL 도 TEST", is_test(v))) if on]
             print("   %s %-8s %-28s %s" % (mark(v == c["version"]), v, " · ".join(tags),
                                           "(인자 없음)" if v == c["_cfg_version"] else "--version %s" % v))
     print("  이미지 (FBL·HSM%s)" % ("" if vs else "·APP·ELF"))
@@ -1600,10 +1699,12 @@ def print_image_head(a, c, mode=None):
     for k in ("fbl", "app", "elf", "hsm"):
         if (use is None and (k != "hsm" or c.get("hsm"))) or (use and k in use):
             print("  %-4s %s" % (k.upper(), c[k]))
+            if k == "fbl" and c.get("_fbl_why"):
+                print("       ← %s" % c["_fbl_why"])
     src, vs = c["_src_ver"], c["_versions"]
     if c["version"] and src and src in vs and src != c["version"]:
         print("  [알림] 현재 소스(PJ_Define.h) 버전은 %s 입니다. 그 버전을 쓰려면 --version %s" % (src, src))
-    newer = [v for v in vs if ver_key(v) > ver_key(c["version"] or "0")]
+    newer = [v for v in vs if not is_test(v) and ver_num(v) > ver_num(c["version"])]
     if c["version"] and newer and src not in newer:
         print("  [알림] 더 새 버전 폴더가 있습니다: %s" % ", ".join(sorted(newer, key=ver_key)))
     if c["_rebuilt"]:

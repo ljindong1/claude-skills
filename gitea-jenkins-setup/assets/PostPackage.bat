@@ -8,15 +8,19 @@ rem  Purpose  : reproduce the [Post-build] Archiving step of Build_all.bat so
 rem             that Jenkins builds also produce
 rem               - Debug\OEUK_xxxx\<ver>\<model>_psu_app_vX_Y_Z.*  artifacts
 rem               - Debug\OEUK_xxxx\<ver>\rom_<ver>\               aSIMS sign input
-rem  Layout   : one folder per software version (SOFTWARE_VERSION_0..4).
-rem             OEUK_TEST build -> <base OEUK>\<base ver>_test\ (same level)
+rem  Layout   : folder / version come from PJ_Variant.ps1 (-Action folder)
+rem             APP (version +1 possible) : one folder per software version
+rem               OEUK_TEST build -> <base OEUK>\<base ver>_test\ (same level)
 rem               e.g. Debug\OEUK_HE1I\26810\  Debug\OEUK_HE1I\26810_test\
-rem                    FBL Debug\OEUK_HE1I\HE130I02\  ...\HE130I02_test\
-rem             folder / version come from PJ_Variant.ps1 (-Action folder)
-rem             same version  -> only that version folder is rebuilt
-rem             other versions -> kept as they are
-rem             loose files / rom_* folders directly under OEUK_xxxx (old flat
-rem             layout of Build_all.bat) are removed.
+rem               same version  -> only that version folder is rebuilt
+rem               other versions -> kept as they are
+rem               loose files / rom_* folders directly under OEUK_xxxx (old flat
+rem               layout of Build_all.bat) are removed.
+rem             FBL (version +1 not possible) : flat, one folder per OEUK
+rem               e.g. Debug\OEUK_HE1I\  Debug\OEUK_HE1I_TEST\
+rem               same names as APP repo References\02_Fbl_Binary\ folders.
+rem               the whole folder is rebuilt (old version folders removed).
+rem             file prefix is the base model in both (he1i_psu_..._TEST too).
 rem  Usage    : PostPackage.bat [OEUK_XXXX]
 rem             no argument -> auto detect the enabled OEUK option
 rem  Note     : logic based on Build_all.bat [Post-build] block.
@@ -55,17 +59,21 @@ if not defined ORIGINAL_BASE_NAME (
 echo [PostPackage] Built artifact  : !ORIGINAL_BASE_NAME!
 
 rem ---- 3) output folder / software version ---------------------------------
-rem  PJ_Variant.ps1 -Action folder :
-rem    OEUK_HE1I -> OEUK_HE1I 26810         OEUK_TEST -> OEUK_HE1I 26810_test
-rem  test build goes next to the base build, named by the BASE version.
+rem  PJ_Variant.ps1 -Action folder : "<folder> <version folder> <version>"
+rem    APP OEUK_HE1I -> OEUK_HE1I 26810 26810
+rem        OEUK_TEST -> OEUK_HE1I 26810_test 26810   (named by the BASE version)
+rem    FBL OEUK_HE1I -> OEUK_HE1I . HE130I02         ("." = flat, no version folder)
+rem        OEUK_TEST -> OEUK_HE1I_TEST . DEV30I02
 rem  version digits: OEUK block first, then the common area (FBL HE130I02).
 set "FOLDER_VARIANT="
 set "VER_DIR="
+set "VER_REAL="
 if exist "%SCRIPT_DIR%PJ_Variant.ps1" (
-    for /f "usebackq tokens=1,2" %%a in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%PJ_Variant.ps1" -Action folder -File "%VEHICLE_OPTION_FILE%" -Variant !VARIANT!`) do (
+    for /f "usebackq tokens=1,2,3" %%a in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%PJ_Variant.ps1" -Action folder -File "%VEHICLE_OPTION_FILE%" -Variant !VARIANT!`) do (
         if not defined FOLDER_VARIANT (
             set "FOLDER_VARIANT=%%a"
             set "VER_DIR=%%b"
+            set "VER_REAL=%%c"
         )
     )
 ) else (
@@ -78,25 +86,39 @@ if "!FOLDER_VARIANT!"=="[PJ_Variant]" (
     set "FOLDER_VARIANT=!VARIANT!"
     set "VER_DIR=UNKNOWN"
 )
-set "version=!VER_DIR:_test=!"
+set "FLAT=0"
+if "!VER_DIR!"=="." set "FLAT=1"
+if "!FLAT!"=="1" (
+    set "version=!VER_REAL!"
+    if not defined version set "version=UNKNOWN"
+) else (
+    set "version=!VER_DIR:_test=!"
+)
 echo [PostPackage] Software version : !version!
 
 rem ---- 4) compose model based name / version folder ------------------------
 set "PREFIX_UPPER=!FOLDER_VARIANT:OEUK_=!"
+set "PREFIX_UPPER=!PREFIX_UPPER:_TEST=!"
 for /f "usebackq" %%p in (`powershell -Command "'!PREFIX_UPPER!'.ToLower()"`) do set "PREFIX_LOWER=%%p"
 for /f "tokens=1,* delims=_" %%a in ("!ORIGINAL_BASE_NAME!") do set "SUFFIX=_%%b"
 set "NEW_BASE_NAME=!PREFIX_LOWER!!SUFFIX!"
 set "VARIANT_DIR=..\Debug\!FOLDER_VARIANT!"
-set "OUTPUT_DIR=!VARIANT_DIR!\!VER_DIR!"
-
-rem old flat layout: files and rom_* folders directly under VARIANT_DIR
-if exist "!VARIANT_DIR!\" (
-    del /q "!VARIANT_DIR!\*.*" > nul 2> nul
-    for /d %%D in ("!VARIANT_DIR!\rom_*") do rmdir /s /q "%%D"
+if "!FLAT!"=="1" (
+    rem FBL flat layout: one build per OEUK folder -> rebuild the whole folder
+    set "OUTPUT_DIR=!VARIANT_DIR!"
+    set "ROM_DIR=rom_!version!"
+    if exist "!VARIANT_DIR!" rmdir /s /q "!VARIANT_DIR!"
+) else (
+    set "OUTPUT_DIR=!VARIANT_DIR!\!VER_DIR!"
+    set "ROM_DIR=rom_!VER_DIR!"
+    rem old flat layout: files and rom_* folders directly under VARIANT_DIR
+    if exist "!VARIANT_DIR!\" (
+        del /q "!VARIANT_DIR!\*.*" > nul 2> nul
+        for /d %%D in ("!VARIANT_DIR!\rom_*") do rmdir /s /q "%%D"
+    )
+    rem same version -> rebuild only this version folder
+    if exist "!VARIANT_DIR!\!VER_DIR!" rmdir /s /q "!VARIANT_DIR!\!VER_DIR!"
 )
-
-rem same version -> rebuild only this version folder
-if exist "!OUTPUT_DIR!" rmdir /s /q "!OUTPUT_DIR!"
 mkdir "!OUTPUT_DIR!"
 echo [PostPackage] Output folder    : !OUTPUT_DIR!
 
@@ -133,7 +155,6 @@ set "HAS_S19=0"
 if exist "!OUTPUT_DIR!\!NEW_BASE_NAME!.s19" set "HAS_S19=1"
 if "!HAS_S19!"=="0" echo [PostPackage] No .s19 - rom package skipped.
 if "!HAS_S19!"=="1" if not "!version!"=="UNKNOWN" (
-    set "ROM_DIR=rom_!VER_DIR!"
     echo [PostPackage] Packaging for version !version! ...
     pushd "!OUTPUT_DIR!" > nul
     if not exist "!ROM_DIR!" mkdir "!ROM_DIR!"

@@ -21,6 +21,12 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 Jenkins(`PostPackage.bat`)는 APP 산출물을 `Debug\OEUK_xxxx\<버전>\` 에 쌓는다(`<버전>` = `PJ_Define.h` 의 `SOFTWARE_VERSION_0~4`, 예 `26820`). **파일 이름은 버전마다 같고 폴더 이름만 다르다.** 그래서:
 
 - APP(`_Writing.s19`)와 ELF 는 **항상 고른 버전 폴더에서 한 쌍으로** 가져온다. config 에 `cfg_version` 으로 저장되고, PD 창 경로·실제 기록 파일·검증 지점·PA 심볼·결과 메시지가 모두 이 경로를 쓴다. `rom_<버전>\`(aSIMS 서명 입력)은 제외.
+- **`<버전>_test\`(OEUK_TEST 빌드, H-OTA 테스트용)도 버전으로 고를 수 있고, FBL 은 APP 버전의 짝으로 자동으로 바뀐다**(cvd_flash 1.5.0).
+  - `26810` → FBL `References\02_Fbl_Binary\OEUK_HE1I\*.sre`, `26810_test` → `02_Fbl_Binary\OEUK_HE1I_TEST\*.sre`. 차종 폴더는 APP 버전 폴더의 OEUK(`Debug\OEUK_HE1I\`)에서 온다.
+  - init·flash·verify·set 모두 같다. 계획에 `FBL … ← APP 26810_test 의 짝 — 02_Fbl_Binary\OEUK_HE1I_TEST` 로 나오고 config 의 `cfg_fbl` 에 저장되므로 화면 PD 도 따라간다. `set --version` 으로 바꾸면 `바뀜 FBL` 이 함께 나온다.
+  - test 버전인데 짝 폴더가 없으면 **아무것도 쓰지 않고 멈춘다**(일반 FBL 로 잘못 쓰지 않도록) → APP 저장소 `git pull` 또는 `--fbl`. 일반 버전인데 `02_Fbl_Binary` 가 없는 저장소는 config 의 FBL 을 그대로 쓴다.
+  - `--fbl` 을 주면 짝 대신 그 파일을 쓴다.
+  - "가장 새 버전"·"더 새 버전 폴더" 알림은 test 가 아닌 버전만 센다. 버전 구별 지점은 test 버전이면 같은 번호 일반 버전(26810_test ↔ 26810)과의 차이로 고른다.
 - 버전 폴더가 하나면 그것을 쓴다. 여러 개면:
   - **init**: 도구가 목록만 보여 주고 멈춘다. 목록을 AskUserQuestion 으로 보여 주고 고르게 한다 — **추천(첫 옵션)은 `현재 소스` 표시된 버전**(`PJ_Define.h`), 다른 버전(예 26810)도 옵션으로 모두 보여 준다. 고른 값을 `--version` 으로 넘긴다.
   - **flash / verify**: 기본은 **config 의 버전(마지막으로 쓰거나 set 한 버전)**. 멈추지 않는다. 계획에 다른 버전과 `[알림] 현재 소스 버전은 …` 을 보여 주므로, 확인받을 때 그 알림을 반드시 짚는다. 바꾸려면 `--version`.
@@ -61,6 +67,7 @@ C:\JnDTech\CVI\CVD\Projects\
 2. `scan --repo <폴더>` 로 조사하고 결과를 표로 보여 준다: APP 버전 목록(`현재 소스` 표시) / FBL / APP(기록용 `_Writing.s19`) / ELF(심볼) / HSM / MCU / 뱅크 구성과 그 근거 / 과제명 제안 / CVD 설치 위치.
    - CVD 설치를 못 찾았으면 여기서 멈추고 설치 경로부터 확인한다(위 "도구" 참조).
    - **다른 후보가 있다고 나오면 반드시 짚는다.** 저장소에 다른 차종 파일(예: `BJ1_PSU` HSM, `SP3i_PSU_FBL`)이 섞여 있을 수 있고, 도구는 가장 최근 파일을 고른다. 경로의 차종명이 맞는지 확인받는다.
+   - **FBL 은 APP 저장소 `References\02_Fbl_Binary\OEUK_<차종>\` 의 `.sre` 를 먼저 고른다**(차종 = APP 버전 폴더의 OEUK, 없으면 `PJ_Define.h` 에서 켜진 OEUK). FBL 저장소 Jenkins 결과(`Debug\OEUK_HE1I\`, `Debug\OEUK_HE1I_TEST\`)를 같은 이름 폴더로 복사해 커밋해 둔 곳이다. `OEUK_<차종>_TEST\`(H-OTA 테스트용 FBL)는 파일 이름이 같아 최근 순으로 고르면 섞이므로 scan 에서는 고르지 않고, APP `<버전>_test` 를 고를 때 짝으로 따라온다(위 "APP 버전 폴더"). 그 폴더가 없으면 예전처럼 가장 최근 파일.
    - 못 찾은 이미지는 경로를 묻는다(`--fbl --app --elf --hsm`).
    - `Debug\OEUK_*` 가 없으면 빌드 산출물이 없는 것이다. 저장소에서 `git pull` 을 안내한다(Jenkins 가 산출물을 자동 커밋한다).
 3. AskUserQuestion 한 번으로 묻는다.

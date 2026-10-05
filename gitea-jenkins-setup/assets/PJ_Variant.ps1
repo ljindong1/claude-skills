@@ -17,9 +17,14 @@
 #                  -> <base> KEEP / OEUK_TEST KEEP          (FBL, versions untouched)
 #    apply   enable -Variant (other OEUK options are commented out) and,
 #            unless -Version is KEEP, write it into that block
-#    folder  print "<folder OEUK> <version folder>" for -Variant
-#              OEUK_HE1I -> OEUK_HE1I 26810
-#              OEUK_TEST -> OEUK_HE1I 26810_test   (base version + _test)
+#    folder  print "<folder OEUK> <version folder> <version>" for -Variant
+#              version +1 possible (APP) : one folder per version
+#                OEUK_HE1I -> OEUK_HE1I 26810 26810
+#                OEUK_TEST -> OEUK_HE1I 26810_test 26810   (base version + _test)
+#              otherwise (FBL) : flat, one folder per OEUK ("." = no version folder)
+#                OEUK_HE1I -> OEUK_HE1I . HE130I02
+#                OEUK_TEST -> OEUK_HE1I_TEST . DEV30I02    (same name as the
+#                             APP repo References\02_Fbl_Binary folders)
 #  Version  : SOFTWARE_VERSION_<n> digits are read from the OEUK block first,
 #             digits not in the block from the common area outside all OEUK
 #             blocks, joined in index order.
@@ -96,6 +101,18 @@ function Get-NextVersion([string]$v) {
     return $s
 }
 
+# '' when version +1 is possible (APP), otherwise the reason (FBL)
+function Get-KeepReason([string]$t, [string]$name) {
+    $map = Get-VersionMap $t $name
+    if (-not $map) { return "#if/#elif block for $name not found" }
+    $outside = @($map.Keys | Sort-Object | Where-Object { -not $map[$_].InBlock })
+    if ($outside.Count -gt 0) { return "version digits $($outside -join ',') are outside the $name block" }
+    $v = Get-Version $t $name
+    if (-not $v) { return "SOFTWARE_VERSION digits not found for $name" }
+    try { $null = Get-NextVersion $v } catch { return $_.Exception.Message }
+    return ''
+}
+
 function Get-Target([string]$t) {
     $m = [regex]::Match($t, '(?m)^[ \t]*#define[ \t]+JENKINS_BUILD_TARGET[ \t]+(\w+)')
     if ($m.Success) { return $m.Groups[1].Value.ToUpper() }
@@ -126,13 +143,8 @@ try {
             if (-not $ver) { throw "SOFTWARE_VERSION digits not found for $base" }
             # version +1 only when every digit is a number inside the base block (APP)
             $next = $null
-            $why = ''
-            $map = Get-VersionMap $text $base
-            $outside = @($map.Keys | Sort-Object | Where-Object { -not $map[$_].InBlock })
-            if ($outside.Count -gt 0) { $why = "version digits $($outside -join ',') are outside the $base block" }
-            else {
-                try { $next = Get-NextVersion $ver } catch { $why = $_.Exception.Message }
-            }
+            $why = Get-KeepReason $text $base
+            if (-not $why) { $next = Get-NextVersion $ver }
             if ($next) {
                 Write-Output "$base $ver"
                 Write-Output "$TestVariant $ver"
@@ -188,9 +200,19 @@ try {
                 if ($base) { $folder = $base }
             }
             $ver = Get-Version $text $folder
-            if (-not $ver) { $ver = 'UNKNOWN' }
-            if ($Variant -eq $TestVariant -and $folder -ne $Variant -and $ver -ne 'UNKNOWN') { $ver = $ver + '_test' }
-            Write-Output "$folder $ver"
+            if ($ver -and (Get-KeepReason $text $folder)) {
+                # FBL : flat, <OEUK> / <base OEUK>_TEST, version of the variant itself
+                $real = Get-Version $text $Variant
+                if (-not $real) { $real = 'UNKNOWN' }
+                if ($Variant -eq $TestVariant -and $folder -ne $Variant) { $folder = $folder + '_TEST' }
+                Write-Output "$folder . $real"
+            }
+            else {
+                if (-not $ver) { $ver = 'UNKNOWN' }
+                $real = $ver
+                if ($Variant -eq $TestVariant -and $folder -ne $Variant -and $ver -ne 'UNKNOWN') { $ver = $ver + '_test' }
+                Write-Output "$folder $ver $real"
+            }
         }
     }
     exit 0

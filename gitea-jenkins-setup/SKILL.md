@@ -277,7 +277,7 @@ python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name
 | `Build_Hook_GIT_ASEC.bat` | `assets` 바이트 그대로 | 랩 표준 훅. **수정하지 않는다.** 전용 훅이 없는 브랜치를 위한 fallback |
 | `GitPush.bat` | `assets` + `[USER]` 2줄 치환 | 빌드 결과물 자동 커밋·push |
 | `Build_Hook_<차종>.bat` | 표준 훅에서 생성 | ⭐ **Job이 실제로 부르는 훅.** 표준 훅 + `PostPackage` 호출 블록 + `ALL` 분기·push 블록 |
-| `PostPackage.bat` | `assets` 바이트 그대로 | `Build_all.bat`의 `[Post-build] Archiving` 블록 기반. **버전별 폴더** `Debug\OEUK_xxxx\<버전>\`에 차종명 산출물(`_Writing.s19` 등)과 `rom_<버전>\`(aSIMS 서명 입력) 생성. `OEUK_TEST` 빌드는 기준 OEUK 폴더의 `<기준 버전>_test\`(같은 레벨)로, rom 패키지도 `rom_<기준 버전>_test\`·`.zip`으로 만든다. `.s19`가 없으면(FBL) `rom` 패키징 생략 |
+| `PostPackage.bat` | `assets` 바이트 그대로 | `Build_all.bat`의 `[Post-build] Archiving` 블록 기반. APP는 **버전별 폴더** `Debug\OEUK_xxxx\<버전>\`에 차종명 산출물(`_Writing.s19` 등)과 `rom_<버전>\`(aSIMS 서명 입력) 생성. `OEUK_TEST` 빌드는 기준 OEUK 폴더의 `<기준 버전>_test\`(같은 레벨)로, rom 패키지도 `rom_<기준 버전>_test\`·`.zip`으로 만든다. FBL은 **평면 폴더** `Debug\OEUK_HE1I\`·`Debug\OEUK_HE1I_TEST\`(APP 저장소 `02_Fbl_Binary\`와 같은 이름). `.s19`가 없으면(FBL) `rom` 패키징 생략 |
 | `BuildVariants.bat` | `assets` 바이트 그대로 | `JENKINS_BUILD_TARGET ALL`일 때 빌드 1회 안에서 가능한 조합(APP 4개, FBL 2개)을 차례로 빌드·패키징 |
 | `PJ_Variant.ps1` | `assets` 바이트 그대로 | `PJ_Define.h` 읽기·임시 전환(설정값, 빌드 목록, OEUK 전환·버전 기록, 산출물 폴더 이름). 바이트·줄바꿈 보존 |
 
@@ -293,14 +293,14 @@ APP·FBL이 **같은 파일 한 벌**을 쓴다. 차이는 `PJ_Define.h`의 버�
 >
 > | 값 | APP (`26810`) | FBL (`HE130I02`) |
 > | --- | --- | --- |
-> | `CURRENT` 또는 define 없음 (기본값) | 켜진 OEUK 하나만. HE1I → `26810\`, TEST → `26810_test\` | 켜진 OEUK 하나만. HE1I → `HE130I02\`, TEST → `HE130I02_test\` |
-> | `ALL` | 4개: `26810\`, `26810_test\`, `26811\`, `26811_test\` | 2개: `HE130I02\`, `HE130I02_test\` |
+> | `CURRENT` 또는 define 없음 (기본값) | 켜진 OEUK 하나만. HE1I → `26810\`, TEST → `26810_test\` | 켜진 OEUK 하나만. HE1I → `OEUK_HE1I\`, TEST → `OEUK_HE1I_TEST\` |
+> | `ALL` | 4개: `26810\`, `26810_test\`, `26811\`, `26811_test\` | 2개: `OEUK_HE1I\`, `OEUK_HE1I_TEST\` |
 >
 > 값은 **`CURRENT`와 `ALL` 둘뿐**이다. `ALL`은 "그 프로젝트에서 가능한 조합 전부"이고, 버전 +1이 가능한지 스크립트가 판단한다. TEST 하나만 빌드하려면 `CURRENT`로 두고 OEUK 선택 줄을 `OEUK_TEST`로 바꾼다. 그 밖의 값(옛 `TEST` 등)은 알 수 없는 값으로 보고 단일 빌드한다.
 >
 > - 조합마다 **켤 OEUK 하나만 살리고 나머지는 주석** 처리한다(`#if OEUK_HE1I`가 먼저라 둘 다 살면 TEST가 빌드되지 않는다).
 > - **버전 읽기**: `SOFTWARE_VERSION_<n>`을 OEUK 블록에서 먼저, 블록에 없는 자리는 모든 OEUK 블록 밖의 공통 영역에서 읽어 자리 순으로 붙인다. APP `0~4` 블록 안 → `26810`, FBL `0~2` 블록 안 + `3~7` 공통 → `HE130I02`.
-> - **test 폴더 이름은 기준 버전 + `_test`** 다. FBL TEST 빌드의 실제 버전은 `DEV30I02`지만 폴더는 `HE130I02_test`.
+> - **test 폴더 이름**: APP는 기준 버전 + `_test`(`26810_test\`). FBL은 기준 OEUK + `_TEST`(`Debug\OEUK_HE1I_TEST\`)이고 콘솔에는 TEST 블록의 실제 버전(`DEV30I02`)이 찍힌다.
 > - **버전 +1 가능**(버전이 전부 숫자이고 **전부 OEUK 블록 안**, APP) → 4개. test 조합은 TEST 블록 버전 칸에 기준 버전을 적어 빌드한다. 다음 버전은 **마지막 자리 +1, 받아올림**(26819 → 26820) — 버전 칸은 한 글자씩이라 `10`은 넣을 수 없다.
 > - **버전 +1 불가**(블록 밖 공통 자리·글자가 섞임, FBL) → 기준과 test 2개. 버전은 건드리지 않으므로 TEST 블록의 원래 버전(FBL `DEV…`) 그대로 빌드한다. 콘솔에 `version +1 not possible (...) - base + test only`로 이유를 남긴다.
 > - 올린 버전과 OEUK 전환은 **임시**다. 빌드가 끝나면 `PJ_Define.h`를 원본으로 되돌려 커밋에 들어가지 않는다. 기준 버전은 사람이 정한다.
@@ -311,9 +311,15 @@ APP·FBL이 **같은 파일 한 벌**을 쓴다. 차이는 `PJ_Define.h`의 버�
 > - 평소에는 `CURRENT`로 두고, 필요할 때만 `ALL`로 바꿔 커밋한 뒤 결과를 받고 되돌리도록 안내한다(매 push마다 여러 번 빌드하지 않도록).
 > - 실측(HE1I): APP ALL 4개 약 21~23분, FBL ALL 2개 약 0.5분.
 
-> 📁 **산출물 폴더는 버전별로 쌓인다**
+> 📁 **산출물 폴더 — APP는 버전별로 쌓이고, FBL은 OEUK별 평면 폴더**
 >
-> `<버전>`은 `PJ_Define.h`의 `SOFTWARE_VERSION_*`를 위 규칙으로 읽은 문자열이다(APP `26810`, FBL `HE130I02`). 같은 버전으로 다시 빌드하면 그 버전 폴더만 지우고 새로 만들고, 다른 버전 폴더는 그대로 둔다. `OEUK_xxxx\` 바로 아래의 파일·`rom_*` 폴더(옛 평면 구조)는 정리한다. 버전을 읽지 못하면 `UNKNOWN\`에 넣고 `rom` 패키징은 건너뛴다.
+> 어느 쪽인지는 `PJ_Variant.ps1 -Action folder`가 정한다(출력 `<폴더> <버전폴더> <버전>`). 버전 +1이 불가능한 프로젝트(FBL)는 버전폴더 자리에 `.`을 내고 평면 구조가 된다.
+>
+> - **FBL**: `Debug\OEUK_HE1I\`(기준), `Debug\OEUK_HE1I_TEST\`(TEST). APP 저장소 `psu_app\References\02_Fbl_Binary\`의 폴더 이름과 같아서 **같은 이름 폴더로 그대로 복사**하면 된다(`.sre/.hex/.elf/.map` 4개, `BuildWarning.xlsx` 제외). 빌드마다 그 OEUK 폴더를 통째로 다시 만들며 옛 `HE130I02\`·`HE130I02_test\`도 이때 정리된다. 파일 접두어는 TEST도 기준 차종(`he1i_psu_fbl_…`)이라 폴더로 구분한다. HE1i 실측 2026-10-05 FBL Jenkins #12(ALL)로 확인. 복사·커밋은 사람이 한다(넣을 APP 브랜치를 정해야 해서 Jenkins가 하지 않는다).
+>
+> 아래는 **APP** 버전 폴더 설명이다.
+>
+> `<버전>`은 `PJ_Define.h`의 `SOFTWARE_VERSION_*`를 위 규칙으로 읽은 문자열이다(APP `26810`). 같은 버전으로 다시 빌드하면 그 버전 폴더만 지우고 새로 만들고, 다른 버전 폴더는 그대로 둔다. `OEUK_xxxx\` 바로 아래의 파일·`rom_*` 폴더(옛 평면 구조)는 정리한다. 버전을 읽지 못하면 `UNKNOWN\`에 넣고 `rom` 패키징은 건너뛴다.
 >
 > - **rom 패키지 이름은 버전 폴더 이름을 따른다**: `26810\rom_26810\`·`rom_26810.zip`, `26810_test\rom_26810_test\`·`rom_26810_test.zip`. 예전에는 test 폴더 안에도 `rom_26810`이 생겨 기준 빌드와 구분되지 않았다(2026-10 수정). 콘솔의 `Software version`과 `Finished … v<버전>`에는 `_test`를 뺀 실제 버전이 찍힌다.
 >

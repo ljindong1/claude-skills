@@ -14,7 +14,7 @@ rem               3) OEUK_HE1I 26811 -> Debug\OEUK_HE1I\26811\     (version +1)
 rem               4) OEUK_TEST 26811 -> Debug\OEUK_HE1I\26811_test\
 rem             otherwise (FBL HE130I02 : digits outside the block / letters)
 rem               1) OEUK_HE1I -> Debug\OEUK_HE1I\HE130I02\       (version kept)
-rem               2) OEUK_TEST -> Debug\OEUK_HE1I\HE130I02_test\
+rem               2) OEUK_TEST -> Debug\OEUK_HE1I_TEST\
 rem             only one OEUK option is enabled per build (others commented).
 rem             PJ_Define.h is restored at the end - the temporary edits and
 rem             the +1 version are NOT committed.
