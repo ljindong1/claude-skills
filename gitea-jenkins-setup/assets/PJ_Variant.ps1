@@ -12,7 +12,7 @@
 #              ALL = every combination the project allows
 #                version +1 possible (all digits, all inside the OEUK block)
 #                  -> <base> <ver> / OEUK_TEST <ver> /
-#                     <base> <ver+1> / OEUK_TEST <ver+1>   (APP, +1 with carry)
+#                     <base> <ver+1> / OEUK_TEST <ver+1>   (APP, see Get-NextVersion)
 #                otherwise (reason on stderr)
 #                  -> <base> KEEP / OEUK_TEST KEEP          (FBL, versions untouched)
 #    apply   enable -Variant (other OEUK options are commented out) and,
@@ -93,11 +93,14 @@ function Get-Markers([string]$t, [string]$name) {
     ([regex]::Matches($b.Value, '(FOTA_OTA_\d+|HAE_HSM_\w+)') | ForEach-Object { $_.Value } | Sort-Object -Unique) -join ','
 }
 
+# next version = 2nd digit from the right +1 with carry, last digit kept
+#   26810 -> 26820, 26815 -> 26825, 26890 -> 26900   (spec 2026-10)
 function Get-NextVersion([string]$v) {
     if ($v -notmatch '^\d+$') { throw "version '$v' is not all digits" }
-    $n = [long]$v + 1
+    if ($v.Length -lt 2) { throw "version '$v' has no 2nd digit" }
+    $n = [long]$v + 10
     $s = $n.ToString().PadLeft($v.Length, '0')
-    if ($s.Length -gt $v.Length) { throw "version '$v' + 1 overflows $($v.Length) digits" }
+    if ($s.Length -gt $v.Length) { throw "version '$v' + 10 overflows $($v.Length) digits" }
     return $s
 }
 

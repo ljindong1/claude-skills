@@ -10,8 +10,8 @@ rem  Steps    : base = OEUK option other than OEUK_TEST (e.g. OEUK_HE1I 26810)
 rem             version +1 possible (all digits inside the OEUK block, APP)
 rem               1) OEUK_HE1I 26810 -> Debug\OEUK_HE1I\26810\
 rem               2) OEUK_TEST 26810 -> Debug\OEUK_HE1I\26810_test\
-rem               3) OEUK_HE1I 26811 -> Debug\OEUK_HE1I\26811\     (version +1)
-rem               4) OEUK_TEST 26811 -> Debug\OEUK_HE1I\26811_test\
+rem               3) OEUK_HE1I 26820 -> Debug\OEUK_HE1I\26820\     (version +1 :
+rem               4) OEUK_TEST 26820 -> Debug\OEUK_HE1I\26820_test\  2nd digit, carry)
 rem             otherwise (FBL HE130I02 : digits outside the block / letters)
 rem               1) OEUK_HE1I -> Debug\OEUK_HE1I\HE130I02\       (version kept)
 rem               2) OEUK_TEST -> Debug\OEUK_HE1I_TEST\
