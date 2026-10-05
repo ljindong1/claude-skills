@@ -133,17 +133,18 @@ set "HAS_S19=0"
 if exist "!OUTPUT_DIR!\!NEW_BASE_NAME!.s19" set "HAS_S19=1"
 if "!HAS_S19!"=="0" echo [PostPackage] No .s19 - rom package skipped.
 if "!HAS_S19!"=="1" if not "!version!"=="UNKNOWN" (
+    set "ROM_DIR=rom_!VER_DIR!"
     echo [PostPackage] Packaging for version !version! ...
     pushd "!OUTPUT_DIR!" > nul
-    if not exist "rom_!version!" mkdir "rom_!version!"
-    if exist "!NEW_BASE_NAME!.s19" copy "!NEW_BASE_NAME!.s19" "rom_!version!\" > nul
+    if not exist "!ROM_DIR!" mkdir "!ROM_DIR!"
+    if exist "!NEW_BASE_NAME!.s19" copy "!NEW_BASE_NAME!.s19" "!ROM_DIR!\" > nul
     if exist "%SECUREFLASH_INI%" (
-        copy "%SECUREFLASH_INI%" "rom_!version!\" > nul
+        copy "%SECUREFLASH_INI%" "!ROM_DIR!\" > nul
     ) else (
         echo [PostPackage] [WARNING] SecureFlash ini not found.
     )
-    echo [PostPackage] Create zip file : rom_!version!.zip
-    tar -a -cf "rom_!version!.zip" "rom_!version!"
+    echo [PostPackage] Create zip file : !ROM_DIR!.zip
+    tar -a -cf "!ROM_DIR!.zip" "!ROM_DIR!"
     popd > nul
 )
 
