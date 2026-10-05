@@ -7,17 +7,17 @@ rem  Called by: Build_Hook_<MODEL>.bat when PJ_Define.h has
 rem               #define JENKINS_BUILD_TARGET ALL
 rem  Usage    : BuildVariants.bat <Build.bat action> [-jN]
 rem  Steps    : base = OEUK option other than OEUK_TEST (e.g. OEUK_HE1I 26810)
-rem             version +1 possible (all digits inside the OEUK block, APP)
+rem             next version possible (all digits inside the OEUK block, APP)
 rem               1) OEUK_HE1I 26810 -> Debug\OEUK_HE1I\26810\
 rem               2) OEUK_TEST 26810 -> Debug\OEUK_HE1I\26810_test\
-rem               3) OEUK_HE1I 26820 -> Debug\OEUK_HE1I\26820\     (version +1 :
+rem               3) OEUK_HE1I 26820 -> Debug\OEUK_HE1I\26820\     (next version :
 rem               4) OEUK_TEST 26820 -> Debug\OEUK_HE1I\26820_test\  2nd digit, carry)
 rem             otherwise (FBL HE130I02 : digits outside the block / letters)
 rem               1) OEUK_HE1I -> Debug\OEUK_HE1I\HE130I02\       (version kept)
 rem               2) OEUK_TEST -> Debug\OEUK_HE1I_TEST\
 rem             only one OEUK option is enabled per build (others commented).
 rem             PJ_Define.h is restored at the end - the temporary edits and
-rem             the +1 version are NOT committed.
+rem             the next version are NOT committed.
 rem             a failed variant is reported, the others are still built.
 rem  Exit     : 0 all ok / 31 some failed / 32 all failed / 33 plan error
 rem             ALL_OK = number of built variants (returned to the hook)

@@ -217,7 +217,7 @@ def source_version(repo):
 
 
 def ver_key(v):
-    """정렬용: 26810, 26810_test, 26811, … (같은 번호면 test 가 뒤)."""
+    """정렬용: 26810, 26810_test, 26820, … (같은 번호면 test 가 뒤)."""
     return (ver_num(v), 1 if is_test(v) else 0)
 
 

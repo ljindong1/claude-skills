@@ -10,15 +10,15 @@
 #    plan    print the build list, one "<OEUK> <version|KEEP>" per line
 #              base = first OEUK option that is not OEUK_TEST
 #              ALL = every combination the project allows
-#                version +1 possible (all digits, all inside the OEUK block)
+#                next version possible (all digits, all inside the OEUK block)
 #                  -> <base> <ver> / OEUK_TEST <ver> /
-#                     <base> <ver+1> / OEUK_TEST <ver+1>   (APP, see Get-NextVersion)
+#                     <base> <next> / OEUK_TEST <next>   (APP, see Get-NextVersion)
 #                otherwise (reason on stderr)
 #                  -> <base> KEEP / OEUK_TEST KEEP          (FBL, versions untouched)
 #    apply   enable -Variant (other OEUK options are commented out) and,
 #            unless -Version is KEEP, write it into that block
 #    folder  print "<folder OEUK> <version folder> <version>" for -Variant
-#              version +1 possible (APP) : one folder per version
+#              next version possible (APP) : one folder per version
 #                OEUK_HE1I -> OEUK_HE1I 26810 26810
 #                OEUK_TEST -> OEUK_HE1I 26810_test 26810   (base version + _test)
 #              otherwise (FBL) : flat, one folder per OEUK ("." = no version folder)
@@ -104,7 +104,7 @@ function Get-NextVersion([string]$v) {
     return $s
 }
 
-# '' when version +1 is possible (APP), otherwise the reason (FBL)
+# '' when a next version is possible (APP), otherwise the reason (FBL)
 function Get-KeepReason([string]$t, [string]$name) {
     $map = Get-VersionMap $t $name
     if (-not $map) { return "#if/#elif block for $name not found" }
@@ -144,7 +144,7 @@ try {
             }
             $ver = Get-Version $text $base
             if (-not $ver) { throw "SOFTWARE_VERSION digits not found for $base" }
-            # version +1 only when every digit is a number inside the base block (APP)
+            # next version only when every digit is a number inside the base block (APP)
             $next = $null
             $why = Get-KeepReason $text $base
             if (-not $why) { $next = Get-NextVersion $ver }
@@ -156,7 +156,7 @@ try {
             }
             else {
                 # stderr : shown in the console, not part of the build list file
-                [Console]::Error.WriteLine("[PJ_Variant] version +1 not possible ($why) - base + test only")
+                [Console]::Error.WriteLine("[PJ_Variant] next version not possible ($why) - base + test only")
                 Write-Output "$base KEEP"
                 Write-Output "$TestVariant KEEP"
             }

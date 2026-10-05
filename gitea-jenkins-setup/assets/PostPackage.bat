@@ -9,14 +9,14 @@ rem             that Jenkins builds also produce
 rem               - Debug\OEUK_xxxx\<ver>\<model>_psu_app_vX_Y_Z.*  artifacts
 rem               - Debug\OEUK_xxxx\<ver>\rom_<ver>\               aSIMS sign input
 rem  Layout   : folder / version come from PJ_Variant.ps1 (-Action folder)
-rem             APP (version +1 possible) : one folder per software version
+rem             APP (next version possible) : one folder per software version
 rem               OEUK_TEST build -> <base OEUK>\<base ver>_test\ (same level)
 rem               e.g. Debug\OEUK_HE1I\26810\  Debug\OEUK_HE1I\26810_test\
 rem               same version  -> only that version folder is rebuilt
 rem               other versions -> kept as they are
 rem               loose files / rom_* folders directly under OEUK_xxxx (old flat
 rem               layout of Build_all.bat) are removed.
-rem             FBL (version +1 not possible) : flat, one folder per OEUK
+rem             FBL (next version not possible) : flat, one folder per OEUK
 rem               e.g. Debug\OEUK_HE1I\  Debug\OEUK_HE1I_TEST\
 rem               same names as APP repo References\02_Fbl_Binary\ folders.
 rem               the whole folder is rebuilt (old version folders removed).

@@ -438,12 +438,12 @@ _PACK_BLOCK = (
 
 # 전용 훅에 끼워 넣는 ALL 분기 블록 (표준 훅의 "2) build" 바로 앞)
 # PJ_Define.h 의 #define JENKINS_BUILD_TARGET ALL 이면 BuildVariants.bat 이 빌드 1회 안에서
-# 가능한 조합을 모두 만든다 - 버전 +1 가능(APP) 4개, 불가(FBL) <기준>/<기준>_test 2개.
+# 가능한 조합을 모두 만든다 - 버전 올림 가능(APP) 4개, 불가(FBL) <기준>/<기준>_test 2개.
 # 그다음 :all_push 로 넘어간다. CURRENT·define 없음·그 밖의 값은 기존 단일 빌드.
 _ALL_BLOCK = (
     b"rem ---- 1-1) JENKINS_BUILD_TARGET = ALL : every combination in one run -------\r\n"
     b"rem  PJ_Define.h  #define JENKINS_BUILD_TARGET ALL  -> BuildVariants.bat\r\n"
-    b"rem    version +1 possible : <ver> / <ver>_test / <ver+1> / <ver+1>_test\r\n"
+    b"rem    next version possible : <ver> / <ver>_test / <next> / <next>_test\r\n"
     b"rem    otherwise           : <ver> / <ver>_test\r\n"
     b"rem  then one Git Push.\r\n"
     b"rem  CURRENT or no define -> the normal single build below.\r\n"
@@ -517,7 +517,7 @@ def _render_project_hook(model):
          b"rem             4) push outputs via GitPush.bat  5) return exit code\r\n"
          b"rem             1-1) JENKINS_BUILD_TARGET=ALL in PJ_Define.h ->\r\n"
          b"rem                  BuildVariants.bat builds <ver>, <ver>_test\r\n"
-         b"rem                  (+ <ver+1>, <ver+1>_test if possible), 4-1) one Git Push"),
+         b"rem                  (+ <next>, <next>_test if possible), 4-1) one Git Push"),
         (b"rem  Edit     : NOT required (paths and branch are detected automatically)",
          b"rem  Edit     : ALLOWED - project specific hook, not the LAB standard.\r\n"
          b"rem             Modify freely for this project. The standard file\r\n"
