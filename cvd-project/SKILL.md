@@ -162,7 +162,8 @@ set   --name <과제명> [--version <버전>] [--banks A|AB] [--rescan] [--fbl/-
 - 버전 폴더(2026-09-30, 보드 미연결): PD 창 첫 줄 `APP version 26810 (config)` 와 APP 칸 `...\26810\...` 확인 → `set --version 26820` 뒤 PD 를 다시 누르자 `26820` 과 `...\26820\...` 로 따라옴(과제 재선택 없이). DIALOG 정의 안(HEADER)에서는 `&매크로`가 안 풀리고, 칸 이름 `VER` 에는 `dialog.set` 값이 안 들어갔다 → `ADD0` 칸으로 표시.
 - 보드 연결(2026-09-30): PA 연결 성공(`IDCODE 0x6BA00477 → 0x6BA02477`, 26820 ELF 로드). CLI verify 가 `STEP=done` 까지 8초 — 항목 1~3 확인. 고르게 뽑은 16지점만으로는 전부 일치했지만 버전 구별 지점을 넣자 4곳 불일치 → 보드는 26810 (읽은 값이 26810 이미지와 일치). 첫 연결 실패 `Already port opened (0xF0000023)` = 다른 가상 데스크톱에 CVD 가 하나 더 떠 있었음, 이어진 `JTAG signals are something wrong ... Reset CodeViser (0xEC2)` 는 CVD 를 강제 종료한 뒤라 CodeViser USB 를 뽑았다 꽂아 해결.
 - 두 뱅크(2026-10-02): 벤더 스크립트는 APP 를 뱅크 A 에만 쓰고 B 에는 FBL 만 쓴다(원본 주석 `; RTSW none at Bank B`). 26810 을 쓴 뒤 FBL 이 B(26820 남아 있음)로 부팅해 H-OTA 가 `E_NOTMATCHED_DESTINATION` 실패 — 읽어 보니 `0x10059004`="2682", `0x12059004`="2681". 그래서 APP 뱅크 선택(A / AB)과 다른 뱅크 검증을 넣었다(cvd_flash 1.4.0). 기존 과제는 `refresh --name <과제명>` 으로 flash_host 변환본·config 까지 다시 만든다.
-- 남음(보드 필요): 4, 6, 실제 기록 후 `Flash + Verify OK (APP <버전>)` 결과 창, PA → RE 로 main 도달, PD 의 `File not found` 창(config APP 가 없을 때).
+- 실제 기록(2026-10-06, CLI): `flash --version 26810 --mode ALL --banks AB --yes` → `STEP=done` 45초, 종료 코드 0. 검증 16곳 + 다른 뱅크 `RB 0x12…` 4곳 모두 일치(`0x12059004`="2681") — 항목 6 의 기록·검증 부분 확인. 단 로그에 `PD: APP -> bank B (map B)` 줄은 없었다. FBL 은 `02_Fbl_Binary\OEUK_HE1I\he1i_psu_fbl_v3_0_18.sre`(이미지 `0x10029004` = "HE130I02", TEST 짝은 "DEV30I02"). 이어서 화면 PA → RE 로 main 도달 확인. PA 는 창을 띄우지 않으므로(심볼만 로드, CPU 정지) "아무것도 안 나온다"는 질문이 나올 수 있다 — 정상이며 RE 에서 List 창이 열린다.
+- 남음(보드 필요): 4, 6 의 디버거 분리·전원 재투입 후 진단 SW 버전·H-OTA 결과, 화면 PD 의 `Flash + Verify OK (APP <버전>)` 결과 창, PD 의 `File not found` 창(config APP 가 없을 때).
 
 ## 범위 밖
 
