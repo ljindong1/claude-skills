@@ -43,10 +43,10 @@ skills-repo/
 │   ├── SKILL.md
 │   ├── references/                     # 원장·당일 기록 페이지 형식, 사내 Confluence 수정 절차
 │   └── scripts/                        # eCoDY 변경분 수집·본문 덤프 (크롬 연동)
-├── ecody-ecm-search/
+├── ecody-search/
 │   ├── SKILL.md
-│   ├── references/                     # CQL 쿼리 설계 가이드
-│   └── scripts/                        # CQL 검색·본문 읽기 (읽기 전용)
+│   ├── references/                     # ECM CQL·IMS JQL 쿼리 설계 가이드
+│   └── scripts/                        # ECM·IMS 검색·본문 읽기 (읽기 전용)
 ├── gitea-jenkins-setup/
 │   ├── SKILL.md
 │   ├── assets/                         # 표준 배치 파일(CRLF)·Jenkins Job XML 템플릿
@@ -174,7 +174,7 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `cvd-project-setup` | CVD(CodeViser) 에 차종별 보드 라이팅 설정을 생성·등록하고 검증. 저장소에서 차종·MCU·바이너리를 읽어낸다 (생성 전용, 라이팅은 사람이) |
 | `daily-standup` | 슬랙 데일리 스탠드업을 대화로 작성해 본인 이름으로 게시 |
 | `ecody-ecm-monitor` | eCoDY-ECM 변경분을 매일 수집해 그룹별 누적 원장과 날짜별 기록으로 사내 Confluence 에 발행 |
-| `ecody-ecm-search` | eCoDY-ECM 공식 문서를 CQL 다중 검색·정독해 근거 링크와 함께 답변 (읽기 전용) |
+| `ecody-search` | eCoDY-ECM(가이드)·eCoDY-IMS(릴리즈 노트·수평전개·문의) 를 CQL/JQL 다중 검색·정독해 근거 링크와 함께 답변 (읽기 전용, 구 ecody-ecm-search) |
 | `gitea-jenkins-setup` | 사내 Gitea 저장소를 Fork해 공동작업자·작업 브랜치·표준 배치 파일·Jenkins Job(비활성)까지 자동 빌드 환경을 한 번에 구축 (생성 전용) |
 | `gwantongsa-mock-exam` | 관광통역안내사 필기 모의고사(국사 25 + 관광자원해설 25)를 이력 기반 중복 방지·사실 검증을 거쳐 생성하고 인쇄용 2단 PDF로 전달 |
 | `redmine-daily-dashboard` | 매일 할당 일감을 수집해 어제 대비 변화·마감 임박·정체 건과 함께 Confluence 대시보드로 발행 |

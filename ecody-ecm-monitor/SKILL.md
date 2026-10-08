@@ -1,6 +1,6 @@
 ---
 name: ecody-ecm-monitor
-description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Classic FAQ 등 고객 기술지원 Confluence)의 변경사항을 "직전 수집 이후~지금" 구간으로 빠짐없이 수집해 중요도순(공지 → Policy → IA/VC 점검규칙 → SAG → IM → UM → 기타)으로 분류·요약하고, 사내 Confluence(mobaseasec) "eCoDY ECM" 페이지 아래에 그룹별 누적 원장(문서 1개 = 1행, 새 문서는 맨 위에 추가, 이미 있는 문서는 그 행을 갱신)과 날짜별 변경 기록 페이지(같은 날 재실행분은 당일 페이지에 추가)로 발행하고, 실패 페이지는 다음 성공 때 복구 표시하는 매일 모니터링 스킬. Cowork 예약 작업이 매일 호출하는 무인 실행용이며 크롬 연동(Claude in Chrome)으로 로그인 세션을 사용한다. 사용자(또는 예약 루틴)가 "eCoDY 모니터링", "ECM 모니터링 실행", "eCoDY 변경사항 정리", "모빌진 FAQ 새 소식", "오토에버 기술지원 사이트 업데이트 확인", "오늘 eCoDY 뭐 바뀌었어", "ECM 일일 리포트" 등을 언급하거나 eCoDY-ECM 변경분을 주기적으로 정리·기록하려는 의도를 보이면 반드시 이 스킬을 사용하라. 특정 주제·설정 방법을 찾아 답하는 요청(예를 들어 "CanSM Bus-Off 설정 찾아줘")은 이 스킬이 아니라 ecody-ecm-search 담당이다.
+description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Classic FAQ 등 고객 기술지원 Confluence)의 변경사항을 "직전 수집 이후~지금" 구간으로 빠짐없이 수집해 중요도순(공지 → Policy → IA/VC 점검규칙 → SAG → IM → UM → 기타)으로 분류·요약하고, 사내 Confluence(mobaseasec) "eCoDY ECM" 페이지 아래에 그룹별 누적 원장(문서 1개 = 1행, 새 문서는 맨 위에 추가, 이미 있는 문서는 그 행을 갱신)과 날짜별 변경 기록 페이지(같은 날 재실행분은 당일 페이지에 추가)로 발행하고, 실패 페이지는 다음 성공 때 복구 표시하는 매일 모니터링 스킬. Cowork 예약 작업이 매일 호출하는 무인 실행용이며 크롬 연동(Claude in Chrome)으로 로그인 세션을 사용한다. 사용자(또는 예약 루틴)가 "eCoDY 모니터링", "ECM 모니터링 실행", "eCoDY 변경사항 정리", "모빌진 FAQ 새 소식", "오토에버 기술지원 사이트 업데이트 확인", "오늘 eCoDY 뭐 바뀌었어", "ECM 일일 리포트" 등을 언급하거나 eCoDY-ECM 변경분을 주기적으로 정리·기록하려는 의도를 보이면 반드시 이 스킬을 사용하라. 특정 주제·설정 방법을 찾아 답하는 요청(예를 들어 "CanSM Bus-Off 설정 찾아줘")은 이 스킬이 아니라 ecody-search 담당이다.
 ---
 
 # eCoDY-ECM 일일 변경 모니터링
