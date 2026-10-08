@@ -21,6 +21,7 @@
 #              next version possible (APP) : one folder per version
 #                OEUK_HE1I -> OEUK_HE1I 26810 26810
 #                OEUK_TEST -> OEUK_HE1I 26810_test 26810   (base version + _test)
+#                  TEST block version != base version -> warning on stderr
 #              otherwise (FBL) : flat, one folder per OEUK ("." = no version folder)
 #                OEUK_HE1I -> OEUK_HE1I . HE130I02
 #                OEUK_TEST -> OEUK_HE1I_TEST . DEV30I02    (same name as the
@@ -213,7 +214,14 @@ try {
             else {
                 if (-not $ver) { $ver = 'UNKNOWN' }
                 $real = $ver
-                if ($Variant -eq $TestVariant -and $folder -ne $Variant -and $ver -ne 'UNKNOWN') { $ver = $ver + '_test' }
+                if ($Variant -eq $TestVariant -and $folder -ne $Variant -and $ver -ne 'UNKNOWN') {
+                    $ver = $ver + '_test'
+                    # CURRENT build : the binary carries the TEST block version, the folder the base version
+                    $own = Get-Version $text $Variant
+                    if ($own -and $own -ne $real) {
+                        [Console]::Error.WriteLine("[PJ_Variant] [WARNING] $Variant version $own differs from $folder version $real - folder $ver holds a v$own binary")
+                    }
+                }
                 Write-Output "$folder $ver $real"
             }
         }
