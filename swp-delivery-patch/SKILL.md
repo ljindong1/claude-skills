@@ -149,6 +149,10 @@ Redmine 일감 본문은 `references/templates.md` 의 표준 구성(목적 / �
 
 빌드 한 번에 6~50분이 걸리고 push 가 필요하므로, 빌드 전에 잡을 수 있는 것은 여기서 잡는다.
 
+**한 번에 돌리기**: `scripts/review_all.py --prev … --cur … --app … --old-token … --new-token … --expect … --out 검수보고서.md` 가 아래 1·2·4 와 모듈 바이트 일치, 의존 모듈 .ver 목록까지 돌려 검수 보고서 한 장(요약표 + 상세 + 확인 못 한 것)을 만든다. 빌드 후에는 같은 명령에 `--job --build --compare --gen-old --gen-new --map-old --map-new` 를 더해 S10 까지 한 보고서로 낸다. 사용자가 "검수해줘"라고 하면 이것부터 돌리고, 요약표의 '확인' 항목을 판정표 사유와 하나씩 대조해 설명한다. 보고서의 '확인'은 오류가 아니라 사람이 사유를 확인할 항목이라는 뜻이다.
+
+개별로 돌릴 때:
+
 1. `scripts/three_way.py --prev … --cur … --ours … --check` 로 적용 후에도 HAE 변경과 다른 항목만 뽑는다(--prev 없이 하면 당사 고유 차이 수천 건이 섞인다). **남은 항목은 전부 판정표의 제외·보류·당사 구성 반영 사유와 1:1 이어야 한다.** 사유 없는 항목은 누락이다.
 2. `scripts/symbol_crosscheck.py` — 교체한 모듈에서 당사 코드가 쓰는 심볼의 선언 변화·삭제, 새로 쓰이는 `#if` 매크로(생성 헤더에 없으면 조용히 0 처리됨).
 3. IM 의 신규 Validation 규칙을 당사 Ecud 설정에 미리 적용해 본다(규칙별로 짧은 파이썬 점검. 예시는 `references/three-way-merge.md`).
@@ -163,6 +167,8 @@ Redmine 일감 본문은 `references/templates.md` 의 표준 구성(목적 / �
 2. 확인 항목: 결과, 생성기 Error, Rte Validation errors(warnings 는 직전과 같은지), SAFERTE_ERR, 종류별 SAFERTE_WARN 증감, 산출물 이름.
 3. Jenkins Auto commit 을 pull 하고 `scripts/gen_diff_review.py` 로 직전 버전 대비 Generated 변화를 본다. **당사 설정을 바꾸지 않았는데 바뀐 생성 코드가 있으면 원인을 설명할 수 있어야 한다.** 설정을 바꿨는데 생성 코드가 그대로면 그것도 설명한다(예: 인덱스만 당겨 순서 불변).
 4. `scripts/map_mem.py` 로 RAM / ROM 을 직전 회차와 같은 방식으로 계산한다. 직전 값이 그대로 재현되는지 먼저 확인한다.
+
+1~4 는 `review_all.py` 에 빌드 인자를 붙여 S9 와 한 보고서로 낼 수 있다(빌드 완료 후 실행 — 대기는 jenkins_wait.py 를 백그라운드로 먼저).
 
 ## S11. 기록
 
