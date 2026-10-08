@@ -55,7 +55,7 @@ S13 마무리                PR, IMS·Redmine 상태
 
 ## P. 사전 점검 — 새 패치마다 공통으로
 
-상세는 `references/precheck.md`. 패치 내용은 매번 다르지만, HAE 와 주고받은 질문 약 100건을 보면 막히는 방식은 네 가지로 반복된다 — 가이드 링크가 옮겨짐, 배포본에 가이드에 없는 변경(대부분 Harmonize 부산물), 가이드가 당사 구성과 맞지 않음(HAE 답은 "당사가 X 면 해당 없음"), 배포본 누락·오류. 그래서 시작 전에 네 가지를 점검하고, 요청 항목마다 **답을 어디서 얻을지**를 정한다.
+상세는 `references/precheck.md`. 패치 내용은 매번 다르지만, HAE 와 주고받은 질문 약 100건을 보면 막히는 방식은 네 가지로 반복된다 — 가이드 링크가 옮겨짐, 배포본에 가이드에 없는 변경(대부분 Harmonize 부산물), 가이드가 당사 구성과 맞지 않음(HAE 답은 "당사가 X 면 해당 없음"), 배포본 누락·오류. 그래서 시작 전에 다섯 가지를 점검하고, 요청 항목마다 **답을 어디서 얻을지**를 정한다.
 
 | 점검 | 내용 |
 |---|---|
@@ -63,6 +63,7 @@ S13 마무리                PR, IMS·Redmine 상태
 | ② 배포본 완결성 | 안내·IM 이 언급한 파일 ↔ 배포본 실제 파일, 이후 댓글의 보정본·정정·재배포 |
 | ③ 모듈별 위험 포인트 | 저장 계열은 양산 호환, Os 는 SC·스택·.ld, EcuM/BswM 은 순번 규칙, FBL Fota/Mem/HSM 은 인스턴스별 callout … → 판정표 초기 행 |
 | ④ 과거 Q&A | 같은 티켓 다른 댓글 → 이전 회차 → 다른 과제 같은 모듈 → ECM 새 IM → 수평전개 |
+| ⑤ 작업 수단 | 항목마다 ARXML 직접 편집으로 충분한지, 툴(mobilgene CLI / C Studio Harmonize)이 필요한지 — Harmonize 실필요, 원본 블록 없는 새 설정, patch_tool 자동 수정 발생, 여러 파일 구조 변경이면 툴 |
 
 **판단 경로** (판정표 "경로" 칸)
 
@@ -164,7 +165,7 @@ Redmine 일감 본문은 `references/templates.md` 의 표준 구성(목적 / �
 순서: 모듈 교체 → ARXML → usercode → 버전업 → Doc. 단계마다 `git diff --stat` 으로 범위를 확인한다.
 
 - **모듈 교체**: 폴더를 지우고 HAE Cur 폴더를 복사한 뒤 `diff -rq` 로 바이트 일치를 확인한다. S6 에서 찾은 당사 수정 파일은 병합본으로 되돌린다.
-- **ARXML**: 판정표의 "복사 가능" 항목만, 해당 요소만 고친다. ODIN 도구가 남기는 `ADMIN-DATA` 의 `SD GID="<파라미터명>"`(USER_CONFIGURED 기록)도 VALUE 와 같이 바꾼다 — HAE 배포본이 그렇게 하고, 도구가 다음에 열 때 값이 어긋나지 않게 하기 위함이다. 줄바꿈(CRLF/LF)과 인코딩은 원래 파일 그대로 유지한다(`git diff --stat` 의 줄 수로 확인).
+- **ARXML**: 판정표의 "복사 가능" 항목만, 해당 요소만 고친다. P ⑤ 에서 "직접 편집"으로 정한 항목은 `scripts/arxml_block.py` 로(블록 이식·삭제·이름 변경·값 변경), "툴"로 정한 항목은 mobilgene CLI / C Studio 로 한다. ODIN 도구가 남기는 `ADMIN-DATA` 의 `SD GID="<파라미터명>"`(USER_CONFIGURED 기록)도 VALUE 와 같이 바꾼다 — HAE 배포본이 그렇게 하고, 도구가 다음에 열 때 값이 어긋나지 않게 하기 위함이다. 줄바꿈(CRLF/LF)과 인코딩은 원래 파일 그대로 유지한다(`git diff --stat` 의 줄 수로 확인).
 - **usercode**: S6 병합 결과를 반영.
 - **버전업**: `references/version-up.md` 와 프로필의 위치 목록대로. `scripts/version_bump_check.py` 로 이전 버전 문자열 잔존이 없는지 확인한다.
 - **Doc**: ReleaseNote·ModuleList 를 프로필의 위치·파일명 규칙으로 추가.
@@ -234,7 +235,7 @@ PR 방식(APP cherry-pick 쌓기 / FBL squash 등), 대상 브랜치, 머지 순
 
 | 파일 | 언제 읽나 |
 |---|---|
-| `references/precheck.md` | P — 사전 점검 4가지, 판단 경로 A~D, 모듈별 위험 포인트, 과거 자료 조사 순서 |
+| `references/precheck.md` | P — 사전 점검 5가지(작업 수단 판단 포함), 판단 경로 A~D, 모듈별 위험 포인트, 과거 자료 조사 순서 |
 | `references/ims-workflow.md` | S1·S7 — 패치 티켓에서 뽑을 것(읽기는 ecody-search), 질문 댓글 양식·등록, MCP 연결 시 대응 |
 | `references/three-way-merge.md` | S6·S9 — 판정 규칙 상세, 사례, Validation 사전 점검 예 |
 | `references/decision-rules.md` | S6 — 회사 공통 보류·예외 규칙 (누적) |
