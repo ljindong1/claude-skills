@@ -212,11 +212,13 @@ ALL 빌드 전환(지시 시 커밋) → 산출물 4벌 확인
 → 결과 폴더·첨부 정리 → CURRENT 복귀 (지시 시 커밋)
 ```
 
+H-OTA A·B 그룹 평가(서명본 판별 · 케이스 준비 · 판정 · 보드평가레포트 · Redmine zip)는 **hota-eval** 스킬로 한다.
+
 수평전개 결함의 **재현 조건**을 그대로 시험 케이스로 만든다(예: TransferData Repeat Block). 정상 흐름 H-OTA 만으로는 패치 효과가 확인되지 않는다. 진단 결과는 프로필의 CDD 주의사항을 먼저 본다.
 
 ## S13. 마무리
 
-PR 방식(APP cherry-pick 쌓기 / FBL squash 등), 대상 브랜치, 머지 순서는 프로필을 따른다. Redmine 상태 전이와 IMS 상태(수평전개 티켓 Closed 처리 요청 등)는 사용자에게 확인 후 처리한다.
+PR 방식(APP cherry-pick 쌓기 / FBL squash 등), 대상 브랜치, 머지 순서는 프로필을 따른다. PR 브랜치 구성(임시 인덱스, 서명·평가 빌드 산출물 기준, 검증)은 `references/pr-assembly.md`. Redmine 상태 전이와 IMS 상태(수평전개 티켓 Closed 처리 요청 등)는 사용자에게 확인 후 처리한다.
 
 ## 보고 형식
 
@@ -243,6 +245,7 @@ PR 방식(APP cherry-pick 쌓기 / FBL squash 등), 대상 브랜치, 머지 순
 | `references/jenkins-flow.md` | S10·S12 — Hook 동작, ALL/CURRENT, 산출물 구조, 커밋 주의 |
 | `references/verification.md` | S10·S12 — 빌드·실기 판정 기준, 결과 파일 규칙 |
 | `references/templates.md` | S4·S7·S10·S11 — Redmine 본문, 코멘트, IMS 질문, 커밋 메시지, Confluence 골격 |
+| `references/pr-assembly.md` | S13 — PR 브랜치 구성·검증·생성 |
 | `references/troubleshooting.md` | 막혔을 때, 그리고 단계를 시작하기 전에 해당 절 — 실제 재작업 사례 |
 | `references/projects/*.md` | S0 — 프로젝트 프로필 |
 
@@ -253,5 +256,6 @@ PR 방식(APP cherry-pick 쌓기 / FBL squash 등), 대상 브랜치, 머지 순
 - 작업 브랜치·Jenkins Job 신설 → gitea-jenkins-setup
 - eCoDY-ECM·IMS 읽기·검색 → ecody-search (이 스킬은 패치에 필요한 티켓·가이드를 그 스킬로 읽고, IMS 댓글 쓰기만 직접 한다)
 - 라이팅·CAN 측정 로직 → cvd-project, can-bench-setup, canoe-project-setup
+- H-OTA A·B 그룹 평가·산출물 → hota-eval
 - Redmine 일감 단순 조회 → redmine-issue
 - PR 머지, 공유 브랜치 정리

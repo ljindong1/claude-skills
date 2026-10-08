@@ -1,0 +1,187 @@
+# 새 프로젝트 프로필 틀 - he1i_psu.toml 을 복사해 값만 바꾼다.
+# 바꿀 곳: [project] 경로·버전, [[variant]] 폴더·OEUK, [cvd] name, [hota] oeuk 값,
+#         [[case]] 이름 접두어(He1i/Test)·TC, [report] 개체 이름(Excel 이름 상자에서 확인), [zip] prefix
+
+[project]
+name = "HE1i PSU"
+app_repo = 'D:\Mobase\psu_master'
+app_dir = "psu_app"                                    # 저장소 안 하위 프로젝트
+pj_define = 'psu_app\Application\app_code\a_app_service\src\PJ_Define.h'
+debug_dir = 'psu_app\Debug\OEUK_HE1I'                  # Jenkins ALL 산출물 <버전>\ 폴더
+rom_s19 = 'rom_{folder}\he1i_psu_app_v{ver_us}.s19'    # aSIMS 입력(평문) - 서명 해시 대조용
+writing_s19 = 'he1i_psu_app_v{ver_us}_Writing.s19'
+result_root = 'psu_app\References\Doc_MB\04_Reprogramming'   # 결과 폴더 = <result_root>\v{ver}\<YYMMDD>\
+fbl_dir = 'psu_app\References\02_Fbl_Binary'           # OEUK_HE1I \ OEUK_HE1I_TEST
+signed_root = 'D:\Mobase\패치업무\HE1i_실기검증'        # aSIMS 받은 폴더를 두는 곳 (v{ver}\)
+low = "26810"                                           # 하위(현재 소스) 버전
+high = "26820"                                          # 상위 = 끝에서 두 번째 자리 +1
+
+# 빌드 변형 4벌. folder = Debug\OEUK_HE1I\ 아래 폴더, key 는 케이스에서 부르는 이름
+[[variant]]
+key = "he1i_low"
+folder = "{low}"
+oeuk = "OEUK_HE1I"
+[[variant]]
+key = "he1i_high"
+folder = "{high}"
+oeuk = "OEUK_HE1I"
+[[variant]]
+key = "test_low"
+folder = "{low}_test"
+oeuk = "OEUK_TEST"
+[[variant]]
+key = "test_high"
+folder = "{high}_test"
+oeuk = "OEUK_TEST"
+
+[cvd]
+name = "HE1I_PSU"                # cvd-project 과제명. 라이팅은 항상 --banks AB
+group_version = { A = "{low}", B = "{low}_test" }
+
+[hota]
+studio_dir = 'C:\ProgramData\GIT\H-OTA Studio'
+editor_ini = "EditorConfig.ini"          # [TESTREPORT] ReportFilePath = Report Config 의 .asc 경로
+config_ini = "configuration.ini"         # [SETVALUE] OEUK = OEUK Vehicle 설정
+oeuk_key = "OEUK"
+oeuk_on = "DEV"                          # 2026-10-08 B4(체크) 직후 값으로 확인
+oeuk_off = ""                            # 미확인 - 파일럿에서 체크 해제 후 값을 적는다. 비어 있으면 OEUK 는 사람이 체크
+screenshot_dir = ''                      # 캡처가 저장되는 폴더(비우면 png 자동 이름 맞춤 안 함)
+
+# 케이스. rules 는 순서대로 실행하는 H-OTA Rules, expect 는 rules 와 같은 순서
+#   expect: success | f4 (NRC 0xF4 다운그레이드 차단)
+#   oeuk_auth = [Rules] 의 .asc 에서 27 13/14 -> 67 13/67 14 를 확인한다 (BG 는 27 11/12 라 넣지 않는다)
+[[case]]
+id = "A1"
+group = "A"
+tc = "TC_004"
+name = "He1i_PSU_Upgrade(v{low}_v{high})"
+rules = ["ExternalRules"]
+rom = "he1i_high"
+target = "{high}"
+oeuk = false
+expect = ["success"]
+sw_after = "{high}"
+
+[[case]]
+id = "A2"
+group = "A"
+tc = "TC_005"
+name = "He1i_PSU_DGPrevent(v{high}_v{low})"
+rules = ["ExternalRules"]
+rom = "he1i_low"
+target = "{low}"
+oeuk = false
+expect = ["f4"]
+sw_after = "{high}"
+reflash_after = true                     # A2 에서 APP 영역이 지워졌다 -> A② 전 다시 라이팅
+
+[[case]]
+id = "A3"
+group = "A"
+tc = "TC_007"
+name = "He1i_PSU_Upgrade(v{low}_v{high})"
+rules = ["BGRules", "ReproRules"]
+rom = "he1i_high"
+target = "{high}"
+oeuk = false
+expect = ["success", "success"]
+sw_after = "{high}"
+
+[[case]]
+id = "A4"
+group = "A"
+tc = "TC_008"
+name = "He1i_PSU_DGPrevent(v{high}_v{low})"
+rules = ["BGRules", "ReproRules"]
+rom = "he1i_low"
+target = "{low}"
+oeuk = false
+expect = ["success", "f4"]
+sw_after = "{high}"
+
+[[case]]
+id = "B1"
+group = "B"
+tc = ""                                  # (참고) TEST 업그레이드
+name = "Test_PSU_Upgrade(v{low}_v{high})"
+rules = ["ExternalRules"]
+rom = "test_high"
+target = "{high}"
+oeuk = false
+expect = ["success"]
+sw_after = "{high}"
+
+[[case]]
+id = "B2"
+group = "B"
+tc = "TC_006"
+name = "Test_PSU_OEUK_DG(v{high}_v{low})"
+rules = ["ExternalRules"]
+rom = "test_low"
+target = "{low}"
+oeuk = true
+oeuk_auth = ["ExternalRules"]          # B2: FBL 경로 27 13/14
+expect = ["success"]
+sw_after = "{low}"
+reflash_after = true
+
+[[case]]
+id = "B3"
+group = "B"
+tc = ""
+name = "Test_PSU_Upgrade(v{low}_v{high})"
+rules = ["BGRules", "ReproRules"]
+rom = "test_high"
+target = "{high}"
+oeuk = false
+expect = ["success", "success"]
+sw_after = "{high}"
+
+[[case]]
+id = "B4"
+group = "B"
+tc = "TC_009"
+name = "Test_PSU_OEUK_DG(v{high}_v{low})"
+rules = ["BGRules", "ReproRules"]
+rom = "test_low"
+target = "{low}"
+oeuk = true
+oeuk_auth = ["ReproRules"]             # B4: BG 는 27 11/12, OEUK 인증은 Repro 에서
+expect = ["success", "success"]
+sw_after = "{low}"
+
+# 보드평가레포트 - 이전 회차 xlsx 를 복사해 와서 첨부·그림·헤더만 바꾼다.
+# 개체 이름은 2026-10-08 (he1i)(PSU)보드평가레포트_261007/261008.xlsx 기준 (Excel 에서 개체를 선택하면 이름 상자에 보인다)
+[report]
+pattern = '(he1i)(PSU)보드평가레포트_{yymmdd}.xlsx'
+sheet = 1
+fbl_cell = "E5"
+app_cell = "F5"
+date_cell = "K5"
+[report.ole]                              # 개체 이름 -> 결과 파일 (bench: 는 CAN 벤치 실행 폴더 기준)
+"Object 10" = "A1:ExternalRules.asc"
+"Object 8"  = "A2:ExternalRules.asc"
+"Object 9"  = "B2:ExternalRules.asc"
+"Object 11" = "A3:BGRules.asc"
+"Object 12" = "A3:ReproRules.asc"
+"Object 13" = "A4:BGRules.asc"
+"Object 14" = "A4:ReproRules.asc"
+"Object 15" = "B4:BGRules.asc"
+"Object 16" = "B4:ReproRules.asc"
+"Object 17" = "bench:result.txt"
+"Object 18" = "bench:B-CAN.asc"
+"Object 19" = "bench:Local.asc"
+[report.picture]
+"Picture 10" = "A1:ExternalRules.png"
+"Picture 17" = "A2:ExternalRules.png"
+"Picture 19" = "B2:ExternalRules.png"
+"Picture 20" = "A3:BGRules.png"
+"Picture 23" = "A3:ReproRules.png"
+"Picture 24" = "A4:BGRules.png"
+"Picture 31" = "A4:ReproRules.png"
+"Picture 32" = "B4:BGRules.png"
+"Picture 45" = "B4:ReproRules.png"
+
+[zip]                                     # Redmine 첨부 묶음 (D:\Mobase\redmine_<일감>_attach\)
+dest = 'D:\Mobase\redmine_{issue}_attach'
+prefix = "HE1i_PSU_v{ver}_{yymmdd}_"

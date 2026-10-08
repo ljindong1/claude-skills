@@ -56,6 +56,10 @@ skills-repo/
 │   ├── SKILL.md
 │   ├── references/                     # 국사·관광자원 출제 규칙, 최신화 체크리스트
 │   └── scripts/                        # 시험지 검증·인쇄용 PDF 빌드
+├── hota-eval/
+│   ├── SKILL.md
+│   ├── references/                     # 흐름·함정·완전 CLI 파일럿, projects/ 프로젝트 프로필(케이스·레포트 개체)
+│   └── scripts/                        # hota_eval.py — 서명본 판별·준비·판정·레포트·zip
 ├── redmine-daily-dashboard/
 │   ├── SKILL.md
 │   ├── references/                     # 대시보드 HTML 형식 정본
@@ -182,6 +186,7 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `ecody-search` | eCoDY-ECM(가이드)·eCoDY-IMS(릴리즈 노트·수평전개·문의) 를 CQL/JQL 다중 검색·정독해 근거 링크와 함께 답변 (읽기 전용, 구 ecody-ecm-search) |
 | `gitea-jenkins-setup` | 사내 Gitea 저장소를 Fork해 공동작업자·작업 브랜치·표준 배치 파일·Jenkins Job(비활성)까지 자동 빌드 환경을 한 번에 구축 (생성 전용) |
 | `gwantongsa-mock-exam` | 관광통역안내사 필기 모의고사(국사 25 + 관광자원해설 25)를 이력 기반 중복 방지·사실 검증을 거쳐 생성하고 인쇄용 2단 PDF로 전달 |
+| `hota-eval` | H-OTA A·B 그룹 리프로그래밍 평가를 CLI 로 — aSIMS 서명본 hash 판별(재빌드 감지), Report Config·OEUK 준비, .log/.asc 자동 판정, 이름 규칙 검사, 보드평가레포트·Redmine zip·결과 표 (보드 쓰기·외부 등록은 승인 후) |
 | `redmine-daily-dashboard` | 매일 할당 일감을 수집해 어제 대비 변화·마감 임박·정체 건과 함께 Confluence 대시보드로 발행 |
 | `redmine-issue` | 사내 Redmine 이슈·프로젝트를 REST API로 조회해 정리. 새 일감 생성과 내가 등록한 일감의 수정·코멘트까지 (미리보기 승인 후 전송) |
 | `skill-repo-sync` | 계정 스킬을 이 저장소에 반영하고 커밋·푸시를 안내 |

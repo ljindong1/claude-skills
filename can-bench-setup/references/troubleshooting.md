@@ -28,7 +28,7 @@ CAN FD 버스에 Classic CAN 컨트롤러를 붙이면, BRS 가 선 프레임을
 
 | 모드 | FD 여부를 정하는 곳 |
 |---|---|
-| python-can | 설정 `.toml` 의 `[[bus]] fd` (빼면 `true`) 와 보율·샘플포인트 |
+| python-can (Joule) | 제어기 설정 `configs/targets/<이름>.toml` 의 `[[bus]] fd` (빼면 `true`) 와 보율·샘플포인트 |
 | CANoe | Vector Hardware Manager — `.cfg` 에 없고 바이너리라 파일로 확인 불가 |
 
 보율 근거는 저장소다.
@@ -67,7 +67,9 @@ CANoe        애플리케이션 이름 단위로 Hardware Manager 에서 배정�
 
 ---
 
-# python-can 모드
+# python-can 모드 (Joule)
+
+아래 메시지는 Joule(`<JOULE_HOME>`) 이 낸다. 메시지·동작이 바뀌었으면 Joule 문서(`docs/`)를 따른다.
 
 ## 장비를 못 찾는다
 
@@ -77,10 +79,10 @@ CANoe        애플리케이션 이름 단위로 Hardware Manager 에서 배정�
 
 1. USB 연결과 Vector 드라이버
 2. **다른 프로그램(CANoe 등)이 채널을 잡고 있지 않은가**
-3. 설정의 `channel` 은 **hw_channel** 이다. 장비 표기 CH3 은 `2`, CH4 는 `3`.
+3. 결선(`configs/benches/`)의 `channel` 은 **hw_channel** 이다. 장비 표기 CH3 은 `2`, CH4 는 `3`.
 
 장비가 여러 대면 `serial = "auto"` 는 고르지 않고 멈춘다 — 잘못 고르면 엉뚱한
-장비로 송신하기 때문이다. `pycan.md` ① 의 장비 목록을 보고 시리얼을 숫자로 적는다.
+장비로 송신하기 때문이다. 오류 메시지의 감지된 장비 목록을 보고 결선에 `serial = <숫자>` 를 적는다.
 
 ## 연결 오류 — vxlapi64.dll
 
@@ -96,8 +98,8 @@ Setup 으로 설치한다. 없으면 `[연결 오류]` 에 그 사실이 나온�
 일부러 멈추게 만든 것이다. 오타를 조용히 무시하면 기본값으로 돌아 실물 ECU 와
 같은 ID 를 보낼 수 있다. 제안된 이름으로 고친다.
 
-DB 경로가 상대 경로면 **설정 파일이 있는 폴더(`projects\`) 기준**이다. 실행
-폴더(`scripts\pycan\`) 기준이 아니다. 헷갈리지 않게 절대 경로로 둔다.
+DB 경로가 상대 경로면 **제어기 설정 파일이 있는 폴더(`configs/targets/`) 기준**이다
+(Joule 은 `../../can_db/<차종>/…` 처럼 쓴다). 실행 폴더 기준이 아니다.
 
 ## `--listen` 에서 전부 "수신 없음"
 
