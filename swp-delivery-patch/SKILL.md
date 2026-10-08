@@ -1,6 +1,6 @@
 ---
 name: swp-delivery-patch
-description: 현대오토에버(HAE) mobilgene Classic(R44/R4x) SWP Delivery_Patch 를 당사 제어기 프로젝트(FBL·APP, 차종·제어기 무관)에 적용하는 전 과정 — eCoDY-IMS 티켓 수집, 배포본 판별, HAE 이전/현재 형상과 당사 설정의 3-way 판정(그대로 복사해도 되는지, 당사 전용 설정은 어떻게 반영할지), 적용, 정적 검수, Jenkins 빌드 결과 검수(생성물 diff·RAM/ROM), 버전업, 실기 검증 순서, Redmine·IMS·Confluence 기록, PR 까지 — 을 안내하고 반복 작업은 동봉 스크립트로 처리하는 스킬. 사용자가 "Delivery_Patch", "SWP 패치", "패치 딜리버리", "MCP0806-xxx 패치 적용", "eCoDY-IMS 패치 티켓", "모듈 패치 적용해줘", "HAE 패치 받았어", "v3.0.xx 패치", "FBL 패치", "APP 패치", "재배포본", "배포본 비교", "패치 검수", "HAE 형상 그대로 복사해도 돼?", "당사 설정이랑 충돌", "IMS 에 질문 댓글", "버전업", "JENKINS_BUILD_TARGET ALL" 등을 말하거나, HAE 가 배포한 모듈·설정 변경을 당사 저장소에 반영하려는 의도를 보이면 반드시 이 스킬을 사용하라. Claude Code CLI(사내망, 사용자 PC) 전용. 개별 도구 작업은 담당 스킬로 넘긴다 — Redmine 쓰기는 redmine-issue, eCoDY-ECM 가이드 검색은 ecody-search, 보드 라이팅은 cvd-project, CAN 확인은 can-bench-setup / canoe-project-setup, Confluence 규약은 confluence-writing, 작업 브랜치·Jenkins Job 신설은 gitea-jenkins-setup.
+description: 현대오토에버(HAE) mobilgene Classic(R44/R4x) SWP Delivery_Patch 를 당사 제어기 프로젝트(FBL·APP, 차종·제어기 무관)에 적용하는 전 과정 — eCoDY-IMS 티켓 수집, 배포본 판별, HAE 이전/현재 형상과 당사 설정의 3-way 판정(그대로 복사해도 되는지, 당사 전용 설정은 어떻게 반영할지), 적용, 정적 검수, Jenkins 빌드 결과 검수(생성물 diff·RAM/ROM), 버전업, 실기 검증 순서, Redmine·IMS·Confluence 기록, PR 까지 — 을 안내하고 반복 작업은 동봉 스크립트로 처리하는 스킬. 사용자가 "Delivery_Patch", "SWP 패치", "패치 딜리버리", "MCP0806-xxx 패치 적용", "eCoDY-IMS 패치 티켓", "모듈 패치 적용해줘", "HAE 패치 받았어", "v3.0.xx 패치", "FBL 패치", "APP 패치", "재배포본", "배포본 비교", "패치 검수", "HAE 형상 그대로 복사해도 돼?", "당사 설정이랑 충돌", "IMS 에 질문 댓글", "버전업", "JENKINS_BUILD_TARGET ALL" 등을 말하거나, HAE 가 배포한 모듈·설정 변경을 당사 저장소에 반영하려는 의도를 보이면 반드시 이 스킬을 사용하라. Claude Code CLI(사내망, 사용자 PC) 전용. 개별 도구 작업은 담당 스킬로 넘긴다 — Redmine 쓰기는 redmine-issue, eCoDY-ECM·IMS 읽기·검색은 ecody-search, 보드 라이팅은 cvd-project, CAN 확인은 can-bench-setup / canoe-project-setup, Confluence 규약은 confluence-writing, 작업 브랜치·Jenkins Job 신설은 gitea-jenkins-setup.
 ---
 
 # SWP Delivery_Patch 적용
@@ -20,7 +20,7 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 ## 실행 환경
 
 - Claude Code CLI(사용자 PC, 사내망). Redmine·Gitea·Jenkins 가 사설망에 있다.
-- eCoDY-IMS(HAE Jira, `ecody-ims.autoever.com`)·eCoDY-ECM 은 **Claude in Chrome** 의 로그인 세션으로 읽고 쓴다. 사용법과 함정은 `references/ims-workflow.md`. 당사 Jira/Confluence(mobaseasec)는 Atlassian MCP 로 연결돼 있지만 HAE IMS 는 아니다.
+- eCoDY-IMS(HAE Jira, `ecody-ims.autoever.com`)·eCoDY-ECM 은 **Claude in Chrome** 의 로그인 세션으로 다룬다. **읽기·검색은 `ecody-search` 스킬**(IMS·ECM 범위, 읽기 전용)을 쓰고, **IMS 질문 댓글 쓰기만 이 스킬**이 한다. 패치 티켓에 맞춘 사용법과 댓글 등록은 `references/ims-workflow.md`. 당사 Jira/Confluence(mobaseasec)는 Atlassian MCP 로 연결돼 있지만 HAE IMS 는 아니다.
   - 나중에 IMS 가 MCP 로 연결되면 `references/ims-workflow.md` 의 "MCP 연결 시" 절을 따른다(조회·댓글 도구 대응표). 승인 규칙은 같다.
 - Jenkins API: 환경변수 `JENKINS_URL`, `JENKINS_USER`, `JENKINS_TOKEN`. Redmine: `REDMINE_URL`, `REDMINE_API_KEY`(redmine-issue 스킬).
 - 스크립트는 이 스킬 폴더의 `scripts/` 에 있고 파이썬 표준 라이브러리만 쓴다(`python <스킬폴더>/scripts/<이름>.py -h` 로 사용법). 출력은 UTF-8 로 고정돼 있다. 한글 경로 인자는 PowerShell 에서 실행하면 안전하다. 긴 출력은 파일로 받아 필요한 줄만 본다.
@@ -54,7 +54,7 @@ S13 마무리                PR, IMS·Redmine 상태
 
 ## S1. eCoDY-IMS 수집
 
-`references/ims-workflow.md` 의 방법으로 패치 티켓 전체를 읽는다. 놓치기 쉬운 것:
+`ecody-search` 스킬(IMS 범위)의 `ims_read.js` 로 패치 티켓과 연결된 수평전개 티켓을 함께 읽는다. 패치 티켓은 `__MAX__` 를 60000 정도로 준다(안내 댓글이 길다). 무엇을 뽑아야 하는지는 `references/ims-workflow.md` §1. 놓치기 쉬운 것:
 
 - **재배포·안내 개정.** 같은 티켓에 배포본이 두 번 이상 올라오거나, 설정변경 안내 댓글이 다시 달리거나, HAE 가 이전 파일·댓글을 삭제한다. 변경 이력(changelog)과 첨부 날짜를 함께 본다.
 - **harmonize 필요 모듈** 표기는 개정 때 바뀐다(예: "해당없음" → "EcuM, Rte").
@@ -74,7 +74,7 @@ S13 마무리                PR, IMS·Redmine 상태
 
 ## S3. 선행 작업 조회 (선택)
 
-같은 패치를 다른 차종에 먼저 적용한 Redmine 일감이나 Gitea 브랜치가 있으면 찾아 목록에 올린다. 쓸모는 "어떤 파일이 바뀌는지 미리 보기", "그쪽에서 HAE 에 물어 받은 답변"이다. 그대로 이식하지 않는다 — 그 차종의 고유 설정과 Harmonize 부산물이 섞여 있다. 이식할 때도 S6 판정을 거친다.
+같은 패치를 다른 차종에 먼저 적용한 Redmine 일감이나 Gitea 브랜치가 있으면 찾아 목록에 올린다. IMS 쪽(같은 모듈·버전의 다른 과제 Delivery_Patch, 거기서 오간 문의·답변)은 `ecody-search` 의 IMS JQL 검색으로 찾는다. 쓸모는 "어떤 파일이 바뀌는지 미리 보기", "그쪽에서 HAE 에 물어 받은 답변"이다. 그대로 이식하지 않는다 — 그 차종의 고유 설정과 Harmonize 부산물이 섞여 있다. 이식할 때도 S6 판정을 거친다.
 
 ## S4. 일감·문서
 
@@ -209,7 +209,7 @@ PR 방식(APP cherry-pick 쌓기 / FBL squash 등), 대상 브랜치, 머지 순
 
 | 파일 | 언제 읽나 |
 |---|---|
-| `references/ims-workflow.md` | S1·S7 — IMS 읽기·댓글, MCP 연결 시 대응 |
+| `references/ims-workflow.md` | S1·S7 — 패치 티켓에서 뽑을 것(읽기는 ecody-search), 질문 댓글 양식·등록, MCP 연결 시 대응 |
 | `references/three-way-merge.md` | S6·S9 — 판정 규칙 상세, 사례, Validation 사전 점검 예 |
 | `references/decision-rules.md` | S6 — 회사 공통 보류·예외 규칙 (누적) |
 | `references/version-up.md` | S8 — 버전·산출물명 규칙 |
@@ -224,7 +224,7 @@ PR 방식(APP cherry-pick 쌓기 / FBL squash 등), 대상 브랜치, 머지 순
 ## 범위 밖
 
 - 작업 브랜치·Jenkins Job 신설 → gitea-jenkins-setup
-- eCoDY-ECM 주제 검색 자체 → ecody-search (이 스킬은 패치에 필요한 가이드만 그 스킬로 읽는다)
+- eCoDY-ECM·IMS 읽기·검색 → ecody-search (이 스킬은 패치에 필요한 티켓·가이드를 그 스킬로 읽고, IMS 댓글 쓰기만 직접 한다)
 - 라이팅·CAN 측정 로직 → cvd-project, can-bench-setup, canoe-project-setup
 - Redmine 일감 단순 조회 → redmine-issue
 - PR 머지, 공유 브랜치 정리

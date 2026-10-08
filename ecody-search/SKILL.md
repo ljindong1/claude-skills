@@ -112,7 +112,7 @@ S7 정리            탭 닫기
 | 사이트 | 스크립트 | 치환 |
 | --- | --- | --- |
 | ECM | `scripts/ecm_read.js` | `__IDS__` (5건 이하), `__MAX__` (기본 6000) |
-| IMS | `scripts/ims_read.js` | `__KEYS__` (5건 이하), `__MAX__` (기본 8000) |
+| IMS | `scripts/ims_read.js` | `__KEYS__` (5건 이하), `__MAX__` (기본 8000, Delivery_Patch 티켓은 60000 정도) — 본문·댓글·첨부·연결·하위작업 + 변경 이력(첨부 추가·삭제, 상태, 담당자) |
 
 `(이하 N자 생략)` 이 붙었는데 필요한 절이 뒤에 있으면 그 건만 `__MAX__` 를 늘려 다시 읽는다. 본문이 다른 문서·이슈(CPINFO, IM 링크, 연결 이슈·하위작업)를 참조하고 답에 필요하면 한 번 더 찾아 읽는다. IMS 릴리즈 노트는 개선 항목이 표로 여러 개다 — 질문과 관련된 항목의 **Target MCU · Detailed Changes · Dependent module version** 을 뽑는다.
 
