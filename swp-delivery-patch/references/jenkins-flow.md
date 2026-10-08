@@ -31,6 +31,7 @@ Debug/OEUK_HE1I/
 ```
 - `_Writing.s19`: CVD/T32 라이팅용. `rom_<버전>.zip`: aSIMS 서명 입력.
 - CURRENT 빌드는 26810 폴더만 갱신한다. ALL 빌드 후 네 폴더 모두 새 SWP 버전 파일만 있는지 확인한다(이전 버전 파일 잔존 여부).
+- **같은 소스라도 재빌드하면 이미지가 달라질 수 있다.** Os 생성기가 재생성 때 태스크 스택 배치 순서를 바꿔 `Os_GaaStack`·`MAINSW_CRC` 가 변한다. 서명 요청 후에는 실기가 끝날 때까지 APP 빌드를 일으키는 push 를 하지 않는다(troubleshooting S12).
 - FBL 은 버전 폴더 없이 `OEUK_HE1I`, `OEUK_HE1I_TEST` 바로 아래.
 
 ## 4. 빌드 결과 읽기
