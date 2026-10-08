@@ -1,0 +1,54 @@
+{
+  "skill_name": "swp-delivery-patch",
+  "evals": [
+    {
+      "id": 1,
+      "name": "redelivery-judgement",
+      "prompt": "MCP0806-280 APP 3.0.29 패치 파일이 두 번 올라왔어. D:\\Mobase\\패치업무\\HE1i_실기검증\\v3.0.29\\MCP0806-280 에 09-04 첫 배포본(SP3I_PSU_3.0.29_APP(1).zip, 비번 걸려 있음)이랑 10-06 재배포본 풀어 둔 폴더(SP3I_PSU_3.0.29_APP)가 있는데, 09-04 것도 같이 써야 하는지 10-06 것만 있으면 되는지 판단해 줘. 파일은 지우거나 고치지 마.",
+      "expected_output": "파일 단위 CRC 대조로 패치 본체 86개 중 84개 동일, SCons.arxml·Ecud_EcuM.arxml 2개만 다름, 09-04에만 있는 본체 없음 → 10-06본만 사용. VersionComparison Prev/Cur 존재를 3-way 기준으로 활용한다고 언급.",
+      "files": [],
+      "assertions": [
+        "파일 단위(CRC/해시)로 두 배포본을 비교했다",
+        "패치 본체 86개 중 84개 동일·2개(SCons.arxml, Ecud_EcuM.arxml)만 다르다고 정확히 보고했다",
+        "09-04 에만 있는 패치 본체가 없어 10-06 본만 쓰면 된다고 결론냈다",
+        "10-06 본의 VersionComparison Previous/Current 를 3-way 기준 형상으로 쓸 수 있다고 언급했다",
+        "patch_tool·Doc 차이는 도구·문서 갱신으로 구분해 설명했다"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "three-way-judgement-table",
+      "prompt": "HE1i PSU APP 을 V3.0.28 에서 V3.0.29(MCP0806-280)로 올리려고 해. 패치 적용 전 당사 설정 파일은 <WORKSPACE>/inputs/ours_v3.0.28 에 꺼내 뒀고(Build/SCons.arxml, Configuration/...), HAE 10-06 배포본은 D:\\Mobase\\패치업무\\HE1i_실기검증\\v3.0.29\\MCP0806-280\\SP3I_PSU_3.0.29_APP 에 있어. HAE 참고 설정을 그대로 복사하면 당사 설정이 깨질까 걱정돼. 어떤 항목을 그대로 반영하고, 어떤 건 당사 구성에 맞게 바꾸고, 어떤 건 빼야 하는지 판정표로 정리해 줘. 저장소와 입력 파일은 수정하지 마. HE1i 는 PFee 를 안 쓰고 Crypto_76_HaeModule 은 1.0.4.0 이야.",
+      "expected_output": "3-way(Prev/Cur/Ours) 판정표. Rte BswInstance 이름변경 2건 반영, EcucValueCollection DataLog 추가, SCons Swcd_Bsw_Dcm +Ecud_EcuC 반영, Crypto_76_HaeModule_ECU_Configuration_PDF 4곳은 Crypto 2.0 전제라 제외, EcuM ListTwo 는 PMem_Driver 없이 0부터 재번호(HsmDriver 0 / Crypto_76 1 / Mem_ReadAll 2), 파일 통째 복사 금지.",
+      "files": [
+        "inputs/ours_v3.0.28"
+      ],
+      "assertions": [
+        "Prev/Cur/Ours 3-way 로 비교했다(HAE 이전 형상을 사용)",
+        "Rte BswInstance 이름변경 2건(Crypto_76_HaeModule, Mem_76_Pfls)을 반영 대상으로 판정했다",
+        "EcucValueCollection 에 /AUTOEVER/DataLog 추가를 반영 대상으로 판정했다",
+        "SCons Swcd_Bsw_Dcm 의 Ecud_EcuC 추가를 반영 대상으로 판정했다",
+        "Crypto_76_HaeModule_ECU_Configuration_PDF 추가(CryIf/Csm/EcuM/Fota)를 Crypto 2.0 전제로 보고 제외했다",
+        "EcuM ListTwo 는 PMem_Driver 를 넣지 않고 HsmDriver 0 / Crypto_76 1 / Mem_ReadAll 2 로 재번호해야 한다고 판정했다",
+        "HAE 참고 파일을 통째로 복사하면 안 된다는 원칙과 그 이유를 설명했다",
+        "SCons 리스트의 당사 고유 항목(CDD_Router, L2CAN 등)을 HAE 차이로 오인해 반영하지 않았다"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "hold-rule-dem-patch",
+      "prompt": "eCoDY-IMS 에 새 패치 티켓이 왔는데 HE1i PSU APP 의 Dem_R44 를 3.0.1.1_HF5 에서 3.0.2.0_HF1 로 올리는 거래. 아직 아무것도 안 했어. 실제 작업이나 등록은 하지 말고, 이걸 받았을 때 어떤 순서로 무엇을 확인하고 어떻게 처리할지 계획을 세워 줘. HAE 에 물어볼 게 있으면 IMS 댓글 초안도 써 줘.",
+      "expected_output": "IMS 티켓 전체(본문·댓글·첨부·이력·수평전개) 수집부터 시작. Dem_R44 3.0.2.0_HF1 은 NvM/Fee 블록 16→17B 변경으로 양산 SW·OTA 호환이 깨져 기존에 미적용(오토에버 권고, #47075) — 보류 규칙을 먼저 적용하고 사용자 확인. 적용 필요 여부를 HAE 에 묻는 IMS 질문 초안(당사 현황/HAE 안내/질문). 외부 등록·커밋은 승인 후. 3-way 판정, 버전업 위치는 해당 시.",
+      "files": [],
+      "assertions": [
+        "IMS 티켓 전체(본문·댓글·첨부·이력·연결 수평전개) 수집을 첫 단계로 두었다",
+        "Dem_R44 3.0.2.0_HF1 은 기존에 의도적으로 미적용한 버전이라는 보류 규칙을 언급했다",
+        "보류 근거로 NvM/Fee 블록 크기 변경(16→17B)과 양산 SW·OTA 호환 문제를 제시했다",
+        "근거 일감(#47075) 또는 오토에버 권고를 인용했다",
+        "IMS 질문 댓글 초안이 당사 현황 / HAE 안내 / 질문 구조로 작성됐다",
+        "IMS 등록·커밋 등 외부 쓰기는 사용자 승인 후라고 명시했다",
+        "적용하게 될 경우 3-way 판정·NvM/Fee 레이아웃 검증을 계획에 포함했다"
+      ]
+    }
+  ]
+}

@@ -76,6 +76,11 @@ skills-repo/
 ├── svg-creation/
 │   ├── SKILL.md
 │   └── references/                     # 패턴·아이콘 라이브러리
+├── swp-delivery-patch/
+│   ├── SKILL.md
+│   ├── evals/                          # 평가 프롬프트·채점 기준
+│   ├── references/                     # 3-way 판정·IMS·버전업·Jenkins·검증·양식·판단 규칙, projects/ 프로젝트 프로필
+│   └── scripts/                        # 배포본 CRC 대조·3-way 판정·당사 수정 탐지·심볼 점검·빌드/생성물/메모리 검수
 ├── tech-research-to-confluence/
 │   ├── SKILL.md
 │   └── references/
@@ -183,6 +188,7 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `slack-morning-briefing` | 직전 브리핑 이후의 슬랙 메시지를 정리해 매일 아침 대상 DM으로 전송 |
 | `slack-to-calendar` | 슬랙 공지·일정 메시지를 파싱해 구글 캘린더에 등록 |
 | `svg-creation` | 통일된 톤앤매너의 SVG 다이어그램·아이콘 생성 규약 |
+| `swp-delivery-patch` | HAE mobilgene Classic SWP Delivery_Patch 를 당사 FBL·APP 에 적용 — eCoDY-IMS 수집, 배포본 판별, HAE 이전/현재 형상과 당사 설정의 3-way 판정, 적용·정적 검수·빌드 검수, 버전업, 실기 순서, 기록 (외부 쓰기는 승인 후) |
 | `tech-research-to-confluence` | 기술 자료를 조사·기획해 다중 페이지 Confluence 가이드로 발행 |
 | `travel-english-weekly` | 초중급 학습자용 해외여행 영어 회화 주간 학습 브리핑 |
 
