@@ -15,6 +15,7 @@ H-OTA 실행 자체(Start 클릭)는 사람이 하거나(반자동), 파일럿�
   report    보드평가레포트 xlsx 의 첨부 · 그림 · 헤더 교체 (Excel COM)
   zip       Redmine 첨부용 묶음 zip
   summary   Redmine / Confluence 결과 표 초안
+  where     산출물 저장 위치 목록 (시작할 때 사용자에게 확인받는다)
 
 공통 인자: --profile he1i_psu --swp 3.0.29 --date 261008 (결과 폴더 = <result_root>/v<swp>/<date>)
 쓰기는 결과 폴더 · H-OTA 설정 파일(백업 후) · 지정한 출력 위치에만 한다. 저장소 커밋·외부 등록은 하지 않는다.
@@ -45,7 +46,7 @@ STATE_DIR = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "hota-eval"
 
 # ============================================================ 프로필
 class Profile:
-    def __init__(self, name: str, swp: str | None, date: str | None):
+    def __init__(self, name: str, swp: str | None, date: str | None, result: str | None = None):
         p = Path(name)
         if not p.suffix:
             p = SKILL / "references" / "projects" / f"{name}.toml"
@@ -58,7 +59,7 @@ class Profile:
         self.date = date or dt.date.today().strftime("%y%m%d")
         self.vars = {"low": self.low, "high": self.high, "ver": self.swp,
                      "ver_us": self.swp.replace(".", "_"), "yymmdd": self.date}
-        self.result = self.repo / pr["result_root"] / f"v{self.swp}" / self.date
+        self.result = Path(result) if result else self.repo / pr["result_root"] / f"v{self.swp}" / self.date
         self.cases = [self._case(c) for c in self.raw["case"]]
         self.variants = {v["key"]: {**v, "folder": self.f(v["folder"])} for v in self.raw["variant"]}
 
@@ -694,12 +695,30 @@ def cmd_summary(pf: Profile, a) -> int:
     return 0
 
 
+# ============================================================ where
+def cmd_where(pf: Profile, a) -> int:
+    rp, z = pf.raw["report"], pf.raw["zip"]
+    rows = [
+        ("결과 폴더 (.asc/.log/.png/bin)", str(pf.result), "--result"),
+        ("보드평가레포트", str(pf.result / pf.f(rp["pattern"])), "report --out"),
+        ("Redmine 첨부 zip", pf.f(z["dest"], issue=a.issue or "<일감>"), "zip --dest"),
+        ("H-OTA 설정 백업", str(STATE_DIR / "backup"), "고정"),
+        ("서명본 폴더 (읽기)", str(Path(pf.raw["project"]["signed_root"]) / f"v{pf.swp}"), "identify --signed"),
+    ]
+    print(f"== 산출물 저장 위치  (프로필 {pf.path.name}, SWP v{pf.swp}, 날짜 {pf.date})")
+    for name, path, opt in rows:
+        state = "있음" if Path(path).exists() else "없음"
+        print(f"  {name:26s} {path}   [{state}]  바꾸기: {opt}")
+    return 0
+
+
 # ============================================================ main
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--profile", default="he1i_psu")
     ap.add_argument("--swp", help="APP SWP 버전 (예 3.0.29). 없으면 저장소 .project 에서")
     ap.add_argument("--date", help="결과 폴더 YYMMDD (없으면 오늘)")
+    ap.add_argument("--result", help="결과 폴더를 직접 지정 (기본: <app_repo>/<result_root>/v<swp>/<date>)")
     sp = ap.add_subparsers(dest="cmd", required=True)
     sp.add_parser("status")
     p = sp.add_parser("judge"); p.add_argument("--json", action="store_true")
@@ -716,11 +735,12 @@ def main() -> int:
     p.add_argument("--dry-run", action="store_true")
     p = sp.add_parser("zip"); p.add_argument("--issue", required=True); p.add_argument("--bench"); p.add_argument("--dest", help="출력 폴더 (기본: 프로필 [zip] dest)")
     sp.add_parser("summary")
+    p = sp.add_parser("where"); p.add_argument("--issue")
     a = ap.parse_args()
-    pf = Profile(a.profile, a.swp, a.date)
+    pf = Profile(a.profile, a.swp, a.date, a.result)
     fn = {"status": cmd_status, "judge": cmd_judge, "names": cmd_names, "identify": cmd_identify, "bins": cmd_bins,
           "prepare": cmd_prepare, "restore": cmd_restore, "collect": cmd_collect, "report": cmd_report,
-          "zip": cmd_zip, "summary": cmd_summary}[a.cmd]
+          "zip": cmd_zip, "summary": cmd_summary, "where": cmd_where}[a.cmd]
     r = fn(pf, a)
     return r if isinstance(r, int) else 0
 

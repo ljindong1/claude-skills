@@ -26,10 +26,15 @@ SWP 패치 회차마다 하는 H-OTA 리프로그래밍 평가(버전 업·다�
 | `report --bench <joule 실행 폴더> --fbl 3.0.19 [--template] [--out] [--dry-run]` | 보드평가레포트 첨부·그림·헤더 교체 (Excel COM) 후 첨부 바이트 검증 | 결과 폴더 |
 | `zip --issue <일감> --bench <폴더> [--dest]` | Redmine 첨부 묶음 (asc · log · png · bin · xlsx · CAN 벤치 · 하위 폴더별) | 지정 폴더 |
 | `summary` | 결과 표 (Redmine 코멘트 · Confluence 체크리스트 7. 결과 기록에 그대로) | 없음 |
+| `where [--issue]` | 산출물 저장 위치 목록 (결과 폴더 · 레포트 · zip · 백업 · 서명본) | 없음 |
+
+공통 옵션 `--result <폴더>` 로 결과 폴더를 직접 지정한다. 지정하면 이후 모든 명령에 같은 값을 준다.
 
 ## 흐름
 
 ```
+E0 저장 위치   where 로 기본 위치를 보여 주고 AskUserQuestion 으로 확인받는다 (결과 폴더 · 레포트 · zip).
+               바꾸면 그 값을 --result / report --out / zip --dest 로 끝까지 쓴다. 확인 전에는 아무것도 만들지 않는다
 E0 준비 점검   관리자 PowerShell 에서 claude 실행(권장) · PJ_Define(버전·OEUK) · CVD · VN1640A · H-OTA 로그인(1주일마다 로그아웃)
 E1 빌드        JENKINS_BUILD_TARGET ALL (커밋·push 는 지시받을 때) → swp-delivery-patch jenkins_wait.py → pull
                → Debug/OEUK_xxx/ 4벌 확인. 이 빌드 번호·커밋을 기록 (E2 --ref)
@@ -52,8 +57,9 @@ E7 산출물      CAN 벤치(can-bench-setup) → report → zip → summary →
 3. **라이팅은 항상 `--banks AB`.** A 만 쓰면 FBL 이 다른 뱅크의 옛 버전으로 부팅할 수 있다.
 4. **파일 이름은 도구가 만든다.** `{대상}_PSU_{시험}(v시작_v목표)_{Rules}.asc` 6종 조합 밖의 이름은 쓰지 않는다. collect·names 가 어긋남을 알린다.
 5. **H-OTA 설정 파일은 백업 후에만 바꾸고 끝나면 restore.** 파일이 `C:\ProgramData` 아래라 관리자 권한이 필요하다 — 관리자 PowerShell 에서 claude 를 실행하면 prepare 가 직접 넣는다. 일반 터미널이면 바꾸지 않고 경로를 클립보드로 넘긴다.
-6. **저장소 커밋·push, Redmine·Confluence·Slack 등록은 지시받을 때만**, 미리보기 후. 결과 폴더 커밋·CURRENT 복귀·PR 은 swp-delivery-patch S13.
-7. 확인한 것과 못 한 것을 나눠 보고한다. H-OTA `.asc` 는 진단 ID(0x7A3·0x7AB·0x7DF)만 기록하므로 CAN 출력 판정에 쓰지 않는다.
+6. **산출물 저장 위치는 시작할 때 사용자에게 묻는다.** `where` 의 기본값을 첫 옵션(추천)으로 보여 주고 다른 위치도 받는다. 결과 폴더를 만들거나(prepare · bins) zip 을 쓰기 전에 확인이 끝나 있어야 한다.
+7. **저장소 커밋·push, Redmine·Confluence·Slack 등록은 지시받을 때만**, 미리보기 후. 결과 폴더 커밋·CURRENT 복귀·PR 은 swp-delivery-patch S13.
+8. 확인한 것과 못 한 것을 나눠 보고한다. H-OTA `.asc` 는 진단 ID(0x7A3·0x7AB·0x7DF)만 기록하므로 CAN 출력 판정에 쓰지 않는다.
 
 ## 완전 CLI 모드 (파일럿 전)
 

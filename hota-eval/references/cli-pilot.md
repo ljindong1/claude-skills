@@ -10,6 +10,7 @@
 | 2 | Updater 가 `EditorConfig.ini [TESTREPORT] ReportFilePath` 에 .asc 를 남기는가 | prepare 후 실행, 파일 생김 여부 |
 | 3 | `configuration.ini OEUK` 가 OEUK Vehicle 체크와 같은가, 해제 값은 무엇인가 | Studio 화면에서 체크/해제 후 파일 값 비교 → 프로필 `oeuk_off` |
 | 4 | 결과 메시지 형식 (Direct 는 Summary Report 경로) | `joule-hota` 결과 로그, PC 설정 `[result]` 정규식 보정 |
+| 4-1 | CLI 로그(`.log`)를 결과 폴더로 가져올 수 있는가, GUI Output 로그와 형식이 같은가 | 매뉴얼 16장: OBD 는 `롬팩경로\CCU1_OBD_LOG\Reprogram_<시각>.log`, Direct 는 결과 TCP 로 경로 전달. 받은 로그를 `<케이스>_<Rules>.log` 로 복사하고, judge 가 읽는 `Run active document … success/fail` · `response SW version` 줄이 있는지 비교 — 다르면 judge 를 맞춘다. `.log` 를 다른 기록으로 만들어 내지 않는다 (H-OTA 판정 기록) |
 | 5 | Rules 에 bin 을 직접 줄 수 있는가, 롬패키지가 꼭 필요한가 | 오늘 GUI 는 bin 직접 지정. Updater 는 롬패키지(`--build`) |
 | 6 | 화면 캡처 대신 무엇을 레포트 그림으로 넣을까 | Summary Report / 로그 요약을 그림으로 만들지 사용자와 정한다 |
 
