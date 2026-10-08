@@ -31,6 +31,20 @@
 | FBL 바이너리 (APP 저장소) | | |
 | Doc 위치·파일명 | | |
 
+## 구성 전제 (사전 점검 P ①)
+HAE 답변의 조건이 되는 값. `precheck.md` §2-① 표의 항목을 FBL/APP 따로 채운다.
+
+| 전제 | FBL | APP | 확인 위치 |
+|---|---|---|---|
+| Os 확장 등급 / MPU / Timing Protection | | | Ecud_Os |
+| PFee 사용 | | | Ecud_Os PFee Task, Ecud_Mem PFEE_PART |
+| UseRamCode | | | Ecud_Mem_76_Pfls MemGeneral |
+| 컴파일러 (SRS 고정) | | | SCons.arxml |
+| mobilgene C Studio | | | |
+| MCU | | | |
+| 같은 계열 차종별 양산 단계 | | | |
+| 대표 차종 (HAE 참고 설정 기준) | | | |
+
 ## 당사가 수정한 HAE 파일 (교체 시 병합 대상)
 | 파일 | 내용 | 근거 커밋/일감 |
 |---|---|---|

@@ -18,6 +18,10 @@
 | PFee 를 쓰지 않는 RTSW 는 PMem_Driver 를 EcuM 에 추가하지 않음 | MCP0806-280 10-06 HAE 답변 | PFee 미사용 APP |
 | NvM/Fee 블록 레이아웃을 바꾸는 변경은 양산·OTA 호환을 먼저 확인. HAE 가 "기존 플랫폼은 블록 유지" 재가이드를 낸 사례 있음 | MCP0806-272 10-02 (NvMBlock_DataLog 유지) | NvM 사용 모듈 |
 | usercode/Reference_Code 는 HAE 안내대로 전수 검토, 3-way 병합 | 모든 티켓 표준 문구 | 전 패치 |
+| **[D 경로] 컴파일러·툴체인 버전 변경을 요구하는 가이드는 채택하지 않는다.** SRS 고정 개발 환경이 우선. 구성을 바꿔(예: MPU 미사용이면 SC1) 요구를 피하고, 피할 수 없으면 VoC 로 올린다 | MCP0806-270 (GHS 2019 요구 → SC1 전환) | 전 패치 |
+| **[D 경로] 양산·양산 임박 차종과 같은 SW 를 쓰는 라인은 NvM/Fee 블록·메모리 맵 고정 영역이 바뀌는 모듈 업데이트를 보류**하고 사유를 IMS 에 회신한다. 개발 차종만 적용할지는 별도 검토 | MCP0806-255, MCP1105-113 (Dem), MCP0806-272 (DataLog NvM) | 저장 계열 모듈 |
+| 배포본의 `Configuration/System`(Bswmd_*, Swcd_Bsw_*, *_PortInterfaces) 차이는 안내에 없으면 Harmonize 부산물로 보고 제외. HAE 가 세 번 같은 답("무시") | MCP0806-279 [12], 280 [6], 272 | 전 패치 |
+| HAE 배포본·.ld 값도 틀릴 수 있다 — 가이드·IM 과 다르면 가이드를 근거로 질문(C). 보정본·정정 댓글을 확인 | MCP0806-256 (PFee 파일 누락), 270 (.ld 스택 정렬 4K→8K), 280 (SCons Ecud_EcuC 누락), MCP1105-104 (SC1용 .ld) | 전 패치 |
 | 평가용 상위 버전은 끝에서 두 번째 자리 +1 (26810 → 26820). 마지막 자리 변경 금지 | #47539 | H-OTA |
 
 ## 모듈별
@@ -27,6 +31,9 @@
 | Dem_R44 | 3.0.2.0_HF1 은 적용하지 않음 — NvM/Fee 블록 16→17B 로 양산 SW·OTA 호환 깨짐(오토에버 권고). 3.0.1.1_HF5, `DEM_SIZE_OF_EVENT_DATA (6)` 유지. Dem 버전업 요청이 오면 이 판단부터 | #47075 note-17/18, #47967 |
 | Dcm (RXSWIN) | RXSWIN UINT8_DYN 동적 길이 변경은 SWP 패치가 아닌 별건(#46778). develop 패치 커밋에 섞여 있으면 분리 | #46778, #47967 |
 | Os | SC4→SC1 전환 시 MPU 요구 확인, stack align 은 HAE 정정값(8K) | #48881, #48089 |
+| Os | SC1 이면 PFee 가이드의 "MPU 시 스택 통일(8192)" 문구 무시 — 기존 Task 스택 유지, PFee_Process 만 512. SC3/4 는 스택 2^n·32 이상(Os 신규 Validation) | MCP0806-256 [24], MCP1105-104 [8] |
+| Mem_76_Pfls | UseRamCode=false 면 Pre/Post callout 설정 안 함. true 면 HSM TempStop/Restart callout 을 **모든 MemInstance** 에(MemInstance1 누락으로 양산 이슈). Wdg callout 은 현재 버전 불필요 | MCP0806-210 [8], 256 [33], MCP0806-271 |
+| EcuM / BswM | 순번 규칙(10 단위, StartUp 1회, ListThree 는 ListTwo 뒤) — three-way-merge §4.7 | MCP0806-256 [6][13][18] |
 | Mem_76_Pfls | WdgDisable/Enable Callout 대신 HwSecurityUnitTempStop/Restart (IA-006), 순서는 Wdg 뒤/앞 | #48292, IA-006 |
 | Dcm HF4 | 신규 Validation ERR053296~053312 — 적용 전 당사 Ecud_Dcm 사전 점검 | IM Dcm 4.1.28 |
 

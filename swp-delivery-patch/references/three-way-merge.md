@@ -81,6 +81,17 @@ python scripts/three_way.py --prev <Prev 폴더> --cur <Cur 폴더> --ours <저�
 
 안내에 "IM 과 다른 항목이 많아 일괄 수정, 필수 아님"처럼 HAE 형상 정리가 섞여 오면, 각 항목을 4.1~4.5 로 다시 분류한다. "필수 아님"이어도 IM 이 요구하는 것(예: Dcm_Init 은 ListOne)은 필수로 다룬다.
 
+### 4.7 순번·초기화 규칙 (EcuM / BswM)
+
+HAE 답변(MCP0806-256 08-31, 280 10-06)으로 확인된 규칙. 번호를 HAE 와 똑같이 맞출 필요는 없고 규칙만 지키면 된다.
+
+- BswM `BswMActionListItemIndex` 는 10 부터 10 단위(10, 20, 30 …). EcuM `EcuMDriverInitItemIndex` 는 0 부터 순차.
+- StartUp 계열 콜아웃(예: `PMem_Driver_StartUp`)은 BswM 이든 EcuM 이든 **한 번만** 호출되게 한다. 양쪽에 다 있으면 이중 호출.
+- `AI_EcuMDriverInitListThree` 는 반드시 `AI_EcuMDriverInitListTwo` 보다 뒤. FBL 은 HAE 형상에 STARTUP_THREE 단계가 없다 — 사용 여부는 BswM 에 `TrueAL_EcuState_StartUpThree` 가 있는지로 판정.
+- 목록에서 항목을 빼거나 옮기면 남은 항목의 번호를 HAE 의 번호 규칙대로 당사 구성에 다시 매긴다(4.3 예시).
+
+**함정 — Prev = Cur 인데 당사만 다른 항목.** 스크립트는 HAE 가 바꾸지 않은 위치를 "무관"으로 보고 넘긴다. 그런데 당사 값이 과거부터 HAE 와 달랐고 이번 안내가 그 위치를 요구하면 놓친다(예: 3.0.19 에서 `Dcm_Init` 은 Prev·Cur 모두 ListOne 에 있었지만 당사는 ListTwo 에만 있었음). 초기화 목록처럼 안내가 직접 언급한 컨테이너는 '순번 목록' 절에서 Prev / Cur / Ours 구성을 나란히 보고 판정한다.
+
 ## 5. 소스 파일 판정
 
 ### 5.1 모듈 폴더 (`Static_Code/Modules/<모듈>`)
@@ -103,10 +114,11 @@ HAE 가 매 티켓에 "모든 c/h 를 사용자가 검토하고 최종 코드를
 
 ## 6. 판정표 형식
 
-| HAE 요청 | 판정 | 이전 상태 (Ours) | 처리 (파일) | 확인 근거 |
-|---|---|---|---|---|
+| HAE 요청 | 판정 | 경로 | 이전 상태 (Ours) | 처리 (파일) | 확인 근거 |
+|---|---|---|---|---|---|
 
-- 행 = IMS 요청 항목(S1) + 스크립트가 찾은 추가 차이.
+- 행 = IMS 요청 항목(S1) + 사전 점검(P)의 위험 포인트 행 + 스크립트가 찾은 추가 차이.
+- "경로"는 `precheck.md` 의 A(스스로 확정) / B(과거 자료) / C(HAE 질문 — 답 오기 전에는 "확인 중"과 잠정 처리) / D(회사 기준 보류).
 - "확인 근거"에는 재현 가능한 근거만 쓴다: "HAE Cur 와 바이트 일치", "다른 파일 참조 0건", "IMS 10-06 답변", "빌드 Rte Validation 0 errors".
 - 적용 제외·보류는 표 아래에 사유와 함께 따로 모은다.
 

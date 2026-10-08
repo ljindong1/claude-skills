@@ -48,9 +48,23 @@
 ## 당사 빌드 후처리
 `Build/Build_Hook_HE1I.bat`(ALL/CURRENT 분기), `BuildVariants.bat`(4벌), `PostPackage.bat`(Debug/OEUK_HE1I/<버전> 정리, rom zip), `MemoryUsage.bat`, UTIP 후처리, `GitPush.bat`. toolset 교체 때 공식 Build.bat 을 쓰더라도 이 호출들은 유지.
 
+## 구성 전제 (사전 점검 P ① — 확인 2026-10-08)
+HAE 의 조건부 답변("당사가 X 면 해당 없음")을 판정하는 기준. 패치마다 바뀐 것이 없는지 확인한다.
+
+| 전제 | FBL | APP | 확인 위치 |
+|---|---|---|---|
+| Os 확장 등급 / MPU / Timing Protection | SC1 / 미사용 / 미사용 | SC1 / 미사용 / 미사용 (V3.0.27 때 SC4→SC1, MCP0806-270) | Ecud_Os `OsScalabilityClass`, NonTrusted Application 유무 |
+| PFee 사용 | **사용** (Attempt Counter, `OsTask_BSW_PFee_Process` 스택 512) | 미사용 (PFee Task·PFEE_PART 없음 → PMem_Driver 추가 안 함) | Ecud_Os, Ecud_Mem_76_Pfls, App_DiagnosticService.c |
+| UseRamCode | true (HSM TempStop/Restart callout 필요, MCP0806-271) | false (Pre/Post callout 설정 안 함, MCP0806-210) | Ecud_Mem_76_Pfls MemGeneral |
+| 컴파일러 (SRS 고정) | GHS ARM.V2017.1.4 | 같음 | SCons.arxml |
+| mobilgene C Studio | (설치 버전 기록) | 같음 | Harmonize 옵션이 버전마다 다름 |
+| MCU | CYT2BL (Mcal_Infineon_CYTxxx 1.18.1_Aut01) | CYT2BL (Mcal 버전은 APP .ver 로 확인) | Static_Code/Modules/b_mcal_* .ver |
+| 같은 계열 양산 단계 | SP3i·BJ1 양산 / HE1i·NQ6e·NQ6a·SX3e 개발 (2026-08 기준) | 같음 | 양산 호환 판단(D 경로) |
+| 대표 차종 | HAE 참고 설정은 SP3i 형상 (CDD_Router, L2/L3CAN 등 SP3i 고유 포함) | 같음 | |
+
 ## 프로젝트 사실 (판정에 쓰임)
-- Dcm: `DCM_NUM_OF_PROTOCOLCONFIG = 1` (프로토콜 1개), `DcmDemIntegrated = true`, `DCM_AUTHENTICATION_ES_SUPPORT = STD_OFF`
-- PFee / PMem 미사용 (Ecud_Os PFee Task, Ecud_Mem PFEE_PART 없음)
+- Dcm: `DCM_NUM_OF_PROTOCOLCONFIG = 1` (프로토콜 1개), `DcmDemIntegrated = true`(APP) / `0`(FBL), `DCM_AUTHENTICATION_ES_SUPPORT = STD_OFF`
+- PFee: FBL 사용 / APP 미사용 (위 구성 전제)
 - Crypto_76_HaeModule 1.0.4.0 (HAE 참고 프로젝트보다 낮을 수 있음)
 - FBL: Fota GPT 채널 TCPWM_0_18 / CLOCKS18 5000Hz (#38061), Attempt Counter 사용
 - 진단 Rx: 0x7A3 물리 / 0x7DF 기능

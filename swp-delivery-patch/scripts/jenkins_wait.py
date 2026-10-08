@@ -7,7 +7,7 @@
   --compare: 직전 회차의 '전체 재생성' 빌드 번호. 증분 빌드와 비교하면 Generate 정보가 없어 의미 없다.
 오래 걸리므로 Claude Code 에서는 Bash run_in_background 로 실행하고 완료 알림을 기다린다.
 """
-import argparse, base64, collections, io, json, os, re, ssl, sys, time, urllib.request
+import argparse, base64, collections, io, json, os, re, ssl, sys, time, urllib.error, urllib.request
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
@@ -55,7 +55,14 @@ def main():
         num = str(json.loads(get(f"/job/{a.job}/api/json?tree=lastBuild[number]"))["lastBuild"]["number"])
     t0 = time.time()
     while True:
-        d = json.loads(get(f"/job/{a.job}/{num}/api/json?tree=building,result,duration,timestamp"))
+        try:
+            d = json.loads(get(f"/job/{a.job}/{num}/api/json?tree=building,result,duration,timestamp"))
+        except urllib.error.HTTPError as e:
+            # push 직후에는 빌드가 아직 대기열(quiet period)에 있어 번호가 404 — 시작될 때까지 기다린다
+            if e.code != 404 or time.time() - t0 > a.timeout:
+                raise
+            time.sleep(30)
+            continue
         if not d["building"] or time.time() - t0 > a.timeout:
             break
         time.sleep(30)

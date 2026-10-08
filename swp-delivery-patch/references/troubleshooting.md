@@ -26,4 +26,15 @@
 | S12 | ALL 전환 후 CURRENT 복귀 누락 위험 | 평가 끝난 뒤 잊음 | 실기 마지막 단계에 복귀 커밋 체크 |
 | S13 | 리뷰어 지적 누락 항목(infineon_ucb 삭제, 미사용 Routine) | 직전 회차 지적사항 미이관 | 직전 일감 코멘트의 지적사항을 S4 본문 "이전 회차 누락 반영"에 옮김 |
 
+## 빌드 오류 — 다른 담당자 사례 (IMS)
+| 증상 | 원인 / 해결 | 근거 |
+|---|---|---|
+| Os 모듈 컴파일 에러 (Os_CYTXXX_R44) | 폴더명 대소문자 `Os_CYTxxx_R44` 로, SCons Compile 경로도 소문자. bat 은 AUTOSAR44=1 이면 영향 없음 | MCP0806-270 [14][16] |
+| Os_Arch_SystemCall.h 어셈블 에러 | SCons DefaultCompileOption 에 `--gnu_asm` 추가 (HAE 형상은 BSW 옵션에 이미 있음) | MCP0806-270 [17][18] |
+| `.text` 가 `.LIB_CODE` 침범 overlap, "too many user-defined sections" 경고 | GHS 2017 은 사용자 섹션 94개 초과 시 .text 로 몰림. MPU 미사용이면 SC1 + .ld 의 MPU용 ABS 제거로 해결. 경고는 MPU 미사용 시 무시 | MCP0806-270 [36]~[45] |
+| SCons `Compile/CompileCmdChoice/Compile` unresolved proxy | Compile 컨테이너는 toolset 3.0.3 부터 미사용(Build 하나로 통합). 삭제해도 되고 두어도 동작 | MCP0806-272 [22] |
+| 패치 후 Os 관련 빌드 에러가 HAE 에서는 재현 안 됨 | 모듈 폴더가 잘못 복사됨 → 폴더 완전 삭제 후 배포본에서 다시 복사, Rebuild | MCP1105-105 [16] |
+| Os 신규 Validation (SC3/4) | Task 스택은 2^n, 32 이상. .ld 의 task stack 은 Ecud_Os 최대값 | MCP1105-104 [8][12] |
+| 사용 안 하는 callout 설정 에러 (FlashcMain…Callout) | 모듈에서 함수 삭제됨 → 설정에서도 제거 (IA-057) | MCP0806-255 [10][11] |
+
 ## 추가 기록
