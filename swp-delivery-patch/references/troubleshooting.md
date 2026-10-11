@@ -7,6 +7,7 @@
 | S1 | 재배포본이 있는데 이전 파일로 작업할 뻔함 | 같은 이름 첨부 여러 개, HAE 가 이전 안내 댓글 삭제 | 첨부 날짜·크기·변경 이력 확인, CRC 대조로 유효본 판정 (MCP0806-279/280) |
 | S1 | 개정 안내에서 harmonize 대상이 바뀐 것을 놓칠 뻔함 | 같은 티켓에 안내 댓글이 다시 달림 | 안내 댓글을 날짜순으로 모두 읽고 항목별로 최신값 사용 |
 | S1 | IM 링크가 권한 없음 | HAE IM 링크 일괄 변경 | ECM 에서 제목 검색, 그래도 없으면 IMS 에 재전달 요청 |
+| S1 | 배포본 `Doc/ModuleChangeList/*.xlsx` 가 열리지 않음 (헤더 `SCDSA002`) | HAE 사내 DRM 암호화 상태로 배포 | IMS 티켓에 암호화 해제본 요청 → HAE 가 `Doc.zip` 재첨부 (MCP1001-193 [27][28]) |
 | S6 | HAE 참고 설정을 그대로 넣으면 당사 로직 문제 (이전 담당자 경험) | 참고 프로젝트 기준 설정 | 3-way 판정, 통째 복사 금지 |
 | S6 | 참고 형상의 새 PDF 입력이 당사에 없는 파일 | HAE 참고 프로젝트의 다른 모듈 버전(Crypto 2.0) | patch_tool 스크립트 주석으로 변경 이유 확인 → 제외 |
 | S8 | 모듈 폴더 통째 교체로 당사 수정 소실 위험 | 당사가 HAE 모듈 파일을 직접 수정(CanTrcv) | owner_edits.py 로 교체 전 확인 |
@@ -35,6 +36,7 @@
 | Os_Arch_SystemCall.h 어셈블 에러 | SCons DefaultCompileOption 에 `--gnu_asm` 추가 (HAE 형상은 BSW 옵션에 이미 있음) | MCP0806-270 [17][18] |
 | `.text` 가 `.LIB_CODE` 침범 overlap, "too many user-defined sections" 경고 | GHS 2017 은 사용자 섹션 94개 초과 시 .text 로 몰림. MPU 미사용이면 SC1 + .ld 의 MPU용 ABS 제거로 해결. 경고는 MPU 미사용 시 무시 | MCP0806-270 [36]~[45] |
 | SCons `Compile/CompileCmdChoice/Compile` unresolved proxy | Compile 컨테이너는 toolset 3.0.3 부터 미사용(Build 하나로 통합). 삭제해도 되고 두어도 동작 | MCP0806-272 [22] |
+| toolset 2.x → 3.x 패치 후 `Build/site_scons` 에 `.pyc` 가 없음 / Compile 옵션 사라짐 | 3.x 는 Python 3.12 가상환경으로 `.py` 를 직접 실행(.pyc 는 산출물이라 배포 제외). 기존 `site_scons` 를 지우고 새것으로 교체, SCons Compile 컨테이너 삭제 | MCP1001-193 [9][10][15][17] |
 | 패치 후 Os 관련 빌드 에러가 HAE 에서는 재현 안 됨 | 모듈 폴더가 잘못 복사됨 → 폴더 완전 삭제 후 배포본에서 다시 복사, Rebuild | MCP1105-105 [16] |
 | Os 신규 Validation (SC3/4) | Task 스택은 2^n, 32 이상. .ld 의 task stack 은 Ecud_Os 최대값 | MCP1105-104 [8][12] |
 | 사용 안 하는 callout 설정 에러 (FlashcMain…Callout) | 모듈에서 함수 삭제됨 → 설정에서도 제거 (IA-057) | MCP0806-255 [10][11] |

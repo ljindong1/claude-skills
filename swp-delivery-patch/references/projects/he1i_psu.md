@@ -58,7 +58,7 @@ HAE 의 조건부 답변("당사가 X 면 해당 없음")을 판정하는 기준
 | UseRamCode | true (HSM TempStop/Restart callout 필요, MCP0806-271) | false (Pre/Post callout 설정 안 함, MCP0806-210) | Ecud_Mem_76_Pfls MemGeneral |
 | 컴파일러 (SRS 고정) | GHS ARM.V2017.1.4 | 같음 | SCons.arxml |
 | mobilgene C Studio | 2.0 2026-06-R13.0.0 (`C:\mobilgene\mobilgene_C_Studio_2.0_2026_06_R13.0.0`, 워크스페이스 `D:\mobilgene_workspace`) | 같음 | Harmonize 옵션이 버전마다 다름. 이 버전에는 IA-079 가이드의 "Select Rx Diag Messages for OTA" 옵션이 없음(2026-10-10) |
-| 사용자 PC 생성 도구 | `D:\ts_mirr` 없음 → C Studio Generate Code·Build 불가(2026-10-11 시험). mobilgene 생성기 라이선스는 보유, 본체 미설치. 생성 결과는 Jenkins 커밋으로 확인 | 같음 | jenkins-flow §3-1 |
+| 사용자 PC 생성 도구 | `D:\ts_mirr` 없음 → C Studio Generate Code·Build 불가(2026-10-11 시험). mobilgene 생성기 라이선스는 보유, 본체 미설치. 생성 결과는 Jenkins 커밋으로 확인. 방침: 설치하지 않음(필요해지면 팀 ts_mirr 세트 통째 복사). toolset_scons 2.13.0(Python 2.7) | 같음 | jenkins-flow §3-1·§3-2 |
 | MCU | CYT2BL (Mcal_Infineon_CYTxxx 1.18.1_Aut01) | CYT2BL (Mcal 버전은 APP .ver 로 확인) | Static_Code/Modules/b_mcal_* .ver |
 | 같은 계열 양산 단계 | SP3i·BJ1 양산 / HE1i·NQ6e·NQ6a·SX3e 개발 (2026-08 기준) | 같음 | 양산 호환 판단(D 경로) |
 | 대표 차종 | HAE 참고 설정은 SP3i 형상 (CDD_Router, L2/L3CAN 등 SP3i 고유 포함) | 같음 | |

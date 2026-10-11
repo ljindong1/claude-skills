@@ -46,6 +46,21 @@ Debug/OEUK_HE1I/
 - 그래서 **MCAL 설정을 바꾼 패치의 생성 결과는 Jenkins 에서만** 볼 수 있다. BSW·Rte 만 바꿨으면 도구를 갖춘 PC 의 C Studio 로 push 전에 미리 볼 수 있다. 어느 경우든 로컬 생성은 시험 브랜치에서 하고 되돌린다(`Generated/` 는 git 추적).
 - 프로젝트의 PC 별 도구 보유 상황은 프로필 "구성 전제"에 적는다.
 
+### 3-2. 로컬 빌드 도구 확보 (필요할 때만)
+
+기본 방침: **설치하지 않는다.** 직접 편집 → push → Jenkins 결과 확인으로 충분하다. push 전 로컬 빌드가 자주 필요해질 때만 확보하고, 그때도 하나씩 설치하지 말고 **팀·Jenkins 서버의 `D:\ts_mirr` 세트를 같은 하위 구조 그대로 복사**한다(경로가 Build.bat·SCons.arxml 에 고정돼 있음).
+
+| 도구 | 출처 | 비고 |
+|---|---|---|
+| Portable Python 2.7.17 x64, SCons-local 2.3.4 | HAE 미배포 — 외부 다운로드 링크 CPINFO-2090. 설치판 `Setup.zip`(+z01) CPINFO-2059 | 설치판은 PYTHON_HOME·SCONS_HOME 환경변수를 등록한다. 쓰려면 Build.bat 을 `IF "%PYTHON_HOME%"=="" set PYTHON_HOME=…` 형태로 바꿔야 인식(현재 Build.bat 은 IF 없이 고정) |
+| gentool-fw, Rte 생성기, JRE 1.8.0_121 | CPINFO-2089(GenTool), ECM SW generator 게시판, ECM `[C Studio][R4X] 초기 개발환경 설정`(pageId 202543574, JRE 첨부) | `ts_mirr\xml` 아래 |
+| GHS 컴파일러 | 사내 보유 라이선스 | `ts_mirr\gh\ARM.V2017.1.4` |
+| EB tresos (MCAL 생성기) | **HAE 제공 불가**(정책, MCP0806-279 안내) → 팀 내부·Infineon. ECM 가이드상 빌드 확인용 임시 generator 는 배포 담당자에게 요청 가능 | 없으면 Build·GenerateAll 이 MCAL 생성에서 멈춤 → **부분 설치는 의미가 적다** |
+
+- `build.pyc` 헤더 `03 f3 0d 0a` = Python 2.7 컴파일물 → toolset 2.x 는 2.7 이 반드시 필요하다.
+- **toolset_scons 3.0.1 이상**은 Python 3.12.10 + SCons 4.10.0 가상환경(`MOBILGENE_PYTHON\.venv`, Build.bat 이 최초 1회 자동 설치)으로 바뀐다 — Python 2.7·SCons-local 불필요. 3.x 로 올리는 패치가 오면 `.pyc` 가 빠지고 기존 `site_scons` 를 지우고 새것으로 교체한다(MCP1001-193 [15][17], ECM `[KR] toolset_scons 사용자 매뉴얼` pageId 371172222 §3.1.2·§3.2.2).
+- Compile 만 할 때(기존 `Generated/` 사용)는 EB tresos 가 필요 없다. `Generated/Mcal_Output` 은 Jenkins 가 빌드마다 재생성해 커밋한다.
+
 ## 4. 빌드 결과 읽기
 
 `scripts/jenkins_wait.py <job> <번호> [--compare <비교 빌드>] [--log <저장 경로>]`

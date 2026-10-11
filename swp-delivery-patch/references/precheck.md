@@ -101,6 +101,18 @@ HAE 답변의 조건이 되는 값들이다. 이것이 정리돼 있으면 "당�
 
 직접 편집했을 때 툴 대신 지켜야 할 것: (1) ADMIN-DATA `SD GID` 기록값을 VALUE 와 같이 바꿈, (2) XML 파싱 확인, (3) S9 재대조로 사유 없는 차이 0, (4) 빌드의 생성기 Error 0 · Rte Validation 0 errors 로 툴 검증을 대신함, (5) 생성 코드 변화를 하나씩 설명(S10).
 
+#### HAE 배포 패키지의 AutomatePatch.bat (patch_tool)
+
+- HAE 입장: "배포를 쉽게 하도록 **팀 내에서 개발한 패치 툴**, 프로젝트 경로·최신 mobilgene 경로를 넣으면 자동 패치, **필수 아님**"(MCP1001-193 [8], 곽동희). ECM·IMS 에 별도 사용 가이드 없음.
+- **기본은 쓰지 않는다.** 툴은 HAE 공통 보정을 모두 자동 적용한다 — "필수 아님"으로 안내된 SCons 일괄 정리, 당사가 보류한 FBL Com 제거(`patch_Integrator_common.py` `remove_fbl_com_configs()`)까지 들어간다. 판정표 없이 들어가는 변경이 생기므로 3-way 판정 원칙과 맞지 않는다. 대신 스크립트 주석·로직을 **변경 의도와 검증 규칙의 참고서**로 읽는다(three-way-merge §4).
+- 그래도 돌린다면 알아 둘 동작 (소스 확인 2026-10-11):
+  - 실행 순서: 모듈 폴더 **삭제 후 통째 복사** → 백업 → 9단계(1 스크립트[mobilgene-cli] → 2 Pre-Harmonize → 3 GenerateXml → 4 Gen Patch → 5 Harmonize → 6 Post Patch → 7 GenerateAll → 8 생성 파일 후처리 → 9 Compile). 4·5·6·8 은 1단계 스크립트가 신청한 경우만.
+  - `patch_manifest.json` 의 `scripts` 목록은 **쓰이지 않는다.** 실제 순서는 `script_collector.py` 고정 규칙(clear_harmonize → EcucValueCollection → Os → Integrator → 모듈 common·버전 → MemMap → Fota → ValidationChecker → SCons).
+  - 백업(`.patch_backup/light_*.zip`)은 모듈 복사 **이후**에 만들어져 교체 전 모듈 소스가 없고, **성공하면 자동 삭제**된다 → 원복은 git.
+  - 7단계 직전에 `Generated/`·`Debug/` 를 지운다. `D:\ts_mirr` 가 없는 PC 에서는 3단계 GenerateXml 에서 멈춘다(1·2단계 ARXML 수정만 남음). 1단계만 돌리고 Jenkins 에 맡기면 4·6·8 단계 보정이 빠진다.
+  - 패치 스크립트는 mobilgene Script API(`getModule` 등) 전용이라 일반 Python 으로 실행 불가. CLI 는 실패 시 변경을 자동 롤백한다(ECM `[C Studio] CLI`).
+- 학습용 정리: `D:\Mobase\패치업무\HE1i_실기검증\v3.0.19(fbl)\Doc\패치툴_동작순서.html`
+
 사례 — HE1i FBL V3.0.19(#48891): 툴 없이 6파일 약 80줄을 직접 편집. EcuM Dcm_Init·SCons Dcm 입력은 HAE 블록 이식, ListThree 는 블록 삭제, IA-079 는 Harmonize 대신 0x7DF HwObject 값 3개만 수정. 생성기 Error 0, Rte Validation 0 errors, 생성 코드 변화 전부 설명됨. Com 제거(5곳 구조 변경)는 툴 판단 대상이라 보류.
 
 ## 3. 산출물
