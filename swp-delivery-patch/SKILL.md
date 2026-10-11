@@ -178,7 +178,7 @@ Redmine 일감 본문은 `references/templates.md` 의 표준 구성(목적 / �
 
 ## S9. 정적 검수 (빌드 전)
 
-빌드 한 번에 6~50분이 걸리고 push 가 필요하므로, 빌드 전에 잡을 수 있는 것은 여기서 잡는다.
+빌드 한 번에 6~50분이 걸리고 push 가 필요하므로, 빌드 전에 잡을 수 있는 것은 여기서 잡는다. 생성 결과를 push 전에 볼 수 있는지는 바꾼 모듈에 달렸다 — C Studio Generate Code 는 BSW·Os·Rte 만 만들고 MCAL(Can·Mcu·Gpt 등)은 Jenkins 빌드(EB tresos)에서만 생성된다(`references/jenkins-flow.md` §3-1).
 
 **한 번에 돌리기**: `scripts/review_all.py --prev … --cur … --app … --old-token … --new-token … --expect … --out 검수보고서.md` 가 아래 1·2·4 와 모듈 바이트 일치, 의존 모듈 .ver 목록까지 돌려 검수 보고서 한 장(요약표 + 상세 + 확인 못 한 것)을 만든다. 빌드 후에는 같은 명령에 `--job --build --compare --gen-old --gen-new --map-old --map-new` 를 더해 S10 까지 한 보고서로 낸다. 사용자가 "검수해줘"라고 하면 이것부터 돌리고, 요약표의 '확인' 항목을 판정표 사유와 하나씩 대조해 설명한다. 보고서의 '확인'은 오류가 아니라 사람이 사유를 확인할 항목이라는 뜻이다.
 

@@ -34,6 +34,18 @@ Debug/OEUK_HE1I/
 - **같은 소스라도 재빌드하면 이미지가 달라질 수 있다.** Os 생성기가 재생성 때 태스크 스택 배치 순서를 바꿔 `Os_GaaStack`·`MAINSW_CRC` 가 변한다. 서명 요청 후에는 실기가 끝날 때까지 APP 빌드를 일으키는 push 를 하지 않는다(troubleshooting S12).
 - FBL 은 버전 폴더 없이 `OEUK_HE1I`, `OEUK_HE1I_TEST` 바로 아래.
 
+## 3-1. 생성 경로 — 어디서 무엇이 생성되나
+
+| 경로 | 생성 범위 | 필요한 도구 |
+|---|---|---|
+| C Studio **Generate Code**(도구 모음 톱니바퀴) / .arxml 오른쪽 클릭 **Generation** | **BSW·Os·Rte 만** → `Generated/Bsw_Output` (`Build/input_files.yml` 의 모듈 목록. MCAL 없음) | Python 2.7 + SCons(입력 파일 생성), mobilgene 생성기 본체(gentool-fw), Rte 생성기. 컴파일러 불필요 |
+| **Jenkins 빌드**(build.bat → SCons) / C Studio Build(망치) | BSW·Os·Rte **+ MCAL**(Can·Mcu·Gpt·Port·Dio·Spi·Wdg → `Generated/Mcal_Output`, EB tresos) + 컴파일 | 위 도구 + EB tresos(모듈별 라이선스 검사) + 컴파일러 |
+| C Studio **Generate ECU Configuration**(Harmonize) | 코드가 아니라 **Ecud 설정(arxml)** | C Studio 만 |
+
+- 도구 경로는 `Build.bat`·`bat_package/*.bat`·`SCons.arxml` 에 `D:\ts_mirr\...` 로 고정돼 있다. 이 폴더가 없는 PC 에서 Generate Code 를 누르면 "Failed to create input files" / `Cannot run program ...python.exe` 로 멈춘다(파일 변경 없음).
+- 그래서 **MCAL 설정을 바꾼 패치의 생성 결과는 Jenkins 에서만** 볼 수 있다. BSW·Rte 만 바꿨으면 도구를 갖춘 PC 의 C Studio 로 push 전에 미리 볼 수 있다. 어느 경우든 로컬 생성은 시험 브랜치에서 하고 되돌린다(`Generated/` 는 git 추적).
+- 프로젝트의 PC 별 도구 보유 상황은 프로필 "구성 전제"에 적는다.
+
 ## 4. 빌드 결과 읽기
 
 `scripts/jenkins_wait.py <job> <번호> [--compare <비교 빌드>] [--log <저장 경로>]`
