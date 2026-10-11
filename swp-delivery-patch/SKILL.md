@@ -16,6 +16,7 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 3. **모르는 것은 추정하지 않는다.** HAE 안내가 애매하거나 당사 설정과 충돌하면 사용자에게 판단을 묻고, 사용자가 원하면 IMS 질문 댓글로 HAE 에 확인한다.
 4. **외부에 쓰는 일은 모두 미리보기 → 승인 → 실행이다.** IMS 댓글, Redmine, Confluence, git commit / push, 보드 라이팅, CAN 송신이 해당한다. 특히 push 는 Jenkins 빌드를 바로 일으키고 IMS 댓글은 HAE 로 나가는 메시지라서, 한 번 승인이 다음 행동으로 이어지지 않는다. 커밋·push 는 사용자가 지시할 때만 하고 먼저 제안하지 않는다.
 5. **확인한 것과 하지 않은 것을 구분해 보고한다.** 빌드 성공은 실기 검증이 아니고, 정적 검수는 동작 검증이 아니다.
+6. **보호 설정이 바뀌면 "동작 차이 없음"이어도 사용자 확인을 받는다.** 당사가 일부러 정한 값(프로필 '보호 설정' 표, 이유 미상 포함)이 바뀌거나, 값이 없던 파라미터가 생기거나 사라지는(생성기 기본값 의존) 변경은 Harmonize·CLI·수동·이 스킬의 반영 중 무엇으로 생겼든 자동 통과시키지 않는다. 과거 패치 문제의 대부분이 "당시엔 영향 없어 보였던" 이런 변경이었다. VC 견본은 Harmonize 결과물이라 "VC 와 맞추기"도 같은 덮어쓰기다. 상세 `references/protected-settings.md`.
 
 ## 실행 환경
 
@@ -28,7 +29,7 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 ## 전체 흐름
 
 ```
-S0  프로젝트 프로필        projects/<프로젝트>.md 로드, 없으면 저장소 조사로 초안
+S0  프로젝트 프로필        projects/<프로젝트>.md 로드(보호 설정 표 포함), 없으면 저장소 조사로 초안
 P   사전 점검              구성 전제 · 배포본 완결성 · 모듈별 위험 포인트 · 과거 Q&A → 항목별 판단 경로 A~D
 S1  IMS 수집              티켓·댓글·첨부·이력·수평전개 → 요청 항목 목록
 S2  가이드 정독            IM / SAG / IA·VC (ecody-search)
@@ -49,7 +50,7 @@ S13 마무리                PR, IMS·Redmine 상태
 
 ## S0. 프로젝트 프로필
 
-`references/projects/` 에서 대상 프로젝트 파일을 찾는다(예: `he1i_psu.md`). 프로필에는 FBL / APP 저장소·작업 브랜치·PR 대상, Jenkins Job, 버전·산출물명 위치, 당사가 수정한 HAE 파일 목록, 실기 기준값이 있다.
+`references/projects/` 에서 대상 프로젝트 파일을 찾는다(예: `he1i_psu.md`). 프로필에는 FBL / APP 저장소·작업 브랜치·PR 대상, Jenkins Job, 버전·산출물명 위치, 당사가 수정한 HAE 파일 목록, **보호 설정**(당사가 일부러 HAE·VC 와 다르게 둔 Ecud 값), 실기 기준값이 있다. 보호 설정 표가 없거나 이번 대상(FBL/APP) 행이 비어 있으면 S6 에서 채울 항목으로 표시한다.
 
 없으면 `references/projects/_template.md` 를 복사해 저장소를 조사하며 채운다. 조사로 알 수 없는 것(PR 대상, 검토자, 실기 장비)만 사용자에게 한 번에 묻는다. 새 프로필은 사용자 확인 후 저장한다 — 다음 사람이 그대로 쓰기 때문이다.
 
@@ -63,7 +64,7 @@ S13 마무리                PR, IMS·Redmine 상태
 | ② 배포본 완결성 | 안내·IM 이 언급한 파일 ↔ 배포본 실제 파일, 이후 댓글의 보정본·정정·재배포 |
 | ③ 모듈별 위험 포인트 | 저장 계열은 양산 호환, Os 는 SC·스택·.ld, EcuM/BswM 은 순번 규칙, FBL Fota/Mem/HSM 은 인스턴스별 callout … → 판정표 초기 행 |
 | ④ 과거 Q&A | 같은 티켓 다른 댓글 → 이전 회차 → 다른 과제 같은 모듈 → ECM 새 IM → 수평전개 |
-| ⑤ 작업 수단 | 항목마다 ARXML 직접 편집으로 충분한지, 툴(mobilgene CLI / C Studio Harmonize)이 필요한지 — Harmonize 실필요, 원본 블록 없는 새 설정, patch_tool 자동 수정 발생, 여러 파일 구조 변경이면 툴 |
+| ⑤ 작업 수단 | 항목마다 ARXML 직접 편집으로 충분한지, 툴(mobilgene CLI / C Studio Harmonize)이 필요한지 — Harmonize 실필요, 원본 블록 없는 새 설정, patch_tool 자동 수정 발생, 여러 파일 구조 변경이면 툴. 툴을 쓰면 기본 옵션이 당사 수동 값을 덮어쓴다 — 시험 브랜치에서 먼저 돌려 덮어쓰기 목록을 본다(`protected-settings.md` §6) |
 
 **판단 경로** (판정표 "경로" 칸)
 
@@ -139,6 +140,8 @@ Redmine 일감 본문은 `references/templates.md` 의 표준 구성(목적 / �
 3. 두 의도를 함께 살리는 값을 제안한다(예: 당사가 추가한 항목은 유지하고 HAE 가 바꾼 인덱스 규칙만 적용).
 4. 사용자에게 판정표 행과 제안을 보여 확정받는다. 애매하면 S7 IMS 질문 후보로 올린다.
 
+**보호 설정 대조.** 판정표 초안을 프로필 '보호 설정' 표와 맞춰 본다. "복사 가능"·"충돌" 행이 보호 설정을 건드리면 그 행에 "보호"를 표시하고 위 충돌 판단 1~4 를 따른다 — HAE 값이 맞아 보여도 사용자 확인 전에는 반영하지 않는다. 표에 없지만 당사 값이 Prev·Cur·VC 와 모두 다르고 이유를 찾지 못한 값은 "이유 미상"으로 보호 후보에 올린다.
+
 **다른 구성 전제**의 전형: HAE 참고 프로젝트와 모듈 버전이 다름(예: Crypto 2.0 의 새 PDF 파일명을 1.x 프로젝트에 넣으면 안 됨), MCU·채널·버스 구성이 다름(SP3i 고유 CDD_Router, L2CAN 입력), PFee 같은 기능 미사용, Harmonize 부산물(컨테이너 순서·CATEGORY 태그·UUID 변경).
 
 **묶음 판정.** patch_tool 의 한 함수가 여러 곳에 함께 넣은 항목(예: `ensure_haemodule_scons()` 의 PDF 4곳 + Rte 입력 Ecud)은 함수 docstring 의 전제로 묶음 전체를 판정한다. 일부만 "파일이 있으니 반영"으로 떼어 내면 근거가 갈리고, 하나라도 사유 없이 빠지면 S9 재대조에서 누락으로 보인다. 판정이 갈릴 만한 항목은 근거 두 가지를 나란히 보여 주고 사용자가 정하게 한다.
@@ -166,6 +169,8 @@ Redmine 일감 본문은 `references/templates.md` 의 표준 구성(목적 / �
 
 - **모듈 교체**: 폴더를 지우고 HAE Cur 폴더를 복사한 뒤 `diff -rq` 로 바이트 일치를 확인한다. S6 에서 찾은 당사 수정 파일은 병합본으로 되돌린다.
 - **ARXML**: 판정표의 "복사 가능" 항목만, 해당 요소만 고친다. P ⑤ 에서 "직접 편집"으로 정한 항목은 `scripts/arxml_block.py` 로(블록 이식·삭제·이름 변경·값 변경), "툴"로 정한 항목은 mobilgene CLI / C Studio 로 한다. ODIN 도구가 남기는 `ADMIN-DATA` 의 `SD GID="<파라미터명>"`(USER_CONFIGURED 기록)도 VALUE 와 같이 바꾼다 — HAE 배포본이 그렇게 하고, 도구가 다음에 열 때 값이 어긋나지 않게 하기 위함이다. 줄바꿈(CRLF/LF)과 인코딩은 원래 파일 그대로 유지한다(`git diff --stat` 의 줄 수로 확인).
+- **툴(Harmonize·CLI)로 바꾼 경우**: 결과 보고서(`Automation-Results/*.xls`, git 무시)를 작업 폴더 밖에 보관하고 "value Change / Removed / Created" 목록을 판정표와 대조한다. 판정표에 없는 변경은 부산물로 보고 되돌리거나 사용자 확인을 받는다.
+- **ARXML 을 바꾼 직후(방법 무관)**: `scripts/protected_check.py --profile <프로필> --root <앱> --part FBL|APP --before-rev HEAD` 로 보호 설정 변경과 기본값 의존 변화(파라미터 생김·사라짐)를 본다. 나온 항목은 영향이 없어 보여도 판정표에 사유를 쓰고 사용자 확인을 받는다(기본 원칙 6).
 - **usercode**: S6 병합 결과를 반영.
 - **버전업**: `references/version-up.md` 와 프로필의 위치 목록대로. `scripts/version_bump_check.py` 로 이전 버전 문자열 잔존이 없는지 확인한다.
 - **Doc**: ReleaseNote·ModuleList 를 프로필의 위치·파일명 규칙으로 추가.
@@ -183,7 +188,8 @@ Redmine 일감 본문은 `references/templates.md` 의 표준 구성(목적 / �
 2. `scripts/symbol_crosscheck.py` — 교체한 모듈에서 당사 코드가 쓰는 심볼의 선언 변화·삭제, 새로 쓰이는 `#if` 매크로(생성 헤더에 없으면 조용히 0 처리됨).
 3. IM 의 신규 Validation 규칙을 당사 Ecud 설정에 미리 적용해 본다(규칙별로 짧은 파이썬 점검. 예시는 `references/three-way-merge.md`).
 4. `scripts/version_bump_check.py` — 버전 잔존 0.
-5. 결과를 사용자에게 요약하고 커밋 여부를 묻지 말고 기다린다(사용자가 지시하면 커밋).
+5. `scripts/protected_check.py … --before-rev <작업 시작 커밋>` — 확인 필요 항목이 0 이거나, 남은 항목이 모두 판정표의 "보호 — 유지/채택" 결정과 1:1.
+6. 결과를 사용자에게 요약하고 커밋 여부를 묻지 말고 기다린다(사용자가 지시하면 커밋).
 
 ## S10. 빌드·빌드 검수
 
@@ -191,7 +197,7 @@ Redmine 일감 본문은 `references/templates.md` 의 표준 구성(목적 / �
 
 1. `scripts/jenkins_wait.py <job> <번호> --compare <직전 전체 생성 빌드 번호>` 를 백그라운드로 돌려 결과를 기다린다. 비교 대상은 **직전 회차에서 전체 재생성을 한 빌드**여야 한다(증분 빌드는 Generate 로그가 없다).
 2. 확인 항목: 결과, 생성기 Error, Rte Validation errors(warnings 는 직전과 같은지), SAFERTE_ERR, 종류별 SAFERTE_WARN 증감, 산출물 이름.
-3. Jenkins Auto commit 을 pull 하고 `scripts/gen_diff_review.py` 로 직전 버전 대비 Generated 변화를 본다. **당사 설정을 바꾸지 않았는데 바뀐 생성 코드가 있으면 원인을 설명할 수 있어야 한다.** 설정을 바꿨는데 생성 코드가 그대로면 그것도 설명한다(예: 인덱스만 당겨 순서 불변).
+3. Jenkins Auto commit 을 pull 하고 `scripts/gen_diff_review.py` 로 직전 버전 대비 Generated 변화를 본다. **당사 설정을 바꾸지 않았는데 바뀐 생성 코드가 있으면 원인을 설명할 수 있어야 한다.** 설정을 바꿨는데 생성 코드가 그대로면 그것도 설명한다(예: 인덱스만 당겨 순서 불변). 보호 설정·기본값 의존 항목(S8 protected_check 결과)은 생성 코드에서 실제 값 변화(예: `PaddingValue 255u → 0u`, `CANIF_META_DATA_SUPPORT STD_ON → STD_OFF`)를 찾아 판정표 행과 잇는다. 모듈 버전업 뒤 설정은 그대로인데 이런 값이 바뀌었으면 생성기 기본값 변경을 의심한다.
 4. `scripts/map_mem.py` 로 RAM / ROM 을 직전 회차와 같은 방식으로 계산한다. 직전 값이 그대로 재현되는지 먼저 확인한다.
 
 1~4 는 `review_all.py` 에 빌드 인자를 붙여 S9 와 한 보고서로 낼 수 있다(빌드 완료 후 실행 — 대기는 jenkins_wait.py 를 백그라운드로 먼저).
@@ -241,6 +247,7 @@ PR 방식(APP cherry-pick 쌓기 / FBL squash 등), 대상 브랜치, 머지 순
 | `references/ims-workflow.md` | S1·S7 — 패치 티켓에서 뽑을 것(읽기는 ecody-search), 질문 댓글 양식·등록, MCP 연결 시 대응 |
 | `references/three-way-merge.md` | S6·S9 — 판정 규칙 상세, 사례, Validation 사전 점검 예 |
 | `references/decision-rules.md` | S6 — 회사 공통 보류·예외 규칙 (누적) |
+| `references/protected-settings.md` | S0·S6·S8~S11 — 보호 설정, 덮어쓰기 세 경로(Harmonize·반영·기본값), 변경 분류 (a)~(d), Harmonize 실행 절차와 옵션 |
 | `references/version-up.md` | S8 — 버전·산출물명 규칙 |
 | `references/jenkins-flow.md` | S10·S12 — Hook 동작, ALL/CURRENT, 산출물 구조, 커밋 주의 |
 | `references/verification.md` | S10·S12 — 빌드·실기 판정 기준, 결과 파일 규칙 |

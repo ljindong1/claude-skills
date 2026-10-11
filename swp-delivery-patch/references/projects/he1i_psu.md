@@ -57,7 +57,7 @@ HAE 의 조건부 답변("당사가 X 면 해당 없음")을 판정하는 기준
 | PFee 사용 | **사용** (Attempt Counter, `OsTask_BSW_PFee_Process` 스택 512) | 미사용 (PFee Task·PFEE_PART 없음 → PMem_Driver 추가 안 함) | Ecud_Os, Ecud_Mem_76_Pfls, App_DiagnosticService.c |
 | UseRamCode | true (HSM TempStop/Restart callout 필요, MCP0806-271) | false (Pre/Post callout 설정 안 함, MCP0806-210) | Ecud_Mem_76_Pfls MemGeneral |
 | 컴파일러 (SRS 고정) | GHS ARM.V2017.1.4 | 같음 | SCons.arxml |
-| mobilgene C Studio | (설치 버전 기록) | 같음 | Harmonize 옵션이 버전마다 다름 |
+| mobilgene C Studio | 2.0 2026-06-R13.0.0 (`C:\mobilgene\mobilgene_C_Studio_2.0_2026_06_R13.0.0`, 워크스페이스 `D:\mobilgene_workspace`) | 같음 | Harmonize 옵션이 버전마다 다름. 이 버전에는 IA-079 가이드의 "Select Rx Diag Messages for OTA" 옵션이 없음(2026-10-10) |
 | MCU | CYT2BL (Mcal_Infineon_CYTxxx 1.18.1_Aut01) | CYT2BL (Mcal 버전은 APP .ver 로 확인) | Static_Code/Modules/b_mcal_* .ver |
 | 같은 계열 양산 단계 | SP3i·BJ1 양산 / HE1i·NQ6e·NQ6a·SX3e 개발 (2026-08 기준) | 같음 | 양산 호환 판단(D 경로) |
 | 대표 차종 | HAE 참고 설정은 SP3i 형상 (CDD_Router, L2/L3CAN 등 SP3i 고유 포함) | 같음 | |
@@ -68,6 +68,22 @@ HAE 의 조건부 답변("당사가 X 면 해당 없음")을 판정하는 기준
 - Crypto_76_HaeModule 1.0.4.0 (HAE 참고 프로젝트보다 낮을 수 있음)
 - FBL: Fota GPT 채널 TCPWM_0_18 / CLOCKS18 5000Hz (#38061), Attempt Counter 사용
 - 진단 Rx: 0x7A3 물리 / 0x7DF 기능
+
+## 보호 설정 (당사가 일부러 정한 값 — 확인 2026-10-11)
+HAE 참고 설정·VC·Harmonize 결과와 **다른 것이 정상**인 값이다. Harmonize, CLI, 수동 편집, 이 스킬의 반영 중 무엇으로든 바뀌면 "동작 차이 없음"이어도 판정표에 사유를 쓰고 사용자 확인을 받는다(`references/protected-settings.md`). `scripts/protected_check.py` 가 이 표를 읽는다 — 키는 three_way.py 와 같은 `컨테이너 경로#파라미터` 형식, '(없음)' 은 파라미터가 없어야 함(생성기 기본값 사용). 이유를 모르는 값도 "이유 미상"으로 올려 둔다.
+
+| 구분 | 파일 | 키 | 당사 값 | 이유·근거 |
+|---|---|---|---|---|
+| FBL | Ecud_CanIf | `/CanIf/CanIfPublicCfg#CanIfMetaDataSupport` | 1 | 이유 미상(#38061 부터). VC·Harmonize 는 0. 2026-10-10 시험에서 Harmonize 가 0 으로 덮어씀 — 현재 쓰는 PDU 없음 |
+| FBL | Ecud_Can | `/Can/CanConfigSet/OUT_HwObj_FBL_BCAN_0x7ab_BCAN_DPSU_PSU_DRV_GST#CanFdPaddingValue` | (없음) | 없으면 생성 255(0xFF). Harmonize·VC 는 0 명시. 0x7AB 는 STANDARD_FD_CAN 송신(CanTp 패딩 0xAA 활성) |
+| FBL | Ecud_Can | `/Can/CanConfigSet/IN_HwObj_0x7a3_0x7a3_FBL_BCAN#CanHwObjectCount` | 10 | IA-079 수동 적용(#48891). SAG "2 이상" vs VC 64 → MCP0806-279 10-08 질문, 잠정 10 |
+| FBL | Ecud_Can | `/Can/CanConfigSet/IN_HwObj_FBL_BCAN_0x7df_BCAN_GST_ALL#CanHwObjectCount` | 10 | 위와 같음. Harmonize 는 객체 이름을 `IN_HwObj_0x7df_0x7df_FBL_BCAN` 으로 바꾼다(키 없음으로 나옴) |
+| FBL | Ecud_Can | `/Can/CanConfigSet/IN_HwObj_FBL_BCAN_0x7df_BCAN_GST_ALL#CanRxBufferSelection` | CAN_RX_FIFO1 | IA-079 (#48891 db33bf33) |
+| FBL | Ecud_Gpt | `/Gpt/GptChannelConfigSet_0/GptChannelConfiguration_Fota#GptTimer` | TCPWM_0_18 | IA-092 를 VC 의 TCPWM_0_54 대신 18 로 적용(#38061). 이유 기록 없음 |
+| FBL | Ecud_Gpt | `/Gpt/GptDriverConfiguration/GptClockReferencePoint_Fota#GptClockReference` | /Mcu/Mcu/McuModuleConfiguration_0/McuClockSettingConfig_0/McuClockReferencePoint_TCPWM0_CLOCKS18 | 위와 같음 |
+| FBL | Ecud_Mcu | `/Mcu/McuModuleConfiguration_0/McuClockSettingConfig_0/McuClockReferencePoint_TCPWM0_CLOCKS18#McuClockReferencePointFrequency` | 5000 | 위와 같음. VC 는 CLOCKS54 를 5000 으로 씀 |
+
+APP 보호 설정은 아직 정리하지 않았다 — 다음 APP 패치 S6 에서 VC/HAE Cur 대비 당사 고유값을 뽑아 채운다.
 
 ## 실기 기준값
 | 항목 | 기준 |

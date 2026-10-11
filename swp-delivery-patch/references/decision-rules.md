@@ -23,6 +23,7 @@
 | 배포본의 `Configuration/System`(Bswmd_*, Swcd_Bsw_*, *_PortInterfaces) 차이는 안내에 없으면 Harmonize 부산물로 보고 제외. HAE 가 세 번 같은 답("무시") | MCP0806-279 [12], 280 [6], 272 | 전 패치 |
 | HAE 배포본·.ld 값도 틀릴 수 있다 — 가이드·IM 과 다르면 가이드를 근거로 질문(C). 보정본·정정 댓글을 확인 | MCP0806-256 (PFee 파일 누락), 270 (.ld 스택 정렬 4K→8K), 280 (SCons Ecud_EcuC 누락), MCP1105-104 (SC1용 .ld) | 전 패치 |
 | 평가용 상위 버전은 끝에서 두 번째 자리 +1 (26810 → 26820). 마지막 자리 변경 금지 | #47539 | H-OTA |
+| **보호 설정(프로필 표, 이유 미상 포함)이 바뀌거나 값이 없던 파라미터가 생기거나 사라지면, "동작 차이 없음"이어도 사용자 확인 후에만 반영**한다. 경로(Harmonize·CLI·수동·스킬 반영)와 무관. VC 견본 = Harmonize 결과라 "VC 와 맞추기"도 같은 덮어쓰기 — `protected-settings.md` | 과거 패치 후 당사 로직 문제 다수(담당자 경험), FBL V3.0.19 Harmonize 시험 2026-10-10 (CanIfMetaDataSupport 1→0, CanFdPaddingValue 0 명시) | 전 패치 |
 
 ## 모듈별
 

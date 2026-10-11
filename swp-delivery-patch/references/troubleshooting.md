@@ -10,6 +10,7 @@
 | S6 | HAE 참고 설정을 그대로 넣으면 당사 로직 문제 (이전 담당자 경험) | 참고 프로젝트 기준 설정 | 3-way 판정, 통째 복사 금지 |
 | S6 | 참고 형상의 새 PDF 입력이 당사에 없는 파일 | HAE 참고 프로젝트의 다른 모듈 버전(Crypto 2.0) | patch_tool 스크립트 주석으로 변경 이유 확인 → 제외 |
 | S8 | 모듈 폴더 통째 교체로 당사 수정 소실 위험 | 당사가 HAE 모듈 파일을 직접 수정(CanTrcv) | owner_edits.py 로 교체 전 확인 |
+| S8 | **Harmonize 기본 옵션이 당사 수동 값을 덮어씀** — Can·CanIf 만 골라 돌렸는데 CanIfMetaDataSupport 1→0, 0x7AB CanFdPaddingValue 0 명시(생성 0xFF→0x00), 진단 Rx 버퍼 10→64, 0x7DF 객체 이름·ObjectId·RxPduId 변경. 결과가 VC 와 완전히 같았음 | Overwrite User-Configured / Remove Invalid / Auto-Regeneration of Handle Id 가 기본 켬. 바뀐 내역은 git 무시 폴더의 `Automation-Results/*.xls` 에만 남음 (FBL V3.0.19 시험 2026-10-10) | 시험 브랜치에서 먼저 돌리고 xls 보관, `protected_check.py --before-rev HEAD` 로 보호 설정·기본값 의존 변화 확인, C Studio 닫은 뒤 복구 (`protected-settings.md` §6) |
 | S12 | **서명받은 이미지와 저장소 이미지가 달라짐.** ALL 빌드(#32) rom 으로 서명을 받은 뒤, FBL 바이너리 반영 + CURRENT 복귀 커밋을 push → 26810 만 재빌드(#33) → `.s19` 10바이트 다름. CVD 로 저장소 이미지를 쓰면 서명본·F1C1 해시와 불일치 | APP 소스가 같아도 **Os 생성기가 재생성 때마다 같은 크기 태스크 스택의 칸 배치(`Os_GaaStack`) 순서를 바꿈** → 스택 주소 표 + `MAINSW_CRC` 변경. ALL 빌드도 변형마다 생성이 따로 돌아 4벌의 배치가 서로 다름 (#48891 2026-10-08, #32/#33/#34) | ① 서명 요청한 뒤 실기가 끝날 때까지 **APP 를 다시 빌드시키는 push 를 하지 않는다** — 문서·바이너리 반영·CURRENT 복귀도 실기 후에 몰아서. ② 꼭 push 해야 하면 ALL 로 4벌을 다시 만들고 서명을 다시 받는다. ③ "define 하나만 바꿨으니 같을 것"이라고 단정하지 말고, 빌드 후 `.s19` 를 바이트 비교해 확인한다. ④ 급하면 서명받은 빌드 커밋에서 `_Writing.s19`·elf 를 꺼내 cvd-project `--app --elf` 로 기록 |
 | S8 | 산출물명이 다른 차종 이름(sx3e_)으로 나옴 | `.project` 미변경 | 버전 위치 4곳 체크, version_bump_check.py |
 | S8 | UTIP Writing·aSIMs ini 산출물명 누락 → 재빌드 | 위치 목록 일부만 변경 | 위와 같음 |
