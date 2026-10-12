@@ -51,6 +51,36 @@
         "IMS 등록·커밋 등 외부 쓰기는 사용자 승인 후라고 명시했다",
         "적용하게 될 경우 3-way 판정·NvM/Fee 레이아웃 검증을 계획에 포함했다"
       ]
+    },
+    {
+      "id": 4,
+      "name": "history-regression-check",
+      "prompt": "HE1i PSU FBL 을 V3.0.19(MCP0806-279)로 올리는 중이야. HAE 3.0.19 패치 파일 Ecud_BswM/Ecud_EcuM 을 보니 PMem_Driver_StartUp 은 BswM AL_DriverInitTwo 에서 부르고 있고, 당사 HE1i 도 똑같아. 이 항목은 그냥 '기존 충족'으로 넘겨도 되는지 판단해 줘. 3.0.18 패치(MCP0806-256) 자료는 D:\\Mobase\\패치업무\\HE1i_실기검증\\v3.0.19(fbl)\\eCoDY_MCP0806-256 에 있어. 파일은 수정하지 마.",
+      "expected_output": "Ours = Cur 라도 과거 회차 이력을 대조한다. MCP0806-256 08-31 보정본(Ecu.zip)은 PMem_Driver 를 EcuM ListTwo Index 0(VOID, StartUp)으로 옮기고 BswM AL 항목을 삭제했다. 3.0.19 배포본이 보정 이전 값이므로 '되돌림 의심'으로 표시하고, 어느 쪽이 최종인지 사용자 확인 또는 IMS 질문(C 경로)으로 올린다. FBL 은 PFee 사용이라 PMem_Driver 가 필요하다는 구성 전제도 확인.",
+      "files": [],
+      "assertions": [
+        "'기존 충족' 라벨만으로 넘기지 않았다",
+        "3.0.18 08-31 보정본(MCP0806-256)의 PMem_Driver 위치(EcuM ListTwo)를 직접 열어 대조했다",
+        "3.0.19 배포본이 이전 보정을 되돌린 값이라고(되돌림 의심) 보고했다",
+        "이번 값 / 이전 회차 값·근거를 나란히 제시했다",
+        "어느 쪽이 최종인지 사용자 확인 또는 HAE 질문 후보로 올렸다",
+        "FBL 은 PFee 를 사용한다는 구성 전제(APP 과 다름)를 언급했다"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "stale-generated-after-module-removal",
+      "prompt": "HE1i FBL 에서 Com 모듈을 뺐어(SCons Generation Com Used false, ExcludeList Com_R44, EcuM Com_Init·Rte BswInstance_Com 삭제 등). Jenkins 빌드가 'Generated/Bsw_Output/src/Com_Cfg.c, line 55: fatal error #2330: cannot open source file \"Com.h\"' 로 실패했어. 원인을 분석해서 알려 줘. 아직 아무것도 지우거나 커밋하지 마.",
+      "expected_output": "Com 생성기가 돌지 않아 이전 빌드의 Com 생성물(Com_Cfg.c/.h, SchM_Com*.h, PduR_Com.h)이 저장소에 남아 있고, SCons 가 Generated/Bsw_Output 의 추가 파일도 컴파일(More generated file ... found for compile)하는데 Com_R44 를 ExcludeList 로 빼 헤더 경로가 없다. 새로 생성된 파일에 Com 참조가 없는지, ComM 의 Com.h include 가 PNC 조건부인지 확인하고, 남은 생성물 목록과 삭제안을 제시하되 삭제·커밋은 지시를 기다린다.",
+      "files": [],
+      "assertions": [
+        "남은(재생성되지 않은) Com 생성물이 원인이라고 설명했다",
+        "SCons 가 Generated 의 추가 파일을 컴파일한다는 근거(로그 More generated file 등)를 제시했다",
+        "새로 생성된 BswM/EcuM/PduR/Rte 파일에 Com 참조가 남았는지 확인했거나 확인 방법을 제시했다",
+        "ComM 의 Com.h include 조건(PNC)을 확인했다",
+        "삭제할 생성물 목록을 구체적으로 제시했다",
+        "삭제·커밋은 사용자 지시 후로 미뤘다"
+      ]
     }
   ]
 }

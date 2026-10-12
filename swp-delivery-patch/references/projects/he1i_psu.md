@@ -1,4 +1,4 @@
-# 프로젝트 프로필: HE1i PSU (확인 2026-10-08)
+# 프로젝트 프로필: HE1i PSU (확인 2026-10-12)
 
 ## 기본
 | 항목 | 값 |
@@ -18,6 +18,8 @@
 | 로컬 경로 | `D:\Mobase\psu_fbl_master` | `D:\Mobase\psu_master` |
 | 하위 프로젝트 | `psu_fbl/` | `psu_app/` |
 | 작업 브랜치 | `devel_HE1i_jdlee_FBL_patch_Update` | `devel_HE1i_jdlee_R44_DeliveryPatch` |
+| 작업 브랜치 분기점 (이력 답변 기준, communication §4) | `a47998a5` 2026-09-09 | `develop_he1i 090a34ccf` 2026-09-09 |
+| git 인증 | 자격 증명 관리자 저장값이 실패할 수 있음(2026-10-12) → `git -c credential.helper= -c http.extraHeader="Authorization: token $GITEA_TOKEN" push …` | 같음 |
 | PR | `feature/swp_patch_v<x>_HE1i` 에 **squash 한 커밋** → `develop_he1i` | 버전별 `feature/he1i_swp_patch_v<x>` 에 패치 커밋 cherry-pick + Generated 갱신 + H-OTA 결과 + 산출물 → `develop_he1i` (이전엔 앞 버전 feature 위에 쌓음) |
 | Jenkins Job | `HE1i_PSU_FBL_jdlee` | `HE1i_PSU_AUTOSAR_jdlee` |
 | 참고 브랜치 | develop (SX3e), APSU 적용본 `apsu_master_sjyoo` | 같음 |

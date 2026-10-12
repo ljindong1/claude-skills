@@ -72,6 +72,9 @@ Debug/OEUK_HE1I/
 ## 5. 커밋 시 주의
 
 - 사람 커밋에는 Generated·Debug·.log 를 넣지 않는다(Jenkins 가 넣는다). 패치 커밋 본문에 "Generated 는 빌드로 재생성"이라고 적어도 좋다.
+- **예외 — 남은 생성물 삭제.** SCons 는 `Generated/Bsw_Output` 에 있는 `.c` 를 모듈 생성 목록에 없어도 컴파일한다(로그 `More generated file "…" found for compile`). 모듈 생성을 끄거나(SCons Generation Used false) BswInstance 를 지우면 그 모듈 생성기가 돌지 않아 **이전 생성물이 남는다**(`<모듈>_Cfg.c/.h`, Rte 가 만든 `SchM_<모듈>*.h`, PduR 의 `PduR_<모듈>.h` 등). 모듈 소스를 ExcludeList 로 뺐으면 헤더를 못 찾아 컴파일이 실패한다. 이때는 사람이 그 생성물을 `git rm` 하는 커밋을 한다(#48891 #18 실패 → `3e94476b` → #19 성공).
+  - 찾는 법: 빌드 작업 폴더(`<JENKINS_URL>/job/<Job>/ws/<앱>/Generated/Bsw_Output/src/*zip*/src.zip`)의 파일 날짜가 이번 빌드보다 오래된 것. 그중 다른 도구가 만드는 것(Os·Crypto·HwResource 등 이번에 생성하지 않은 모듈)은 정상이다. 사전에는 `review_all.py` 의 남은 생성물 점검을 쓴다.
+  - 지우기 전에 남은 파일을 include 하는 곳이 새 생성물에 없는지 확인한다(작업 폴더 생성물 grep).
 - `.gitignore` 와 실제 폴더 대소문자가 달라 의도치 않은 폴더가 들어간 적이 있다(`Workspace` vs `workspace`) — Auto commit 의 파일 목록을 가끔 본다.
 - 큰 바이너리(보고서 xlsx, .dla 등)가 커밋에 들어간다. LFS 없음. 결과 압축은 Redmine 첨부로 두고 저장소에는 프로필이 정한 결과 폴더만.
 - 커밋 메시지 끝에 프로젝트 관례상 필요한 태그(일감 번호, end #nnnn 등)는 프로필을 따른다.
