@@ -85,10 +85,10 @@
 
 ## 7. 기록 형식
 
-판정표 행:
+판정표 형식은 `three-way-merge.md` §6 하나다. 보호 설정 행 예:
 
-| HAE 요청 | 판정 | 경로 | 이전 상태 (Ours) | 처리 (파일) | 확인 근거 |
-|---|---|---|---|---|---|
-| (Harmonize 부수 변경) CanIfMetaDataSupport | 보호 — 당사 값 유지 | A | 1 (#38061, 이유 미상) | Ecud_CanIf 되돌림 | 쓰는 PDU 0건(CanIf_Cfg.c 전부 INVALID_METADATA_TYPE), 사용자 확인 10-11 |
+| HAE 요청 | 판정 | 경로 | 이전 상태 (Ours) | 처리 (파일) | 확인 근거 | 이력 (이전 회차) |
+|---|---|---|---|---|---|---|
+| (Harmonize 부수 변경) CanIfMetaDataSupport | 보호 — 당사 값 유지 | A | 1 (#38061, 이유 미상) | Ecud_CanIf 되돌림 | 쓰는 PDU 0건(CanIf_Cfg.c 전부 INVALID_METADATA_TYPE), 사용자 확인 10-11 | #38061 부터 1, HAE 배포본·VC 는 0 (3.0.18·3.0.19 동일) |
 
 Redmine "적용 제외·당사 값 유지" 절에는 위 행을 그대로 옮기고, Harmonize 를 다시 돌리면 같은 값이 덮어써진다는 것을 한 줄 적는다.

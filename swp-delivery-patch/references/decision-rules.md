@@ -1,6 +1,6 @@
 # 적용·보류 판단 규칙 (누적)
 
-패치마다 반복해서 나오는 판단을 모은다. 새 규칙은 근거(일감·IMS 댓글·날짜)와 함께 맨 아래에 추가한다. 프로젝트 하나에만 해당하는 것은 프로젝트 프로필에 둔다.
+패치마다 반복해서 나오는 판단을 모은다. 새 규칙은 근거(일감·IMS 댓글·날짜)와 함께 **해당 표(공통 / 모듈별)의 맨 아래 행**으로 추가한다. 프로젝트 하나에만 해당하는 것은 프로젝트 프로필에 둔다. 규칙을 낳은 사례는 `troubleshooting.md` 에 두고 여기에는 근거 칸에 일감·날짜만 적는다.
 
 ## 공통
 
@@ -23,7 +23,7 @@
 | 배포본의 `Configuration/System`(Bswmd_*, Swcd_Bsw_*, *_PortInterfaces) 차이는 안내에 없으면 Harmonize 부산물로 보고 제외. HAE 가 세 번 같은 답("무시") | MCP0806-279 [12], 280 [6], 272 | 전 패치 |
 | HAE 배포본·.ld 값도 틀릴 수 있다 — 가이드·IM 과 다르면 가이드를 근거로 질문(C). 보정본·정정 댓글을 확인 | MCP0806-256 (PFee 파일 누락), 270 (.ld 스택 정렬 4K→8K), 280 (SCons Ecud_EcuC 누락), MCP1105-104 (SC1용 .ld) | 전 패치 |
 | 평가용 상위 버전은 끝에서 두 번째 자리 +1 (26810 → 26820). 마지막 자리 변경 금지 | #47539 | H-OTA |
-| **보호 설정(프로필 표, 이유 미상 포함)이 바뀌거나 값이 없던 파라미터가 생기거나 사라지면, "동작 차이 없음"이어도 사용자 확인 후에만 반영**한다. 경로(Harmonize·CLI·수동·스킬 반영)와 무관. VC 견본 = Harmonize 결과라 "VC 와 맞추기"도 같은 덮어쓰기 — `protected-settings.md` | 과거 패치 후 당사 로직 문제 다수(담당자 경험), FBL V3.0.19 Harmonize 시험 2026-10-10 (CanIfMetaDataSupport 1→0, CanFdPaddingValue 0 명시) | 전 패치 |
+| 보호 설정(이유 미상 포함)이 바뀌거나 값이 없던 파라미터가 생기거나 사라지면 "동작 차이 없음"이어도 사용자 확인 후에만 반영 — 상세는 `protected-settings.md` §4 에만 둔다 | FBL V3.0.19 Harmonize 시험 2026-10-10 | 전 패치 |
 
 ## 모듈별
 
@@ -37,7 +37,3 @@
 | EcuM / BswM | 순번 규칙(10 단위, StartUp 1회, ListThree 는 ListTwo 뒤) — three-way-merge §4.7 | MCP0806-256 [6][13][18] |
 | Mem_76_Pfls | WdgDisable/Enable Callout 대신 HwSecurityUnitTempStop/Restart (IA-006), 순서는 Wdg 뒤/앞 | #48292, IA-006 |
 | Dcm HF4 | 신규 Validation ERR053296~053312 — 적용 전 당사 Ecud_Dcm 사전 점검 | IM Dcm 4.1.28 |
-
-## 추가 기록
-
-(새 규칙은 여기에 `| 규칙 | 근거 | 적용 |` 형식으로 추가)
