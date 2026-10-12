@@ -118,7 +118,7 @@ Redmine 일감 본문은 `references/templates.md` §1 구성으로, redmine-iss
 
 판정표를 완성하기 전에 행마다 확인한다:
 
-- [ ] **과거 회차 이력** (원칙 8, §4.8) — 라벨과 무관하게 모든 행. 이번 배포본이 이전 보정을 되돌렸으면 "되돌림 의심"으로 두고 사용자 확인, 엇갈리면 C.
+- [ ] **과거 회차 이력** (원칙 8, §4.8) — 라벨과 무관하게 모든 행. `history_trace.py --file … --key … --rev "<회차>=<배포본>" …(회차순, 보정본 포함) --ours <앱>` 로 회차별 값과 되돌림 의심을 뽑는다. 이번 배포본이 이전 보정을 되돌렸으면 "되돌림 의심"으로 두고 사용자 확인, 엇갈리면 C.
 - [ ] **보호 설정** (원칙 7, protected-settings §5) — "복사 가능"·"충돌" 행이 보호 설정을 건드리면 "보호" 표시. 이유 모르는 당사 고유값은 "이유 미상" 후보.
 - [ ] **참고 설정과의 차이는 항목마다** 반영 / 제외(사유) / 확인 필요로 분류 — "레퍼런스 프로젝트라 다르다"로 묶지 않는다.
 - [ ] **묶음 판정** — patch_tool 한 함수가 함께 넣은 항목은 함수 전제로 묶음 전체를 같은 사유로.
@@ -148,7 +148,7 @@ C 경로 항목만, 한 패치의 질문은 한 댓글에 번호를 매겨 모�
 
 빌드는 6~50분 + push 가 필요하므로 여기서 잡을 수 있는 것은 잡는다(C Studio Generate Code 는 BSW·Os·Rte 만, MCAL 은 Jenkins 에서만 — jenkins-flow §3-1).
 
-`review_all.py --prev … --cur … --app … --old-token … --new-token … --expect … --out 검수보고서.md` 를 먼저 돌린다. 설정 재대조(`three_way.py --check`), 모듈 바이트 일치, 심볼·매크로(`symbol_crosscheck.py`), 버전 잔존, 의존 .ver 목록, 빼낸 모듈의 남은 생성물을 한 보고서로 낸다. 이어서:
+`review_all.py --prev … --cur … --app … --old-token … --new-token … --expect … --out 검수보고서.md` 를 먼저 돌린다. 설정 재대조(`three_way.py --check`), 모듈 바이트 일치, 심볼·매크로(`symbol_crosscheck.py`), 버전 잔존, 의존 .ver 목록, 뺀 모듈의 남은 생성물(`gen_stale_check.py`)을 한 보고서로 낸다. 이어서:
 
 1. `--check` 남은 항목이 **전부 판정표의 제외·보류·당사 구성 사유와 1:1**인지 — 사유 없는 항목은 누락.
 2. IM 신규 Validation 규칙을 당사 Ecud 에 미리 적용(예시 three-way §7).

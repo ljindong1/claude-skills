@@ -14,6 +14,7 @@
   6. 빌드 비교        jenkins_wait.py --compare
   7. 생성물 diff      gen_diff_review.py
   8. 메모리           map_mem.py
+  9. 남은 생성물      gen_stale_check.py — 생성을 끄거나 컴파일에서 뺀 모듈의 이전 생성물
 
 사용 예 (HE1i APP V3.0.29):
   python review_all.py --prev <배포본>/VersionComparison/PreviousVersion --cur <배포본>/VersionComparison/CurrentVersion \
@@ -179,6 +180,12 @@ def main():
                 if f.endswith(".ver"):
                     vers.append(os.path.relpath(os.path.join(dp, f), a.app).replace(os.sep, "/"))
     add(5, "의존 모듈 버전 (.ver 목록)", "수동", f"{len(vers)}개 — IM '모듈 버전별 변경사항'의 의존성 요구와 대조", "\n".join(sorted(vers)) or "없음")
+
+    # 9. 뺀 모듈의 남은 생성물 (정적 — 빌드 전에 잡는다)
+    _, out = run("gen_stale_check.py", "--app", a.app)
+    st = "남은 생성물" in out and "통과" not in out.split("== 판정:")[-1]
+    add(9, "뺀 모듈의 남은 생성물", "확인" if st else "통과",
+        "Generation Used=0·ExcludeList 모듈의 생성물이 Generated 에 남음 — SCons 가 컴파일하므로 git rm 필요(jenkins-flow §5)" if st else "남은 생성물 없음", out)
 
     # 6~8 빌드 검수
     if a.job and a.build:
