@@ -106,9 +106,25 @@ def main():
     if new_prev:
         print(f"== 새 배포본에 VersionComparison/PreviousVersion 있음 ({len(new_prev)}개) — 3-way 의 Prev 로 사용 가능")
     core = res["core"]
-    verdict = ("새 배포본만 사용 가능 (이전본에만 있는 패치 본체 없음)" if not core["only_old"]
-               else "주의: 이전본에만 있는 패치 본체 파일이 있음 — 새 배포본만으로 부족할 수 있음")
+    if core["only_old"]:
+        verdict = "주의: 이전본에만 있는 패치 본체 파일이 있음 — 새 배포본만으로 부족할 수 있음"
+    elif core["diff"]:
+        # CRC 가 다르다는 것은 '개정됐다'는 뜻일 뿐, 이전본 내용이 새본에 다 들어 있다는 뜻이 아니다.
+        # MCP0806-280: 09-04 Ecud_EcuM 의 Crypto ListOne 이동이 10-06 본에서 빠졌는데 CRC 대조만 보고 놓침.
+        verdict = (f"보류: 내용이 다른 패치 본체 {len(core['diff'])}개 — 내용 비교 전에는 '새 배포본만 사용'으로 판정하지 않는다. "
+                   "이전본에만 있는 설정이 있을 수 있음")
+    else:
+        verdict = "새 배포본만 사용 가능 (이전본과 패치 본체 동일, 새것에만 있는 파일만 추가)"
     print(f"== 판정: {verdict}")
+    arx = [k for k in core["diff"] if k.lower().endswith(".arxml")]
+    if arx:
+        print("== 내용 비교 (ARXML) — 이전본=Prev, 새본=Cur 로 three_way.py 를 돌려 나온 행은 라벨과 관계없이 전부 '재배포 개정 항목'")
+        print("   python three_way.py --prev <이전본 폴더> --cur <새본 폴더(또는 VersionComparison/CurrentVersion)> --ours <당사 앱> \\")
+        print("          --files " + " ".join(arx))
+        print("   이전본에만 있는 설정(Cur: 없음)은 철회인지 HAE 에 확인할 항목으로 올린다")
+    other = [k for k in core["diff"] if not k.lower().endswith(".arxml")]
+    if other:
+        print("== 내용 비교 (소스 등) — git diff --no-index <이전본 파일> <새본 파일>: " + ", ".join(other[:10]))
     if a.json:
         json.dump({"result": res, "has_prev": bool(new_prev), "verdict": verdict}, open(a.json, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 
