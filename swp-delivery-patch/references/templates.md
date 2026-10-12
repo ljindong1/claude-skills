@@ -100,15 +100,18 @@
 *2. ...*
 ```
 
-예 (MCP0806-279, 2026-10-08 등록본 일부):
+예 (MCP0806-279, 2026-10-08 등록본을 `communication.md` 이름 규칙에 맞게 고쳐 쓴 것):
 ```
 FBL V3.0.19 패치 적용 중 아래 4건 확인 부탁드립니다.
 
 *3. [Com] FBL Com 모듈 제거*
-- 3.0.19 참고 형상에서 FBL Com 모듈이 제거되었습니다(SCons ExcludeList Com_R44, EcuM Com_Init, BswM AC_UserCallout_Com_DeInit, PduR PduRBswModules_Com, Rte BswInstance_Com).
-- 설정변경 안내 표에는 해당 항목이 없어 당사는 미적용(기존 유지)했습니다.
-- 문의: 필수 적용 항목인지, 선택 사항인지 문의드립니다.
+- 차이: MCP0806-279 패치 파일(SP3I_PSU_3.0.19_FBL, 09-07) 안 Build/SCons.arxml 에는 ExcludeList Com_R44 가 들어 있는데, 당사 HE1i psu_fbl/Build/SCons.arxml 에는 없습니다. 같은 패치 파일에서 EcuM Com_Init, BswM AC_UserCallout_Com_DeInit, PduR PduRBswModules_Com, Rte BswInstance_Com 도 빠져 있습니다.
+- HAE 안내: 설정변경 안내 표(09-07)에는 해당 항목이 없습니다.
+- 당사 적용안: 안내 표에 없어 현재는 미적용(기존 유지)입니다.
+- 문의
+## 필수 적용 항목입니까, 선택 사항입니까?
 ```
+(이 항목은 10-12 리뷰어 지적 "Com is not used in FBL Platform" 으로 적용했다 — 프로필 고유 판단 이력.)
 
 ### 수평전개 회신 표
 

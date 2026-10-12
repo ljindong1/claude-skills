@@ -105,4 +105,7 @@ APP 보호 설정은 아직 정리하지 않았다 — 다음 APP 패치 S6 에�
 | RXSWIN UINT8_DYN(#46778)은 별건 — develop 패치 커밋에서 분리 (Ecud_Dcm, Ecud_Rte, App_Dcm, PJ_Define.h 제외, App_DiagnosticService.c 마지막 hunk 제외) | #46778 |
 | IA-079 APP 기존 충족(0x7A3/0x7DF BASIC). FBL 은 0x7DF FULL → 변경 필요 | #48909, #48891 |
 | Rte/BswM Harmonize 는 이식으로 대체 (V3.0.27~29) | #48881, #48909, #48891 |
-| EcuM ListTwo: HsmDriver 0 / Crypto_76 1 / Mem_ReadAll 2 (PMem_Driver 없음) | MCP0806-280, #48891 |
+| APP EcuM: Crypto_76_HaeModule_Init 은 ListOne(Index 29), ListTwo `HsmDriver 0 / Mem_ReadAll 1` (PMem_Driver 없음 — APP PFee 미사용) | MCP0806-280 09-04 배포본·10-06 답변, `4a777484d` (10-12 리뷰 지적 반영) |
+| FBL EcuM: ListTwo `PMem_Driver 0 / HsmDriver 1 / Crypto_76 2 / KeyM 3`, BswM `AL_DriverInitTwo` 의 PMem 호출 삭제(AC 는 유지). 3.0.19 배포본은 BswM 방식이지만 3.0.18 08-31 보정본을 따름 | MCP0806-256 08-31 `Ecu.zip`, #48292 note-3, `ca6273a4` (#48891 note-21) |
+| FBL Com 제거: SCons ExcludeList Com_R44·Generation Com/Bswmd_Com Used false·Rte 입력 삭제, EcuM Com_Init·PduR PduRBswModules_Com·Rte BswInstance_Com·BswM Com DeInit/Com.h 삭제, 남은 Com 생성물 5개 삭제 | HAE 3.0.19 안내 목록, `ca6273a4`·`3e94476b`, Jenkins #19 (#48891 note-21) |
+| Dcm Routine 은 OTA 1세대 기준: 0210/0212/0213 True(APP·FBL), FF00·0200 False, 0211 APP True·FBL False. ES95486-02 "미사용 False" 요청에도 유지 | #45070 (OTA 1세대 Routine 추가), 10-12 확인("OTA 1세대로 맞춤"), 10-08 H-OTA 통과 |

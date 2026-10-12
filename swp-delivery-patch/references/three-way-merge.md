@@ -62,8 +62,9 @@ python scripts/three_way.py --prev <Prev 폴더> --cur <Cur 폴더> --ours <저�
 2. HAE 변경 의도: IM 절, 안내 댓글, patch_tool 스크립트 주석.
 3. 두 의도를 합친 값을 제안하고 사용자 확인. 애매하면 IMS 질문.
 
-- 예: EcuM ListTwo — HAE Cur 는 `PMem_Driver 0 / HsmDriver 1 / Crypto_76 2 / Mem_ReadAll 3`. 당사는 PFee 를 쓰지 않아 PMem_Driver 가 없고 `HsmDriver 1 / Crypto_76 2 / Mem_ReadAll 3`. HAE 의도는 "Dcm 을 ListTwo 에서 빼고 Index 를 0부터 순차". 합친 결과 `HsmDriver 0 / Crypto_76 1 / Mem_ReadAll 2`. PMem_Driver 는 IMS 답변("PFee 미설정이면 RTSW 는 추가하지 말 것")을 근거로 추가하지 않음.
-- 예: 안내문은 "Crypto_76 Init 을 ListOne 으로"였다가 개정 안내에서 빠짐 → Cur 형상(ListTwo 유지)을 근거로 옮기지 않음. 안내문과 형상이 다르면 형상과 최신 답변을 우선하고 기록한다.
+- 예 (**APP**, HE1i V3.0.29): EcuM ListTwo — MCP0806-280 10-06 패치 파일 Cur 는 `PMem_Driver 0 / HsmDriver 1 / Crypto_76 2 / Mem_ReadAll 3`. 당사 APP 은 PFee 를 쓰지 않아 PMem_Driver 가 없다. IMS 10-06 답변("PFee 미설정이면 RTSW 는 PMem_Driver 추가 불필요")으로 PMem_Driver 는 넣지 않고, HAE 번호 규칙(0부터 순차)만 적용한다. 같은 패치의 09-04 패치 파일·Crypto IM 은 `Crypto_76_HaeModule_Init` 을 ListOne 으로 옮긴다 — 최종 결과는 ListOne Crypto(Index 29), ListTwo `HsmDriver 0 / Mem_ReadAll 1` (당사 HE1i `4a777484d`). 처음에는 10-06 본만 보고 Crypto 를 ListTwo 에 남겨 리뷰어 지적을 받았다(troubleshooting S5).
+- 예 (**FBL**, HE1i V3.0.19): FBL 은 PFee 를 쓰므로(Attempt Counter) PMem_Driver 가 필요하다. 3.0.18 08-31 보정본 기준 EcuM ListTwo `PMem_Driver 0 / HsmDriver 1 / Crypto_76 2 / KeyM 3`, BswM 의 같은 호출은 삭제 (`ca6273a4`). **같은 모듈이라도 APP / FBL 구성 전제가 다르면 결론이 반대가 된다** — 예시를 옮겨 쓸 때 대상(APP/FBL)부터 확인한다.
+- 안내 문구·최신 배포본·이전 보정본이 서로 다르면 어느 쪽도 자동으로 우선하지 않는다(decision-rules 공통, 4.8).
 
 ### 4.4 제외 (다른 구성 전제)
 
