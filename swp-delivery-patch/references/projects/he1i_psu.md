@@ -79,8 +79,8 @@ HAE 참고 설정·VC·Harmonize 결과와 **다른 것이 정상**인 값이다
 |---|---|---|---|---|
 | FBL | Ecud_CanIf | `/CanIf/CanIfPublicCfg#CanIfMetaDataSupport` | 1 | 이유 미상(#38061 부터). VC·Harmonize 는 0. 2026-10-10 시험에서 Harmonize 가 0 으로 덮어씀 — 현재 쓰는 PDU 없음 |
 | FBL | Ecud_Can | `/Can/CanConfigSet/OUT_HwObj_FBL_BCAN_0x7ab_BCAN_DPSU_PSU_DRV_GST#CanFdPaddingValue` | (없음) | 없으면 생성 255(0xFF). Harmonize·VC 는 0 명시. 0x7AB 는 STANDARD_FD_CAN 송신(CanTp 패딩 0xAA 활성) |
-| FBL | Ecud_Can | `/Can/CanConfigSet/IN_HwObj_0x7a3_0x7a3_FBL_BCAN#CanHwObjectCount` | 10 | IA-079 수동 적용(#48891). SAG "2 이상" vs VC 64 → MCP0806-279 10-08 질문, 잠정 10 |
-| FBL | Ecud_Can | `/Can/CanConfigSet/IN_HwObj_FBL_BCAN_0x7df_BCAN_GST_ALL#CanHwObjectCount` | 10 | 위와 같음. Harmonize 는 객체 이름을 `IN_HwObj_0x7df_0x7df_FBL_BCAN` 으로 바꾼다(키 없음으로 나옴) |
+| FBL | Ecud_Can | `/Can/CanConfigSet/IN_HwObj_0x7a3_0x7a3_FBL_BCAN#CanHwObjectCount` | 64 | IA-079. 2025-02 부터 사용자 값 10 → 2026-10-13 64(최대값)로 변경: APP(`IN_HwObj_0x400_0x7ff_PSU_BCAN`, 2026-01 하모나이즈부터 64)·APSU FBL(유수진 책임 캡처)·VC 와 같게. 메시지 RAM 32KB 중 약 9KB. HAE 답변(MCP0806-279 10-08 질문) 미수신 |
+| FBL | Ecud_Can | `/Can/CanConfigSet/IN_HwObj_FBL_BCAN_0x7df_BCAN_GST_ALL#CanHwObjectCount` | 64 | 위와 같음(#48891 에서 FULL/1 → BASIC/10, 10-13 64). Harmonize 는 객체 이름을 `IN_HwObj_0x7df_0x7df_FBL_BCAN` 으로 바꾼다(키 없음으로 나옴) |
 | FBL | Ecud_Can | `/Can/CanConfigSet/IN_HwObj_FBL_BCAN_0x7df_BCAN_GST_ALL#CanRxBufferSelection` | CAN_RX_FIFO1 | IA-079 (#48891 db33bf33) |
 | FBL | Ecud_Gpt | `/Gpt/GptChannelConfigSet_0/GptChannelConfiguration_Fota#GptTimer` | TCPWM_0_18 | IA-092 를 VC 의 TCPWM_0_54 대신 18 로 적용(#38061). 이유 기록 없음 |
 | FBL | Ecud_Gpt | `/Gpt/GptDriverConfiguration/GptClockReferencePoint_Fota#GptClockReference` | /Mcu/Mcu/McuModuleConfiguration_0/McuClockSettingConfig_0/McuClockReferencePoint_TCPWM0_CLOCKS18 | 위와 같음 |
@@ -105,7 +105,7 @@ APP 보호 설정은 아직 정리하지 않았다 — 다음 APP 패치 S6 에�
 |---|---|
 | Dem_R44 3.0.2.0_HF1 미적용 | #47075 note-17/18 |
 | RXSWIN UINT8_DYN(#46778)은 별건 — develop 패치 커밋에서 분리 (Ecud_Dcm, Ecud_Rte, App_Dcm, PJ_Define.h 제외, App_DiagnosticService.c 마지막 hunk 제외) | #46778 |
-| IA-079 APP 기존 충족(0x7A3/0x7DF BASIC). FBL 은 0x7DF FULL → 변경 필요 | #48909, #48891 |
+| IA-079: APP 은 0x400~0x7FF 범위 BASIC 객체 하나(Count 64)로 기존 충족. FBL 은 0x7A3·0x7DF 개별 객체 BASIC / Count 64 (10-13, APSU FBL 과 같게) | #48909, #48891 |
 | Rte/BswM Harmonize 는 이식으로 대체 (V3.0.27~29) | #48881, #48909, #48891 |
 | APP EcuM: Crypto_76_HaeModule_Init 은 ListOne(Index 29), ListTwo `HsmDriver 0 / Mem_ReadAll 1` (PMem_Driver 없음 — APP PFee 미사용) | MCP0806-280 09-04 배포본·10-06 답변, `4a777484d` (10-12 리뷰 지적 반영) |
 | FBL EcuM: ListTwo `PMem_Driver 0 / HsmDriver 1 / Crypto_76 2 / KeyM 3`, BswM `AL_DriverInitTwo` 의 PMem 호출 삭제(AC 는 유지). 3.0.19 배포본은 BswM 방식이지만 3.0.18 08-31 보정본을 따름 | MCP0806-256 08-31 `Ecu.zip`, #48292 note-3, `ca6273a4` (#48891 note-21) |
