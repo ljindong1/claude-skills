@@ -13,20 +13,23 @@ Joule      환경변수 JOULE_HOME, 없으면 D:\Ljindong\joule
 실행       uv run --directory <Joule> <명령> <결선> [옵션]     (작업 폴더를 옮기지 않는다)
 설정       <Joule>\configs\  devices / targets / benches / tests
 기록       <Joule>\runs\<시각>_<도구>_<결선>\   (git 제외 — 시드/키 바이트가 들어간다)
-문서       <Joule>\docs\joule-bench.md · joule-sleep.md · joule-deep.md, 전체 joule-guide.html
+문서       <Joule>\docs\joule-full.md · joule-bench.md · joule-sleep.md · joule-deep.md, 전체 joule-guide.html
 프로젝트   스킬을 부른 폴더 (예: D:\Mobase\psu_master) — 기본정보만 읽는다
 ```
 
 | 명령 | 하는 일 | 버스 송신 |
 |---|---|---|
+| `joule-full <결선>` | 전체 평가 계획만 | 없음 (연결 안 함) |
+| `joule-full <결선> --run [--expect F1B1=값] [--tc …]` | 한 번 연결해 **기본 정보**(`info = true` TC: 버전 DID·F1C1 빌드 해시, 실패하면 멈춤) → **기본 검증**(joule-bench 판정) → **심화 검증**(info 아닌 TC). 기록 폴더 하나 | **있음** |
 | `joule-bench <결선>` | 계획만 출력 | 없음 (연결 안 함) |
 | `joule-bench <결선> --listen` | 받기만, DB 대조 | 없음 |
 | `joule-bench <결선> --run` | 레스트버스로 깨우고 받기, DB 대조 (수신·길이·FD·주기·카운터·CRC) | **있음** |
 | `joule-sleep <결선>` | 시험 대상이 잠들었는지 (SLEEP / NM 만 / AWAKE) | 없음 |
 | `joule-deep <결선>` | 심화 TC 계획만 | 없음 |
 | `joule-deep <결선> --run [--tc …] [--expect DID=값]` | 자극 → 응답 TC (명령 echo, 타임아웃, 게이트웨이, 슬립, UDS DID·DTC) | **있음** |
+| `joule-deep <결선> --ivd-table` | 빌드 이미지(`Debug\OEUK_*\<버전>\*_Writing.s19`)로 F1C1 해시를 계산해 `known` 표와 비교, 표에 없는 것은 붙일 줄 출력 | 없음 (연결 안 함) |
 
-종료 코드는 세 명령 모두 `0` 통과 / `1` 실패 / `2` 설정·연결 오류 또는 중단.
+종료 코드는 네 명령 모두 `0` 통과 / `1` 실패 / `2` 설정·연결 오류 또는 중단.
 `joule-hota`·`joule-reprog` 는 보드에 쓰는 도구라 이 스킬 범위 밖이다.
 
 ## 순서
@@ -47,7 +50,7 @@ Joule      환경변수 JOULE_HOME, 없으면 D:\Ljindong\joule
    ```
    - Joule 폴더가 없거나 `uv` 가 없으면 여기서 멈추고 안내한다(경로는 `JOULE_HOME`).
    - **커밋하지 않은 수정이 있으면** ②에서 알린다 — 그 상태 그대로 시험에 쓰인다. Joule 은 실행 기록 `run.json` 에 커밋과 수정 여부를 남긴다.
-2. **이번에 쓸 명령의 문서를 읽는다** — `docs/joule-bench.md`(·`joule-sleep.md`·`joule-deep.md`). 옵션이나 판정 기준이 이 문서와 다르면 **Joule 문서를 따른다.**
+2. **이번에 쓸 명령의 문서를 읽는다** — `docs/joule-full.md`(·`joule-bench.md`·`joule-sleep.md`·`joule-deep.md`). 옵션이나 판정 기준이 이 문서와 다르면 **Joule 문서를 따른다.**
 3. **프로젝트 정보** — 스킬을 부른 폴더에서 읽기만 한다.
    ```
    uv run --directory <Joule> python "<스킬>\scripts\project_info.py" <프로젝트 폴더> --json
@@ -71,13 +74,15 @@ Joule      환경변수 JOULE_HOME, 없으면 D:\Ljindong\joule
 | # | 질문 | 선택지 |
 |---|---|---|
 | 1 | 어느 결선으로 할까요? | 이 프로젝트의 결선 (추천) / 다른 결선 / 새 제어기·결선 설정 만들기 |
-| 2 | 무엇을 할까요? | 기본 검증 `joule-bench --run` (추천, **송신**) / 받기만 `--listen` / 슬립 확인 `joule-sleep` / 심화 TC `joule-deep --run` (**송신**) / 계획만 |
+| 2 | 무엇을 할까요? | 전체 평가 `joule-full --run` (추천, **송신**) / 기본 검증만 `joule-bench --run` (**송신**) / 심화 TC 만 `joule-deep --run` (**송신**) / 슬립 확인 `joule-sleep`. 받기만 `--listen`·계획만은 Other 로 받는다 (선택지는 4개까지) |
 | 3 | DB 가 프로젝트 빌드 DB 와 다를 때만: 어떻게 할까요? | Joule DB 사본을 빌드 DB 로 갱신 후 진행 / 이번엔 Joule 사본대로 진행 |
 | 4 | 실험대에 실물 ECU 가 같이 붙어 있나요? (송신할 때만) | 없다 / 있다 — 이름 (결선 `exclude`) |
 
 - **질문 2 에서 송신을 고른 것이 이번 실행의 송신 허락이다.** ⑤ 직전에 다시 묻지 않는다. 다음 실행에는 다시 묻는다.
-- 제어기는 보통 자고 있어서 받기만으로는 "수신 없음" 만 나온다 — 기본 추천은 `--run`.
-- 심화 TC 를 고르면 TC 목록(`joule-deep <결선>` 계획 출력)을 보여 주고 고를 TC 를 같은 질문에서 받는다. 처음 돌리는 제어기는 나눠서(진단 읽기 → 자극·응답 → 슬립) 돌리기를 권한다. `manual` TC 는 사람이 Enter 를 눌러야 한다.
+- 제어기는 보통 자고 있어서 받기만으로는 "수신 없음" 만 나온다 — 기본 추천은 송신하는 실행이다.
+- 새 빌드를 썼으면 전체 평가를 추천하고 `--expect F1B1=<버전>` 을 붙인다(그 버전 폴더가 기대 빌드). 버전은 cvd-project 로 방금 쓴 버전, 모르면 프로젝트 `PJ_Define.h` 의 현재 소스 버전을 쓰고 질문 앞에 적는다.
+- 전체 평가는 기본 정보가 실패하면 기본·심화 검증을 하지 않고 멈춘다(설계). 그때는 기본 정보 실패 이유부터 보고한다.
+- 심화 TC(전체 평가 포함)를 고르면 TC 목록(`joule-deep <결선>` 계획 출력)을 보여 주고 고를 TC 를 같은 질문에서 받는다. 처음 돌리는 제어기는 나눠서(진단 읽기 → 자극·응답 → 슬립) 돌리기를 권한다. `manual` TC 는 사람이 Enter 를 눌러야 한다.
 - 보율이 프로젝트와 다르면 묻지 않는다 — ③에서 결선·제어기 설정을 고치자고 보고 끝에 제안한다(틀린 보율은 에러 프레임으로 버스를 망가뜨리므로 이번 실행은 하지 않고 멈춘다).
 
 ### ③ 설정 — Joule `configs/` 에 쓴다 (필요할 때만)
@@ -109,7 +114,7 @@ Joule 설정은 **사용자 저장소 파일**이다. 쓰기 전에 바꿀 내�
 ### ④ 계획 — 연결하지 않는다
 
 ```
-uv run --directory <Joule> joule-bench <결선>        (또는 joule-sleep / joule-deep)
+uv run --directory <Joule> joule-full <결선>         (또는 joule-bench / joule-sleep / joule-deep)
 ```
 
 버스별 채널·보율·DB·판정 대상·흉내 낼 ECU·DB 예외 적용 건수가 나온다. 요약만 보여 주고 ⑤로 간다. ②에서 "계획만" 이면 ⑥으로.
@@ -117,6 +122,7 @@ uv run --directory <Joule> joule-bench <결선>        (또는 joule-sleep / jou
 ### ⑤ 실행 — ②에서 고른 만큼
 
 ```
+uv run --directory <Joule> joule-full  <결선> --run   [--expect F1B1=<버전>] [--tc …] [--seconds N]
 uv run --directory <Joule> joule-bench <결선> --run   [--seconds N]
 uv run --directory <Joule> joule-bench <결선> --listen
 uv run --directory <Joule> joule-sleep <결선>          [--seconds N]
@@ -125,11 +131,12 @@ uv run --directory <Joule> joule-deep  <결선> --run   [--tc …] [--expect DID
 
 - 한글이 깨지면 `PYTHONIOENCODING=utf-8` 을 붙인다.
 - CANoe 가 같은 채널을 잡고 있으면 `--run` 은 채널 설정이 같아야 한다(Joule 문서). 연결 오류면 `troubleshooting.md`.
-- 빌드 확인이 목적이면 `joule-deep --tc version_dids --expect F1B1=<버전>` 처럼 기대값을 준다(보드에 쓴 버전이 실제로 도는지).
+- 빌드 확인이 목적이면 `--expect F1B1=<버전>` 처럼 기대값을 준다(보드에 쓴 버전이 실제로 도는지). 전체 평가는 기본 정보에서 이것부터 본다.
+- 송신 실행 전에 `joule-deep <결선> --ivd-table` 을 돌려 지금 이미지가 `known` 표에 다 있는지 본다(연결 안 함). Jenkins 가 같은 버전 번호로 다시 빌드하면 해시가 바뀌어 표가 낡는다. 표에 없는 줄이 나오면 그 줄을 ⑥에서 **제안만** 한다 — TC 파일은 사용자 저장소 파일이다(③과 같이 보여 주고 확인받은 뒤에만 쓴다).
 
 ### ⑥ 보고
 
-결과는 화면 출력과 `runs/<…>/result.txt`·`run.json` 에서 읽는다.
+결과는 화면 출력과 `runs/<…>/result.txt`·`run.json` 에서 읽는다. 전체 평가는 `result.txt` 맨 위 `== 요약 ==`(기본 정보 / 기본 검증 / 심화 검증)을 표의 버스 줄 대신 단계 줄로 옮긴다.
 
 ```
 ## CAN 실험대 결과
@@ -146,6 +153,8 @@ uv run --directory <Joule> joule-deep  <결선> --run   [--tc …] [--expect DID
 ```
 
 그 아래에 **실패·주의 줄만** 메시지 이름과 이유 그대로 옮기고, 이유별로 무엇을 볼지 한 줄씩 붙인다. 이유의 뜻은 Joule 문서(`joule-bench.md` 판정 항목, `joule-deep.md` TC)를 따른다. 판정 줄의 시각(첫 프레임부터 잰 초)으로 트레이스에서 그 자리를 찾는다.
+
+F1C1(`software_ivd`) 실패면 Joule 이 덧붙인 원인(표가 오래됨 / 다른 빌드 번호 / 어느 이미지와도 다름)과 할 일을 그대로 옮긴다(`docs/joule-deep.md` 표). 표가 오래됨이면 `--ivd-table` 줄을 제안한다.
 
 DB 예외(`can_db/<차종>/exceptions.toml`)로 바뀐 판정은 결과표 머리의 "예외 적용 N건" 을 함께 적는다. 새 예외가 필요해 보이면 **제안만** 한다 — 확인된 사양만 적는 파일이다.
 

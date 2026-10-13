@@ -1,6 +1,6 @@
 ---
 name: can-bench-setup
-description: 실험대의 ECU 가 CAN 을 DB 대로 보내는지 확인하는 스킬. 모드가 둘이다. 기본(매개변수 없음)은 python-can 모드로, 사용자 저장소 Joule(D:\Ljindong\joule)을 그 자리에서 실행해 Vector 장비(VN1640A)로 레스트버스로 깨우고 받은 프레임을 DBC 와 대조(주기·길이·FD 형식·카운터·CRC, joule-bench)하고, 슬립 확인(joule-sleep)과 자극→응답 심화 TC(joule-deep)도 돌린다. 설정은 Joule configs(장비·제어기·결선)다. 프로젝트 폴더(예: psu_master)에서 부르면 차종·빌드에 들어간 DB·보율·시험 대상 노드를 그 폴더에서 읽어, 시작할 때 필요한 것만 한 번에 묻는다. 매개변수 `canoe` 를 주면 CANoe 모드로, 통폴더에서 차종 cfg 와 참조 파일만 뽑아 단독 컨피그를 만들고 저장소 현행 DB 로 갱신·검증하며 CANoe COM 으로 확인·측정한다. 사용자가 "CAN 벤치", "can-bench", "CAN 검사 돌려줘", "새 빌드 CAN 나오는지 봐줘", "DB 대로 나오나", "레스트버스로 깨워줘", "주기 맞나", "CRC 맞나", "벤치 설정 만들어줘", "새 차종 설정", "슬립 됐나", "잠들었나", "심화 검증", "TC 돌려줘", "DID 읽어줘", "joule", "CAN 이 안 나와", "에러 프레임" 등을 말하면 python-can 모드, "CANoe 컨피그 뽑아줘", "CANoe 설정 만들어줘", "cfg 검증", "CDD 물려 있나", "CANoe 열어서 확인" 처럼 CANoe 를 콕 집으면 CANoe 모드다. Claude Code CLI(사용자 PC) 전용. CVD/T32 보드 라이팅은 cvd-project 담당이다.
+description: 실험대의 ECU 가 CAN 을 DB 대로 보내는지 확인하는 스킬. 모드가 둘이다. 기본(매개변수 없음)은 python-can 모드로, 사용자 저장소 Joule(D:\Ljindong\joule)을 그 자리에서 실행해 Vector 장비(VN1640A)로 레스트버스로 깨우고 받은 프레임을 DBC 와 대조(주기·길이·FD 형식·카운터·CRC, joule-bench)하고, 슬립 확인(joule-sleep)과 자극→응답 심화 TC(joule-deep)도 돌린다. 새 빌드는 한 번 연결로 기본 정보(버전 DID·F1C1 빌드 해시) → 기본 검증 → 심화 검증을 도는 전체 평가(joule-full)가 기본이다. 설정은 Joule configs(장비·제어기·결선)다. 프로젝트 폴더(예: psu_master)에서 부르면 차종·빌드에 들어간 DB·보율·시험 대상 노드를 그 폴더에서 읽어, 시작할 때 필요한 것만 한 번에 묻는다. 매개변수 `canoe` 를 주면 CANoe 모드로, 통폴더에서 차종 cfg 와 참조 파일만 뽑아 단독 컨피그를 만들고 저장소 현행 DB 로 갱신·검증하며 CANoe COM 으로 확인·측정한다. 사용자가 "CAN 벤치", "can-bench", "CAN 검사 돌려줘", "새 빌드 CAN 나오는지 봐줘", "DB 대로 나오나", "레스트버스로 깨워줘", "주기 맞나", "CRC 맞나", "벤치 설정 만들어줘", "새 차종 설정", "슬립 됐나", "잠들었나", "심화 검증", "TC 돌려줘", "전체 평가", "full test", "새 빌드 전체 확인", "어느 빌드 들어갔나", "SW 해시 표", "DID 읽어줘", "joule", "CAN 이 안 나와", "에러 프레임" 등을 말하면 python-can 모드, "CANoe 컨피그 뽑아줘", "CANoe 설정 만들어줘", "cfg 검증", "CDD 물려 있나", "CANoe 열어서 확인" 처럼 CANoe 를 콕 집으면 CANoe 모드다. Claude Code CLI(사용자 PC) 전용. CVD/T32 보드 라이팅은 cvd-project 담당이다.
 ---
 
 # can-bench-setup
@@ -9,7 +9,7 @@ ECU 가 CAN 을 **DB 대로 보내는지** 실험대에서 확인한다. 도구�
 
 | 호출 | 모드 | 도구 | 자세한 것 |
 |---|---|---|---|
-| `/can-bench-setup` (매개변수 없음) | **python-can** | Joule (`joule-bench` · `joule-sleep` · `joule-deep`) | `references/joule.md` |
+| `/can-bench-setup` (매개변수 없음) | **python-can** | Joule (`joule-full` · `joule-bench` · `joule-sleep` · `joule-deep`) | `references/joule.md` |
 | `/can-bench-setup canoe` | CANoe | `scripts/canoe/canoesetup.py` | `references/canoe.md` |
 
 **모드 고르기.** 매개변수 첫 단어가 `canoe` 면 CANoe 모드다. 매개변수가 없거나
@@ -24,7 +24,7 @@ ECU 가 CAN 을 **DB 대로 보내는지** 실험대에서 확인한다. 도구�
   범위·실물 ECU 를 처음에 AskUserQuestion 한 번으로 묻고, 그 뒤로는 답대로
   끝까지 간다 (`references/joule.md` ②). 중간에 멈추는 것은 오류이거나
   답과 다른 상황을 만났을 때뿐이다.
-- **버스로 송신하는 일은 실행마다 허락을 받는다.** Joule 의 `joule-bench --run`·`joule-deep --run`,
+- **버스로 송신하는 일은 실행마다 허락을 받는다.** Joule 의 `joule-full --run`·`joule-bench --run`·`joule-deep --run`,
   CANoe 의 `run` 이 여기에 든다. 레스트버스·시뮬레이션 노드가 실제 버스로
   프레임을 보낸다. python-can 모드는 시작 질문에서 송신을 고른 것이 그
   실행의 허락이다. 한 번 허락받았다고 다음 실행까지 허락된 것이 아니다.
