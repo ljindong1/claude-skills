@@ -12,6 +12,7 @@
 | "필수 아님"으로 온 HAE 형상 정리도 IM 이 요구하는 항목은 필수 취급 | MCP0806-279 Dcm_Init ListOne | 전 패치 |
 | 다른 모듈 버전·구성을 전제로 한 변경은 제외 (PDF 파일명, 참고 프로젝트 고유 모듈·버스) | MCP0806-280 Crypto 2.0 PDF, CDD_Router | 전 패치 |
 | **patch_tool 이 한 함수에서 함께 넣은 항목은 한 묶음으로 판정**한다. 묶음 중 일부(예: 파일이 존재하는 Ecud 입력)만 떼어 반영하지 않고, 함수 docstring 의 전제(모듈 버전·IM)로 묶음 전체의 적용 여부를 정한다. 판정표에는 묶음의 모든 항목을 같은 사유로 적는다 — 하나라도 사유 없이 빠지면 검수에서 누락으로 보인다 | MCP0806-280 `ensure_haemodule_scons()` (Crypto 2.X: PDF 4곳 + Rte 입력 Ecud_Crypto_76_HaeModule), #48891 10-08 | 전 패치 |
+| **배포본 patch_tool 은 실행하지 않고 읽는다.** 스크립트 docstring·report_action 이 HAE 자동 보정의 목록이다 — P 단계에서 계획서를 만들어 항목마다 판정한다. 툴 docstring 과 IM 이 다르면 IM 을 따르고 기록. 이전 회차 규칙은 그 회차 배포본의 patch_tool 에서 찾는다(배포본마다 스크립트 묶음이 다름) | #48891 note-21 (PMem 규칙이 3.0.18·3.0.19 patch_tool 에 있었음), MCP1001-193 [8] | 전 패치 |
 | Harmonize 부산물(순서·CATEGORY·UUID)은 이식하지 않음 | #48909, #48891 | 전 패치 |
 | Harmonize 요구 시 C Studio 대신 HAE 결과를 이식하고 Rte Validation 0 errors·Rte API 생성으로 확인 가능 (사용자 동의 하에) | #48881, #48909, #48891 | 전 패치 |
 | IA/VC 항목은 실제 경로(CanIf→HRH→HOH 등)를 따라가 기존 충족 여부를 먼저 확인. 충족이면 HAE 의 대량 Can/CanIf 변경은 이식하지 않음 | #48909 IA-079 | 전 패치 |

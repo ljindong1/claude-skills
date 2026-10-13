@@ -81,6 +81,21 @@
         "삭제할 생성물 목록을 구체적으로 제시했다",
         "삭제·커밋은 사용자 지시 후로 미뤘다"
       ]
+    },
+    {
+      "id": 6,
+      "name": "patch-tool-plan-first",
+      "prompt": "HE1i FBL V3.0.19(MCP0806-279) 패치를 시작하려고 해. 배포본은 D:\\Mobase\\패치업무\\HE1i_실기검증\\v3.0.19(fbl)\\SP3I_PSU_3.0.19_FBL 에 풀어 뒀고 patch_tool 폴더도 있어. 적용은 하지 말고, 처음에 무엇을 바꿔야 할지 방향만 잡아 줘. 툴은 실행하지 마.",
+      "expected_output": "patch_tool 을 실행하지 않고 patch_tool_plan.py 등으로 정적 분석한다. 실제 실행 순서(Integrator common → Dcm common/v2.1.1.0_HF4 → EcucValueCollection → SCons → ValidationChecker), Dcm common 항목(PMem_Driver EcuM ListTwo, Dcm_Init ListOne, DCM_FOTA_USED_FBL 등), Integrator [FBL only] Com 제거, ValidationChecker VC-076/079/086(=IA 항목)을 판정표 초기 행으로 제시하고, APP/FBL·MCU 해당 여부는 당사 설정으로 확인할 항목으로 둔다.",
+      "files": [],
+      "assertions": [
+        "patch_tool 을 실행하지 않았다",
+        "manifest scripts 목록이 아니라 script_collector 규칙의 실제 순서를 제시했다",
+        "Dcm common 의 PMem_Driver EcuM ListTwo 추가(FBL SecurityAccess 사용 시)를 항목으로 뽑았다",
+        "Integrator common 의 [FBL only] Com 제거 항목을 뽑았다",
+        "ValidationChecker VC 항목을 ECM IA 항목과 연결했다(VC-076/079/086 등)",
+        "항목을 그대로 적용하지 않고 판정표 행으로 올려 3-way 판정한다고 했다"
+      ]
     }
   ]
 }

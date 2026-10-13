@@ -42,7 +42,7 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 
 ```
 S0  프로젝트 프로필        프로필 로드(구성 전제·보호 설정), 없으면 저장소 조사로 초안
-P   사전 점검              구성 전제 · 배포본 완결성 · 위험 포인트 · 과거 Q&A · 작업 수단 → 항목별 경로 A~D
+P   사전 점검              patch_tool 계획서 · 구성 전제 · 완결성 · 위험 포인트 · 과거 Q&A · 작업 수단 → 경로 A~D
 S1  IMS 수집              티켓·댓글·첨부(날짜순 전부)·이력·수평전개 → 요청 항목 목록
 S2  가이드 정독            IM / SAG / IA·VC (ecody-search)
 S3  선행 작업 조회 (선택)   같은 패치의 다른 일감·브랜치·IMS 문답 → 참고 목록
@@ -66,7 +66,7 @@ S13 마무리                PR, IMS·Redmine 상태
 
 ## P. 사전 점검
 
-`references/precheck.md` 대로 다섯 가지를 점검한다 — ① 구성 전제(프로필 표, FBL/APP 따로) ② 배포본 완결성(보정본·정정·재배포 포함) ③ 모듈별 위험 포인트 → 판정표 초기 행 ④ 과거 Q&A 조사 순서 ⑤ 작업 수단(ARXML 직접 편집 / 툴). 그리고 요청 항목마다 판단 경로를 정한다: **D 회사 기준 보류 → A 스스로 확정 → B 과거 자료 조사 → C HAE 질문** 순으로 처음 맞는 것, 애매하면 한 단계 보수적으로.
+**먼저 배포본의 patch_tool 을 읽는다**(실행하지 않는다): `patch_tool_plan.py --pkg <배포본> --app <당사 앱> --out …` 로 이번 패치에서 HAE 툴이 돌릴 스크립트·순서·변경 내용·IM·Harmonize 요청과 모든 패치에 붙는 공통 보정(Integrator·EcucValueCollection·SCons·ValidationChecker, VC-nnn = IA-nnn)을 계획서로 뽑고, 항목을 판정표 초기 행으로 옮긴다(precheck "patch_tool" 절). 이어서 `references/precheck.md` 대로 다섯 가지를 점검한다 — ① 구성 전제(프로필 표, FBL/APP 따로) ② 배포본 완결성(보정본·정정·재배포 포함) ③ 모듈별 위험 포인트 → 판정표 초기 행 ④ 과거 Q&A 조사 순서 ⑤ 작업 수단(ARXML 직접 편집 / 툴). 그리고 요청 항목마다 판단 경로를 정한다: **D 회사 기준 보류 → A 스스로 확정 → B 과거 자료 조사 → C HAE 질문** 순으로 처음 맞는 것, 애매하면 한 단계 보수적으로.
 
 ## S1. eCoDY-IMS 수집
 
@@ -99,7 +99,7 @@ Redmine 일감 본문은 `references/templates.md` §1 구성으로, redmine-iss
 2. **Prev / Cur 확보** — `VersionComparison/PreviousVersion`·`CurrentVersion` 이 있으면 쓴다(모듈 본체도 `CurrentVersion/Static_Code/Modules/` 아래 — 판정표 첫 행은 모듈 교체). 없으면 Cur = 배포본 참고 설정, Prev = 직전 회차 배포본 + 그 회차 보정본. 둘 다 없으면 2-way 로 하고 "Prev 없음" 표시, git 이력으로 보완. 상세 `three-way-merge.md` §2.
 3. **완결성** — 안내가 언급한 파일 ↔ 실제 파일, 이후 보정본·정정(precheck ②). 빠진 것은 C 후보.
 4. **patch_tool Action Report 는 요청의 일부일 뿐이다** — SCons 항목은 각 생성기에 자기 모듈 PDF 를 자동으로 넣은 기록뿐이다. 참고 설정 대조는 S6 에서 따로 한다.
-5. Doc(ReleaseNote, ModuleList, Module Change List)과 patch_tool 스크립트 주석("왜 바뀌는지")을 본다.
+5. Doc(ReleaseNote, ModuleList, Module Change List)을 본다. patch_tool 은 P 단계 계획서로 이미 읽었다 — 배포본 참고 설정의 차이가 계획서의 어느 스크립트 항목에서 왔는지 이어 본다("왜 바뀌는지").
 
 ## S6. 3-way 판정
 
@@ -120,6 +120,7 @@ Redmine 일감 본문은 `references/templates.md` §1 구성으로, redmine-iss
 
 - [ ] **과거 회차 이력** (원칙 8, §4.8) — 라벨과 무관하게 모든 행. `history_trace.py --file … --key … --rev "<회차>=<배포본>" …(회차순, 보정본 포함) --ours <앱>` 로 회차별 값과 되돌림 의심을 뽑는다. 이번 배포본이 이전 보정을 되돌렸으면 "되돌림 의심"으로 두고 사용자 확인, 엇갈리면 C.
 - [ ] **보호 설정** (원칙 7, protected-settings §5) — "복사 가능"·"충돌" 행이 보호 설정을 건드리면 "보호" 표시. 이유 모르는 당사 고유값은 "이유 미상" 후보.
+- [ ] **patch_tool 계획서 대조** — 계획서 2·3·4 절 항목이 모두 판정표에 행으로 있는지(당사 해당 없음도 사유와 함께). 툴이 자동으로 할 일을 직접 편집으로 대신했다면 그 일도 했는지(예: 남은 생성물 삭제).
 - [ ] **참고 설정과의 차이는 항목마다** 반영 / 제외(사유) / 확인 필요로 분류 — "레퍼런스 프로젝트라 다르다"로 묶지 않는다.
 - [ ] **묶음 판정** — patch_tool 한 함수가 함께 넣은 항목은 함수 전제로 묶음 전체를 같은 사유로.
 - [ ] **대상 구분** — 같은 모듈도 APP / FBL 구성 전제(PFee 등)가 다르면 결론이 다르다.
@@ -201,7 +202,7 @@ PR 방식·대상·머지 순서는 프로필, 브랜치 구성·검증은 `refe
 |---|---|
 | `references/communication.md` | 사람에게 보내는 모든 글 — 확인한 것만, 이름 고정표, 비교 문장, 두 종류의 이력, 보내기 전 점검, 단계 보고 형식 |
 | `references/decision-rules.md` | 적용·보류 판단 규칙 (누적, 근거 포함) |
-| `references/precheck.md` | P — 구성 전제, 완결성, 위험 포인트, 과거 자료 조사 순서, 작업 수단, 판단 경로 A~D, patch_tool 동작 |
+| `references/precheck.md` | P — patch_tool 분석(계획서 읽는 법·툴 동작), 구성 전제, 완결성, 위험 포인트, 과거 자료 조사 순서, 작업 수단, 판단 경로 A~D |
 | `references/three-way-merge.md` | S5·S6·S9 — 형상 확보, 판정 규칙·사례, 과거 회차 이력(§4.8), 판정표 형식(§6), 재대조·Validation |
 | `references/protected-settings.md` | 보호 설정 — 덮어쓰기 세 경로, 변경 분류 (a)~(d), 단계별 할 일, Harmonize 절차 |
 | `references/ims-workflow.md` | S1·S7 — IMS 에서 뽑을 것, 첨부 받기, 질문 등록, ECM IM 페이지 대응표, MCP 연결 시 |

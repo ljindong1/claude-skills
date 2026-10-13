@@ -6,6 +6,7 @@
 
 | 단계 | 일감·날짜 | 일어난 일 | 원인 | 예방 (반영 위치) |
 |---|---|---|---|---|
+| P | #48891 note-21, 10-12 | **patch_tool 을 읽지 않아 거기 적힌 보정을 놓침.** FBL PMem_Driver EcuM ListTwo 규칙이 3.0.19 patch_tool `Dcm/patch_Dcm_common.py` 3번과 3.0.18 `Mem_76_Pfls_Common v2.1.0.0` [7] 에 있었다. Com 제거도 `Integrator common` 11번에 목록이 있었다 | 툴을 "쓰지 않는다"를 "읽지 않는다"로 다룸. 배포본 참고 설정만 대조 | P 단계 첫 작업으로 `patch_tool_plan.py` 계획서, 항목을 판정표로 (precheck patch_tool 절, SKILL P·S6) |
 | S1 | MCP0806-279/280 | 재배포본이 있는데 이전 파일로 작업할 뻔함 | 같은 이름 첨부 여러 개, HAE 가 이전 안내 댓글 삭제 | 첨부 날짜·크기·변경 이력 확인 (ims-workflow §1) |
 | S1 | MCP0806-280 | 개정 안내에서 harmonize 대상이 바뀐 것을 놓칠 뻔함 | 같은 티켓에 안내 댓글이 다시 달림 | 안내 댓글 날짜순 정독, 항목별 최신값 (SKILL S1) |
 | S1 | 279·280·272·256 등 | IM 링크가 권한 없음 | HAE IM 링크 일괄 이전(2026 하반기) | 새 제목으로 ECM 검색 (ims-workflow §4 대응표) |
