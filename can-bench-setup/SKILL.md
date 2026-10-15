@@ -1,6 +1,6 @@
 ---
 name: can-bench-setup
-description: 실험대의 ECU 가 CAN 을 DB 대로 보내는지 확인하는 스킬. 모드가 둘이다. 기본(매개변수 없음)은 python-can 모드로, 사용자 저장소 Joule(D:\Ljindong\joule)을 그 자리에서 실행해 Vector 장비(VN1640A)로 레스트버스로 깨우고 받은 프레임을 DBC 와 대조(주기·길이·FD 형식·카운터·CRC, joule-bench)하고, 슬립 확인(joule-sleep)과 자극→응답 심화 TC(joule-deep)도 돌린다. 새 빌드는 한 번 연결로 기본 정보(버전 DID·F1C1 빌드 해시) → 기본 검증 → 심화 검증을 도는 전체 평가(joule-full)가 기본이다. 설정은 Joule configs(장비·제어기·결선)다. 프로젝트 폴더(예: psu_master)에서 부르면 차종·빌드에 들어간 DB·보율·시험 대상 노드를 그 폴더에서 읽어, 시작할 때 필요한 것만 한 번에 묻는다. 매개변수 `canoe` 를 주면 CANoe 모드로, 통폴더에서 차종 cfg 와 참조 파일만 뽑아 단독 컨피그를 만들고 저장소 현행 DB 로 갱신·검증하며 CANoe COM 으로 확인·측정한다. 사용자가 "CAN 벤치", "can-bench", "CAN 검사 돌려줘", "새 빌드 CAN 나오는지 봐줘", "DB 대로 나오나", "레스트버스로 깨워줘", "주기 맞나", "CRC 맞나", "벤치 설정 만들어줘", "새 차종 설정", "슬립 됐나", "잠들었나", "심화 검증", "TC 돌려줘", "전체 평가", "full test", "새 빌드 전체 확인", "어느 빌드 들어갔나", "SW 해시 표", "DID 읽어줘", "joule", "CAN 이 안 나와", "에러 프레임" 등을 말하면 python-can 모드, "CANoe 컨피그 뽑아줘", "CANoe 설정 만들어줘", "cfg 검증", "CDD 물려 있나", "CANoe 열어서 확인" 처럼 CANoe 를 콕 집으면 CANoe 모드다. Claude Code CLI(사용자 PC) 전용. CVD/T32 보드 라이팅은 cvd-project 담당이다.
+description: 실험대의 ECU 가 CAN 을 DB 대로 보내는지 확인하는 스킬. 모드가 둘이다. 기본(매개변수 없음)은 python-can 모드로, 회사 저장소 Joule(D:\Mobase\asec_autotest_tool)을 그 자리에서 실행해 Vector 장비(VN1640A)로 레스트버스로 깨우고 받은 프레임을 DBC 와 대조(주기·길이·FD 형식·카운터·CRC, joule-bench)하고, 슬립 확인(joule-sleep)과 자극→응답 심화 TC(joule-deep)도 돌린다. 새 빌드는 한 번 연결로 기본 정보(버전 DID·F1C1 빌드 해시) → 기본 검증 → 심화 검증을 도는 전체 평가(joule-full)가 기본이다. 설정은 Joule configs(장비·제어기·결선)다. 프로젝트 폴더(예: psu_master)에서 부르면 차종·빌드에 들어간 DB·보율·시험 대상 노드를 그 폴더에서 읽어, 시작할 때 필요한 것만 한 번에 묻는다. 매개변수 `canoe` 를 주면 CANoe 모드로, 통폴더에서 차종 cfg 와 참조 파일만 뽑아 단독 컨피그를 만들고 저장소 현행 DB 로 갱신·검증하며 CANoe COM 으로 확인·측정한다. 사용자가 "CAN 벤치", "can-bench", "CAN 검사 돌려줘", "새 빌드 CAN 나오는지 봐줘", "DB 대로 나오나", "레스트버스로 깨워줘", "주기 맞나", "CRC 맞나", "벤치 설정 만들어줘", "새 차종 설정", "슬립 됐나", "잠들었나", "심화 검증", "TC 돌려줘", "전체 평가", "full test", "새 빌드 전체 확인", "어느 빌드 들어갔나", "SW 해시 표", "DID 읽어줘", "joule", "CAN 이 안 나와", "에러 프레임" 등을 말하면 python-can 모드, "CANoe 컨피그 뽑아줘", "CANoe 설정 만들어줘", "cfg 검증", "CDD 물려 있나", "CANoe 열어서 확인" 처럼 CANoe 를 콕 집으면 CANoe 모드다. Claude Code CLI(사용자 PC) 전용. CVD/T32 보드 라이팅은 cvd-project 담당이다.
 ---
 
 # can-bench-setup
@@ -63,7 +63,7 @@ python-can 모드는 시작할 때 `scripts/project_info.py`(Joule 파이썬으�
 python-can 모드는 사용자 저장소 **Joule** 을 직접 실행한다. 사용자가 Joule 을 계속 고치므로
 복사본을 두지 않는다 — 고친 내용이 다음 실행부터 바로 반영된다.
 
-- 위치: 환경변수 `JOULE_HOME`, 없으면 `D:\Ljindong\joule`. 실행은
+- 위치: 환경변수 `JOULE_HOME`, 없으면 `D:\Mobase\asec_autotest_tool`(회사 Gitea `tglee/asec_autotest_tool`, 2026-10-15 개인 `D:\Ljindong\joule` 에서 옮김 — 옛 폴더는 쓰지 않는다). 실행은
   `uv run --directory <Joule> <명령> <결선>` (작업 폴더를 옮기지 않는다).
 - 시작할 때 Joule 의 커밋과 **커밋 안 한 수정 여부**를 보고 질문 앞에 알린다. 결과 보고에도
   적는다(Joule 이 `runs/…/run.json` 에 같은 정보를 남긴다).

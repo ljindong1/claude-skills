@@ -8,8 +8,9 @@ CANoe 없이 Vector 장비에 파이썬으로 직접 붙는다. 실행 도구는
 ## 실행 환경
 
 ```
-Joule      환경변수 JOULE_HOME, 없으면 D:\Ljindong\joule
-           (git@github.com-ljindong:ljindong1/Joule.git, uv + CPython 3.12 32비트)
+Joule      환경변수 JOULE_HOME, 없으면 D:\Mobase\asec_autotest_tool
+           (회사 Gitea origin http://ccm.mobaseelec.com:3000/tglee/asec_autotest_tool.git, uv + CPython 3.12 32비트)
+           2026-10-15 개인 저장소 D:\Ljindong\joule(GitHub ljindong1/Joule)에서 옮김 — 옛 폴더는 쓰지 않는다
 실행       uv run --directory <Joule> <명령> <결선> [옵션]     (작업 폴더를 옮기지 않는다)
 설정       <Joule>\configs\  devices / targets / benches / tests
 기록       <Joule>\runs\<시각>_<도구>_<결선>\   (git 제외 — 시드/키 바이트가 들어간다)
@@ -92,7 +93,7 @@ Joule 설정은 **사용자 저장소 파일**이다. 쓰기 전에 바꿀 내�
 | 경우 | 하는 일 |
 |---|---|
 | 실물 ECU 가 있다 | 결선 `[bus."<버스>"].exclude` 에 추가 |
-| DB 사본 갱신 | 프로젝트 `References\DB` 의 빌드 DB 를 `<Joule>\can_db\<차종>\` 로 복사하고, 제어기 `[[bus]].dbc` 파일 이름을 바꾼다 (DBC 사본은 git 제외) |
+| DB 사본 갱신 | 프로젝트 `References\DB` 의 빌드 DB 를 `<Joule>\can_db\<차종>\` 로 복사하고, 제어기 `[[bus]].dbc` 파일 이름을 바꾼다 (회사 저장소는 DBC 사본도 git 으로 관리한다 — 바뀐 파일로 남지만 커밋은 사용자가 한다) |
 | **새 제어기·결선** | 아래 "새 설정 만들기" |
 
 #### 새 설정 만들기

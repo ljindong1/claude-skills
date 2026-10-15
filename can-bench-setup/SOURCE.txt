@@ -2,10 +2,11 @@
 ============
 
 python-can 모드 실행 도구 — Joule (복사하지 않음)
-    위치   환경변수 JOULE_HOME, 없으면 D:\Ljindong\joule
-    원격   git@github.com-ljindong:ljindong1/Joule.git
+    위치   환경변수 JOULE_HOME, 없으면 D:\Mobase\asec_autotest_tool
+    원격   http://ccm.mobaseelec.com:3000/tglee/asec_autotest_tool.git (origin, 회사 Gitea)
+           2026-10-15 전에는 개인 D:\Ljindong\joule (git@github.com-ljindong:ljindong1/Joule.git)
     실행   uv run --directory <Joule> joule-bench | joule-sleep | joule-deep <결선>
-    설정   <Joule>\configs\ (devices / targets / benches / tests)
+    설정   <Joule>\configs\ (devices / targets / benches / tc / ota)
     기록   <Joule>\runs\  — run.json 에 Joule git 커밋·수정 여부가 남는다
     2026-10-08 전에는 학습용 저장소 python-can_tutorial 에서 9개 파일을 복사해 썼다
     (scripts/pycan, 커밋 32ba7bd). Joule 로 옮기며 복사본을 지웠다.
