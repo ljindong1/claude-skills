@@ -35,7 +35,7 @@ import subprocess
 import sys
 import time
 
-VERSION = "1.5.0"
+VERSION = "1.5.2"
 
 # 실제 파일 위치(FS)와 .csf 안에 적힐 윈도우 경로(WIN)를 나눈다. 평소에는 같다.
 # --cvd-root 로 바꿀 수 있다 (set_root). CVD_ROOT / CVD_ROOT_WIN / CVD_EXE 환경변수는 시험용이다.
@@ -284,11 +284,17 @@ def paired_fbl(repo, versions, ver):
     return (_by_time(hits)[0] if hits else None), folder
 
 
-def apply_paired_fbl(c, versions, given):
+def apply_paired_fbl(c, versions, given, ver_changed=True):
     """c["fbl"] 를 APP 버전의 짝으로 맞춘다. --fbl 을 줬으면 그대로. 짝 폴더가 없을 때:
-    test 버전이면 멈춘다(엉뚱한 FBL 로 쓰지 않도록), 일반 버전이면 지금 값을 둔다(02_Fbl_Binary 없는 저장소)."""
+    test 버전이면 멈춘다(엉뚱한 FBL 로 쓰지 않도록), 일반 버전이면 지금 값을 둔다(02_Fbl_Binary 없는 저장소).
+    버전을 바꾸지 않는 호출(verify, --version 없는 flash/set)에서는 config 에 직접 지정해 둔 FBL
+    (02_Fbl_Binary 밖 파일)을 짝으로 덮어쓰지 않는다 — 2026-10-15 H-OTA 후 검증에서 v3_0_17 이 v3_0_19 로 바뀜."""
     c["_fbl_why"] = ""
     if given or not c.get("version"):
+        return
+    cur = c.get("fbl") or ""
+    if not ver_changed and cur and os.path.isfile(cur) and "02_fbl_binary" not in os.path.normcase(cur):
+        c["_fbl_why"] = "config 에 직접 지정한 FBL 유지 (짝으로 바꾸려면 --fbl 또는 --rescan)"
         return
     p, folder = paired_fbl(c["repo"], versions, c["version"])
     if p:
@@ -1467,14 +1473,23 @@ def prepare_cfg(a):
         for v, info in d["versions"].items():
             if os.path.normcase(os.path.dirname(c["app"])) == os.path.normcase(info["dir"]):
                 c["version"] = c["_cfg_version"] = v
-    if not direct:
+    # 지난번에 --app/--elf 로 버전 폴더 밖 파일을 기록한 config: --version 을 주지 않으면 그 파일을 그대로 쓴다
+    # (verify 에는 --version 이 없어, 이 처리가 없으면 "버전을 고르라" 며 멈췄다 — 2026-10-15 양산 25 기록 후)
+    pinned = not direct and not want and not c["version"] and bool(d["versions"]) \
+        and bool(c["app"]) and os.path.isfile(c["app"])
+    if pinned:
+        print("[버전] config 의 APP 가 버전 폴더 밖 파일(지난번 --app 지정)이라 그대로 씁니다: %s" % c["app"])
+        print("       저장소 버전으로 돌아가려면 set --name %s --version <버전> --rescan" % a.name)
+        c["_fbl_why"] = ""
+    elif not direct:
         choose_version(d, want, c["version"] or None, a.cmd)
         if d["versions"]:
             c["app"], c["elf"], c["version"] = d["app"], d["elf"], d["version"]
             c["_version_why"] = d["version_why"]
         else:
             c["version"] = ""
-        apply_paired_fbl(c, d["versions"], getattr(a, "fbl", None))
+        apply_paired_fbl(c, d["versions"], getattr(a, "fbl", None),
+                         ver_changed=bool(want) and want != c["_cfg_version"] or getattr(a, "rescan", False))
     else:
         c["_fbl_why"] = ""
     for k in ("fbl", "app", "elf", "hsm"):
