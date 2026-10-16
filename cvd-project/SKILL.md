@@ -44,7 +44,8 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
    - 데이터 영역: 지움(기본) / 유지(`--keep-data`). 보드 이력을 모르거나 **다른 제어기 펌웨어에서 바꿔 쓸 때는 지움**.
    - APP 뱅크(듀얼뱅크, IMAGE/ALL): config 설정을 첫 옵션으로. A 를 고르면 B 에 다른 버전이 남아 FBL 이 B 로 부팅할 때 그 버전이 돈다는 점을 짚는다.
 3. 확인되면 같은 인자에 `--yes`. CVD 화면은 닫아 둔다 (포트가 겹친다). 보드 B+·IGN 이 켜져 있는지 본다 - joule-deep/full 은 끝날 때 전원을 끈다.
-4. 끝나면 CVD 를 닫은 상태에서 B+ 를 껐다 켠다 (`uv run joule-relay relaybox cycle B+`, 결선에 릴레이 박스가 있을 때). 포드는 꽂아 둬도 된다 (암전류만 분리).
+4. 끝나면 CVD 를 닫은 상태에서 **B+·IGN1 을 함께** 껐다 켠다 (IGN1 -> B+ 끄고 3초 뒤 B+ -> IGN1, `uv run joule-relay relaybox off|on ...`).
+   **B+ 만 끊으면 IGN1 이 켜진 채라 다시 부팅하지 않는다** (2026-10-16 NQ6e PSU, 데이터 영역을 실제로 지운 뒤). 포드는 꽂아 둬도 된다 (암전류만 분리).
 
 - 검증만 `verify --name <과제명>`, 설정만 `set --name <과제명> --version/--banks ...`, 목록 `list` - 보드에 쓰지 않으니 확인 없이 실행해도 된다.
 - Joule 을 갱신한 뒤(기본 틀 변환 규칙이 바뀜) 기존 과제는 `refresh --name <과제명>`.
