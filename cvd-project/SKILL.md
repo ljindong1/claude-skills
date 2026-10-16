@@ -38,10 +38,10 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 **쓰기 전에 반드시 사용자 확인을 받는다.**
 
 1. `flash --name <과제명> [인자]` 를 `--yes` 없이 → 계획과 `[옵션]`·`[알림]` 만 나온다 (보드·config 그대로).
-2. 과제 · APP 버전 · 모드 · 데이터 영역 지움/유지 · APP 뱅크 · FBL/APP/ELF/HSM 경로와 `[알림]` 을 그대로 보이고 AskUserQuestion 으로 확인받는다. 정하지 않은 것은 함께 묻는다.
+2. 과제 · APP 버전 · 모드 · APP 뱅크 · FBL/APP/ELF/HSM 경로와 `[알림]` 을 그대로 보이고 AskUserQuestion 으로 확인받는다. 정하지 않은 것은 함께 묻는다.
    - APP 버전: config 버전이 기본. `[알림]` 의 현재 소스·더 새 버전도 옵션으로.
    - 무엇을 쓸지: IMAGE(FBL+APP, 기본) / HSM / ALL. 새 보드나 다른 HSM 이면 ALL.
-   - 데이터 영역: 지움(기본) / 유지(`--keep-data`). 보드 이력을 모르거나 **다른 제어기 펌웨어에서 바꿔 쓸 때는 지움**.
+   - 데이터 영역(DTC·NvM·학습값)은 **언제나 지운다** - 묻지 않는다 (유지 옵션은 2026-10-16 없앰). 같은 보드에 다른 제어기를 쓰면 NvM 이 넘어오기 때문이라고 알린다.
    - APP 뱅크(듀얼뱅크, IMAGE/ALL): config 설정을 첫 옵션으로. A 를 고르면 B 에 다른 버전이 남아 FBL 이 B 로 부팅할 때 그 버전이 돈다는 점을 짚는다.
 3. 확인되면 같은 인자에 `--yes`. CVD 화면은 닫아 둔다 (포트가 겹친다). 보드 B+·IGN 이 켜져 있는지 본다 - joule-deep/full 은 끝날 때 전원을 끈다.
 4. 끝나면 CVD 를 닫은 상태에서 **B+·IGN1 을 함께** 껐다 켠다 (IGN1 -> B+ 끄고 3초 뒤 B+ -> IGN1, `uv run joule-relay relaybox off|on ...`).
@@ -63,7 +63,7 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 
 - `S32_Config` 와 기존 `loadfile.cmm` 은 수정하지 않는다. 읽는 것도 사용자가 허락할 때만.
 - 이미 있는 과제는 덮어쓰지 않는다. 다시 만들려면 사용자가 폴더를 지운 뒤 init.
-- **Erase All(`flash_erase_all`)은 쓰지 않고 안내하지도 않는다** - SFlash 8섹터 복구 불가. NvM 초기화는 flash 의 '지움'(기본)으로 충분하다.
+- **Erase All(`flash_erase_all`)은 쓰지 않고 안내하지도 않는다** - SFlash 8섹터 복구 불가. NvM 은 flash 가 언제나 지운다.
 - **work flash 를 섹터 일부만 지우는 실험을 하지 않는다** - 2026-10-16 한 섹터만 지운 뒤 ECU 가 부팅하지 않았다 (전체를 지우고 B+·IGN1 을 함께 끊었다 켜서 복구).
 - 쓰기(flash `--yes`)는 매번 사용자 확인 뒤에만.
 
