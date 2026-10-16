@@ -100,7 +100,7 @@ set   --name <과제명> [--version <버전>] [--banks A|AB] [--rescan] [--fbl/-
 2. 출력된 **과제 · APP 버전 · 모드 · 데이터 영역 지움/유지 · APP 뱅크 · FBL/APP/ELF/HSM 경로**와 `[옵션]`·`[알림]` 을 그대로 보여 주고 AskUserQuestion으로 확인받는다. 사용자가 정하지 않았으면 함께 묻는다.
    - **APP 버전**: config 버전(기본). `[알림]` 에 현재 소스·더 새 버전이 나오면 그 버전도 옵션으로 보여 준다.
    - **무엇을 쓸지**: FBL+APP(IMAGE, 기본) / HSM / 전부(ALL)
-   - **데이터 영역(DTC·NvM·학습값)을 지울지**: 지움(기본) / 유지(`--keep-data`). 보드 이력을 모르면 지움. 고장 기록을 남긴 채 새 빌드만 올릴 때 유지.
+   - **데이터 영역(DTC·NvM·학습값)을 지울지**: 지움(기본) / 유지(`--keep-data`). 보드 이력을 모르면 지움. 고장 기록을 남긴 채 새 빌드만 올릴 때 유지. 지움은 work flash `0x14000000++0x1BFFF`(NvM) 를 `cflash.erase` 로 지운다 - 벤더 원본의 `flash.erase` 는 CFLASH 선언 영역에서 오류 없이 아무것도 안 해서, 1.5.4 전에 만든 과제는 '지움' 이어도 NvM 이 남는다(2026-10-16 NQ6e: APSU 로 학습된 F187 이 PSU 로 다시 쓴 뒤에도 읽힘). 그런 과제는 `refresh --name <과제명>` 으로 다시 만든다.
    - **APP 를 쓸 뱅크**(듀얼뱅크, 모드 IMAGE/ALL 이면 매번 묻는다): config 설정(`[옵션]` 의 `(config)`)을 첫 옵션으로. `뱅크 A 만`(`--banks A`, 벤더 원본 — B 에는 FBL 만 쓰고 B 의 APP 는 예전 것 그대로) / `뱅크 A·B 모두`(`--banks AB`, B 에도 같은 APP). 고른 값은 `--yes` 실행 때 config 에 저장되어 다음 기본값이 된다(화면 PD 창 첫 줄에도 보임). A 를 고르면 B 에 다른 버전이 남아 FBL 이 B 로 부팅할 때 그 버전이 돈다는 점을 짚는다 — HE1i 2026-10-02 실기: A=26810, B=26820 으로 H-OTA 가 `E_NOTMATCHED_DESTINATION`(0x80004024) 실패. `AB` 는 아직 실기로 기록해 본 적이 없다(첫 사용 시 확인 6).
 3. 확인되면 같은 인자에 `--yes` 를 붙여 실행한다.
 
@@ -131,7 +131,7 @@ set   --name <과제명> [--version <버전>] [--banks A|AB] [--rescan] [--fbl/-
 
 화면의 **PD** 는 기존 S32 `loadimage.cmm` 과 같은 창을 띄운다: `Image` / `Hsm` / `Image&Hsm` 선택, config 의 FBL/APP/HSM 경로가 채워진 칸 3개(옆 버튼으로 다른 파일 선택 가능), `file load start` → `Erase data flash too? (DTC / NvM / learned values)` → (Image·Image&Hsm 이면) `Write the APP to bank B too?` (Yes = 뱅크 A·B 모두 / No = 뱅크 A 만). 창 첫 줄(잠긴 칸)에 config 의 APP 버전과 APP 뱅크 설정이 나온다(`APP version 26820 (config) / APP banks A (config: ...)`). 화면에서 고른 뱅크는 그 한 번만 쓰고 config 에 저장하지 않는다(기본값을 바꾸려면 CLI `set --banks`). A 만 썼는데 다른 뱅크가 다르면 결과 창이 `NOTE: bank B holds a different APP` 를 붙인다. DIALOG 정의 안(HEADER 등)에서는 CVD 가 `&매크로`를 풀지 않아 창 제목에는 넣지 않았다. 다른 버전을 쓰려면 CLI `set --version` 뒤 PD 를 다시 누른다. **벤더 스크립트를 부르기 전에 이번 모드에 필요한 파일이 있는지 보고, 없으면 `File not found - nothing written (board untouched)` 창만 띄우고 끝낸다** — 벤더 스크립트는 소거·FBL 기록 뒤에야 APP 를 읽어서, 이 확인이 없으면 보드를 지운 채 멈춘다. 기존 창의 `Erase`(전체 소거)는 넣지 않았다. 창에서 고른 파일은 그 한 번만 쓰고 config 에 저장하지 않으며, config 와 다른 FBL/APP 를 골랐으면 검증 지점이 맞지 않으므로 검증을 건너뛰고 그렇게 알린다. 쓰기가 끝나면 **자동으로 검증까지 하고 결과를 창으로 띄운다** — `Flash + Verify OK - all check points match the image files` 또는 `Verify FAILED - ... (first mismatch <주소>)`. 쓰는 도중 오류가 나면 스크립트가 멈춰 결과 창이 뜨지 않는다 — 그때는 메시지 창의 오류 줄을 본다. **VF** 도 끝나면 결과 창을 띄운다. 기존 S32_Config 과제는 그대로 계속 쓸 수 있다. 자세한 조작은 `references/usage.md`.
 
-스킬을 갱신한 뒤 이미 만든 과제의 화면 스크립트(PD 창·툴바)만 새로 만들려면 `refresh --name <과제명>`(config·변환본 유지, loadfile.csf 는 백업 후 재생성).
+스킬을 갱신한 뒤 이미 만든 과제의 스크립트를 새로 만들려면 `refresh --name <과제명>` — PD 창·툴바와 기본 틀 변환본(flash_host/hsm)을 다시 만들고, config 는 값을 유지하며 connect·reset 은 그대로 둔다(loadfile.csf 는 백업 후 재생성).
 
 ## 규칙
 

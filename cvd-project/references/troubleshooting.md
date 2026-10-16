@@ -160,3 +160,26 @@ CYT2B9 계열       지우는 주소와 섹터 수가 다름 -> 기본 틀 없�
 도구는 저장소의 `DUAL_BANK` / `SINGLE_BANK` 폴더(예: `CryptoLib\HAE_HSM\HSM_Firmware\DUAL_BANK`)로
 뱅크 구성을 추정해 근거와 함께 보여 준다. 그래도 **추론으로 넘기지 않고 사용자 답을
 받는다.** 조사 결과와 답이 다르면 도구가 중단한다. 맞는 기본 틀이 없으면 중단한다.
+
+---
+
+## '데이터 지움' 으로 썼는데 NvM 값(품번·DTC·학습값)이 남아 있다
+
+1.5.4 전에 만든 과제다. 벤더 원본 소거는 `flash.erase 0x14000000++0x1BFFF` 인데 섹터는
+`CFLASH.Create` 로 선언돼 있어, CVD 에서 `flash.erase` 는 오류 없이 아무것도 하지 않는다.
+결과 로그는 `ERASE=YES`, 검증도 성공이라 겉으로는 알 수 없다 (검증 지점은 code flash 뿐).
+코드 플래시는 `cflash.reprogram` 이 쓰는 섹터를 지우므로 문제가 드러나지 않는다.
+
+```
+2026-10-16 NQ6e PSU (CYT2BL 듀얼뱅크), 같은 work flash 섹터 0x14003800 (2KB):
+  지우기 전            0xFFFFFFFF 261/512 워드, APSU 품번 기록 2개
+  flash.erase 뒤       한 워드도 안 바뀜
+  cflash.erase 뒤      지워짐, 품번 기록 0개
+```
+
+- 1.5.4 부터 변환본은 work flash 를 `cflash.erase` 로 지운다. 기존 과제는 `refresh --name <과제명>`.
+- HSM 기본 틀은 원래 `cflash.erase 0x1401C000++0x3fff` 로 HSM 영역을 지운다 - 데이터 지움 범위(~0x1401BFFF)와 겹치지 않는다.
+- 지운 work flash 는 ECC 를 끈 채 읽으면 0xFF 가 아닌 값으로 보인다 (정상).
+- **섹터 일부만 지우지 않는다.** 같은 날 한 섹터만 지운 뒤 ECU 가 부팅하지 않았다 (OsTick 멈춤, RAM 미초기화).
+  0x14000000++0x1BFFF 전체를 지우고 B+·IGN1 을 함께 15초 끊었다 켜자 부팅했고 F187 은 ROM 기본값이었다.
+  부분 소거와 B+ 만 끊은 재투입 중 무엇이 원인인지는 가리지 못했다.

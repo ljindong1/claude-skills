@@ -35,7 +35,7 @@ import subprocess
 import sys
 import time
 
-VERSION = "1.5.3"
+VERSION = "1.5.4"
 
 # 실제 파일 위치(FS)와 .csf 안에 적힐 윈도우 경로(WIN)를 나눈다. 평소에는 같다.
 # --cvd-root 로 바꿀 수 있다 (set_root). CVD_ROOT / CVD_ROOT_WIN / CVD_EXE 환경변수는 시험용이다.
@@ -1183,6 +1183,16 @@ def convert_flash_csf(src_file, src_folder_win, dst_win):
     if n != 1:
         die("%s: 소거 확인 창 패턴을 찾지 못했습니다(%d). 원본 구조가 다릅니다." % (os.path.basename(src_file), n))
     notes.append("소거 확인 창 -> FL 선택값")
+    # 원본 소거는 flash.erase 인데 섹터는 CFLASH.Create 로 선언돼 있어, CVD 에서 flash.erase 는 오류 없이 아무것도 안 한다.
+    # 2026-10-16 NQ6e PSU 실기: flash.erase 뒤 work flash 섹터 512워드 그대로, cflash.erase 뒤 지워짐
+    # (그 전까지 '데이터 지움' 으로 쓴 보드는 앞 제어기의 NvM 을 물려받았다 - APSU 품번이 PSU F187 로 읽힘).
+    # work flash(NvM) 만 cflash.erase 로 바꾼다. 코드 플래시는 cflash.reprogram 이 쓰는 섹터를 지우므로 원본 그대로 둔다.
+    t, n = re.subn(r"^([ \t]*)flash\.erase([ \t]+0x14000000\+\+0x[0-9A-F]+)", r"\1cflash.erase\2   ; [cvd_flash] flash.erase -> cflash.erase",
+                   t, flags=re.I | re.M)
+    if n:
+        notes.append("work flash 소거 flash.erase -> cflash.erase")
+    elif re.search(r"^[ \t]*flash\.erase[ \t]+0x14", t, re.I | re.M):
+        die("%s: work flash 소거 줄을 바꾸지 못했습니다. 원본 구조가 다릅니다." % os.path.basename(src_file))
     t, n = re.subn(r"(OPTION\.JTAGCLOCK)\s+5\.MHz", r"\1 10.MHz   ; [cvd_flash] 5.MHz -> 10.MHz (HE1i 실기 검증본 값)", t)
     if n:
         notes.append("JTAGCLOCK 5.MHz -> 10.MHz")
