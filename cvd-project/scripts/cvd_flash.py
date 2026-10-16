@@ -35,7 +35,7 @@ import subprocess
 import sys
 import time
 
-VERSION = "1.5.2"
+VERSION = "1.5.3"
 
 # 실제 파일 위치(FS)와 .csf 안에 적힐 윈도우 경로(WIN)를 나눈다. 평소에는 같다.
 # --cvd-root 로 바꿀 수 있다 (set_root). CVD_ROOT / CVD_ROOT_WIN / CVD_EXE 환경변수는 시험용이다.
@@ -155,6 +155,40 @@ BANK_DIR_RE = re.compile(r"^(dual|single)[_\- ]?bank$", re.I)
 def _by_time(files):
     """최근 수정 순. 첫 번째가 기본 선택이다."""
     return sorted(files, key=os.path.getmtime, reverse=True)
+
+
+# 최근 순 고르기는 따로 받아 둔 파일(받은 시각이 서로 다름)을 위한 것이다. git 체크아웃·압축 풀기처럼 여러 파일이
+# 한꺼번에 생기면 수정 시각이 같아 최근 순이 아무것이나 고른다 (2026-10-16: 평면 구조 Debug\OEUK_NQ6E 의
+# v3_0_19·v3_0_24, PSU·APSU nq6e 저장소 01_HSM_Framework 에서 NQ6e 대신 SX3e HSM). 그때는 차종 이름이 든 파일이
+# 하나면 그것을, 아니면 고르지 않고 후보를 보여 준다.
+SAME_TIME_S = 2.0
+
+
+def resolve_same_time(files, variant=None):
+    """(정렬된 후보, 고른 이유, 가릴 수 없는 묶음). 최근 순 맨 앞과 수정 시각이 SAME_TIME_S 안인 후보들의
+    파일 이름이 서로 다를 때만 손댄다 (같은 파일이 두 곳에 있는 것은 괜찮다)."""
+    if len(files) < 2:
+        return files, "", []
+    t0 = os.path.getmtime(files[0])
+    group = [p for p in files if abs(os.path.getmtime(p) - t0) <= SAME_TIME_S]
+    if len({os.path.basename(p).lower() for p in group}) <= 1:
+        return files, "", []
+    tag = (variant or "").upper().replace("OEUK_", "")
+    if tag:
+        hit = [p for p in group if re.search(r"(?<![A-Za-z0-9])%s(?![A-Za-z0-9])" % re.escape(tag),
+                                             os.path.basename(p), re.I)]
+        if hit and len({os.path.basename(p).lower() for p in hit}) == 1:
+            return hit + [p for p in files if p not in hit], "같은 때 생긴 후보 중 차종 %s 이 이름에 든 것" % tag, []
+    return files, "", group
+
+
+def stop_if_ambiguous(d, given, what):
+    """discover 결과에서 가릴 수 없는 후보가 있고 경로를 직접 주지 않았으면 아무것도 쓰지 않고 멈춘다."""
+    for k, group in d.get("ambiguous", {}).items():
+        if not given.get(k):
+            die("%s: %s 후보가 같은 때 생긴 서로 다른 파일이라 수정 시각으로 가릴 수 없어 고르지 않았습니다 "
+                "(git 체크아웃·압축 풀기). 아무것도 쓰지 않았습니다. --%s <경로> 로 고르세요.\n  %s"
+                % (what, k.upper(), k, "\n  ".join(group)))
 
 
 # ---- 버전별 빌드 폴더 (Jenkins PostPackage.bat: Debug\OEUK_xxxx\<버전>\)
@@ -350,7 +384,17 @@ def discover(repo):
     fbl_variant = ver_variants.pop() if len(ver_variants) == 1 else src_variant
     fbl_sorted, fbl_why = order_fbl(fbl, fbl_variant)
     cands = {"fbl": fbl_sorted, "hsm": _by_time(hsm), "elf": _by_time(elf), "app": _by_time(app_w)}
-    d = {"repo": repo, "cands": cands, "fbl_why": fbl_why}
+    # 최근 순으로 고른 것 중 같은 때 생긴 서로 다른 파일 (FBL 은 02_Fbl_Binary 규칙으로 고르지 않았을 때만)
+    pick_why, ambiguous = {}, {}
+    for k in ("fbl", "app", "elf", "hsm"):
+        if k == "fbl" and fbl_why:
+            continue
+        cands[k], why, group = resolve_same_time(cands[k], fbl_variant)
+        if why:
+            pick_why[k] = why
+        if group:
+            ambiguous[k] = group
+    d = {"repo": repo, "cands": cands, "fbl_why": fbl_why, "pick_why": pick_why}
     for k in ("fbl", "hsm", "elf"):
         d[k] = cands[k][0] if cands[k] else None
     d["app"] = cands["app"][0] if cands["app"] else d["elf"]      # 기록용 APP (없으면 ELF 로 기록)
@@ -362,6 +406,7 @@ def discover(repo):
         cands["app"], cands["elf"] = [], []
         if len(versions) == 1:
             use_version(d, list(versions)[0])
+    d["ambiguous"] = {k: g for k, g in ambiguous.items() if cands[k]}   # 버전 폴더 구조면 APP·ELF 는 버전으로 고른다
     d["mcu"] = detect_mcu(repo)
     d["name"] = suggest_name(repo, d["hsm"])
     d["bank"], d["bank_why"] = detect_bank(repo, bank_dirs)
@@ -1202,6 +1247,11 @@ def print_scan(d):
         if k == "fbl" and d.get("fbl_why") and d[k]:
             print("  %-10s   → %s 에서 고름" % ("", d["fbl_why"]))
         others = [p for p in d["cands"].get(k, []) if p != d[k]]
+        if k in d.get("pick_why", {}) and d[k]:
+            print("  %-10s   → %s 을 고름" % ("", d["pick_why"][k]))
+        if k in d.get("ambiguous", {}):
+            print("  %-10s   [주의] 같은 때 생긴 서로 다른 파일 %d개 - 수정 시각으로 가릴 수 없음 (체크아웃·압축 풀기). "
+                  "init/flash --rescan 은 --%s 로 고르기 전까지 멈춘다" % ("", len(d["ambiguous"][k]), k))
         if others:
             why = "위 폴더를 우선함" if k == "fbl" and d.get("fbl_why") else "가장 최근 파일을 골랐음"
             print("  %-10s   (다른 후보 %d개 — %s. 차종·사양이 맞는지 확인)" % ("", len(others), why))
@@ -1232,6 +1282,7 @@ def cmd_init(a):
     d = discover(repo)
     tcpu = template_check()
     print_scan(d)
+    stop_if_ambiguous(d, {k: getattr(a, k) for k in ("fbl", "app", "elf", "hsm")}, "init")
     if not (a.app or a.elf):
         choose_version(d, a.version, None, "init")
         apply_paired_fbl(d, d["versions"], a.fbl)
@@ -1463,7 +1514,10 @@ def prepare_cfg(a):
     c["_versions"], c["_src_ver"] = d["versions"], d["src_ver"]
     if getattr(a, "rescan", False):              # FBL·HSM 재탐색 (버전 폴더가 없으면 APP·ELF 도)
         r = discover(c["repo"])
-        for k in ("fbl", "hsm") if d["versions"] else ("fbl", "app", "elf", "hsm"):
+        keys = ("fbl", "hsm") if d["versions"] else ("fbl", "app", "elf", "hsm")
+        r["ambiguous"] = {k: g for k, g in r["ambiguous"].items() if k in keys}
+        stop_if_ambiguous(r, {k: getattr(a, k, None) for k in keys}, a.cmd + " --rescan")
+        for k in keys:
             if r[k]:
                 c[k] = r[k]
     direct = [k for k in ("app", "elf") if getattr(a, k, None)]
