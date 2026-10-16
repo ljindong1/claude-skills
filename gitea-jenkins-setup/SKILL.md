@@ -306,7 +306,9 @@ APP·FBL이 **같은 파일 한 벌**을 쓴다. 차이는 `PJ_Define.h`의 버�
 > - 올린 버전과 OEUK 전환은 **임시**다. 빌드가 끝나면 `PJ_Define.h`를 원본으로 되돌려 커밋에 들어가지 않는다. 기준 버전은 사람이 정한다.
 > - 한 조합이 실패해도 나머지를 빌드하고, 만들어진 폴더는 push한다. 빌드 결과는 실패로 표시된다(`[VARIANTS] [FAIL] …`).
 > - 기준 블록과 TEST 블록의 FOTA(`FOTA_OTA_0x`)·HSM(`HAE_HSM_x`) 설정이 다르면 아무것도 빌드하지 않고 멈춘다 — ARXML 재생성이 필요한 경우라 로컬 `build_all.bat`을 쓴다.
-> - 시간은 조합 수만큼이다(첫 조합만 `Rebuild`, 나머지는 증분 `Build`). HE1I APP 실측: ALL 4개 20.7분.
+> - 첫 조합은 **요청한 BuildType 그대로** 빌드한다. push 자동 빌드(Hook)는 보통 `Build`이고, `Rebuild`는 수동으로 요청했을 때만 첫 조합에 한 번 적용된다. 나머지 조합은 증분 `Build`다(`Rebuild` 요청 시 `Build`로 바뀜, `BuildVariants.bat` `FIRST_ACT`/`NEXT_ACT`). 증분 `Build`도 Generate 단계는 매번 돌고(조합당 약 1분), 컴파일은 `PJ_Define.h`에 의존하는 파일만 한다 — NQ6E APP 실측: Rebuild 602개, 나머지 조합 각 18개.
+> - 시간은 조합 수만큼이다. HE1I APP 실측: ALL 4개 20.7분(첫 조합 Rebuild). NQ6E APP 실측: 첫 조합 Rebuild 26분, 전부 증분 Build 8분.
+> - 처음 빌드하는 브랜치나, 저장소에 커밋된 옛 생성물(`Generated\`)이 남아 있을 수 있는 경우에는 첫 빌드를 `BuildType=Rebuild`로 수동 실행하도록 안내한다. NQ6E APP 첫 Hook 빌드는 옛 `os_ioc.arxml` 때문에 `MemMap.h` `#error`로 실패했고, Rebuild로 해결됐다.
 > - **`PJ_Define.h`는 공유 소스라 skill이 넣지 않는다.** `add-bat` 결과의 `build_target.define`이 `null`이면 CURRENT로 동작하며, ALL이 필요하면 위 줄을 사용자가 넣도록 안내한다. `has_oeuk_test`가 false면 ALL은 쓸 수 없다고 함께 알린다.
 > - 평소에는 `CURRENT`로 두고, 필요할 때만 `ALL`로 바꿔 커밋한 뒤 결과를 받고 되돌리도록 안내한다(매 push마다 여러 번 빌드하지 않도록).
 > - 실측(HE1I): APP ALL 4개 약 21~23분, FBL ALL 2개 약 0.5분.
