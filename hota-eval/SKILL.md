@@ -1,75 +1,67 @@
 ---
 name: hota-eval
-description: H-OTA 리프로그래밍 평가(A 그룹 OEUK_HE1I 다운그레이드 차단 · B 그룹 OEUK_TEST 강제 다운그레이드, External · BG→Repro Rules 12회)를 CLI 로 끌고 가는 스킬 — 서명본 4벌 자동 판별(aSIMS hash xml ↔ 빌드 산출물, 서명 뒤 재빌드 감지), bin 배치, 케이스별 Report Config(.asc 이름)·OEUK 준비, 실행 뒤 .log/.asc 로 버전 업·다운 자동 판정(업그레이드 Success · 다운그레이드 NRC 0xF4 차단 · OEUK 강제 다운그레이드 27 13/14 · SW 버전), 파일 이름 규칙 검사, 보드평가레포트 xlsx 첨부·그림·헤더 교체, Redmine 첨부 zip, Redmine/Confluence 결과 표 초안. 사용자가 "H-OTA 평가", "A 그룹 B 그룹", "리프로그래밍 평가", "업그레이드 다운그레이드 평가", "OEUK 강제 다운그레이드", "External Rules / BG Rules / Repro Rules", "Report Config", "보드평가레포트 첨부 바꿔줘", "aSIMS 서명 받았어", "서명본 bin", "26810 26820 평가", "평가 결과 정리", "결과 폴더 압축", "H-OTA 체크리스트" 등을 말하거나 SWP 패치 실기 검증(swp-delivery-patch S12)의 H-OTA 부분에 들어서면 반드시 이 스킬을 사용하라. Claude Code CLI(H-OTA Studio · CVD · VN1640A 가 있는 사용자 PC, 관리자 PowerShell 권장) 전용. 라이팅은 cvd-project, CAN 출력은 can-bench-setup(Joule), H-OTA 공식 도구 명령줄 실행은 Joule joule-hota 를 부른다.
+description: H-OTA 리프로그래밍 평가(A 그룹 차종 빌드 다운그레이드 차단 · B 그룹 OEUK_TEST 강제 다운그레이드, 1세대 External · BG→Repro / 2세대 Wired · Wireless · Rule Units)를 H-OTA Studio 와 함께 끌고 가는 스킬. 실행은 회사 저장소 Joule(D:\Mobase\asec_autotest_tool)의 joule-hota-eval · joule-hota · joule-flash 를 그 자리에서 부른다 — 서명본 4벌 판별(aSIMS hash ↔ 빌드, 서명 뒤 재빌드 감지), bin 배치, 케이스 전 보드 준비(서명본 확인·ALL·AB 쓰기·디버거 놓기·IGN1/B+ 재투입), 케이스별 Report Config(.asc 이름)·OEUK 넣기, 실행 뒤 .log 정리·캡처 이름·자동 판정(Success · NRC 0xF4 · 27 13/14 · SW/HW 버전), 이름 규칙 검사·수정, 보드평가레포트 xlsx, Redmine 첨부 zip, 결과 표. 사용자가 "H-OTA 평가", "A 그룹 B 그룹", "리프로그래밍 평가", "업그레이드 다운그레이드 평가", "OEUK 강제 다운그레이드", "External / BG / Repro Rules", "Wired Rules", "Wireless Rules", "Rule Units", "Report Config", ".asc 파일명 알려줘", "보드평가레포트 첨부 바꿔줘", "aSIMS 서명 받았어", "서명본 bin", "26310 26320 평가", "평가 결과 정리", "결과 폴더 압축", "H-OTA 체크리스트", "hcfg 확인" 등을 말하거나 SWP 패치 실기 검증(swp-delivery-patch S12)의 H-OTA 부분에 들어서면 반드시 이 스킬을 사용하라. Claude Code CLI(H-OTA Studio · CVD · VN1640A · 릴레이 박스가 있는 사용자 PC, 관리자 PowerShell 권장) 전용.
 ---
 
 # hota-eval — H-OTA A·B 그룹 평가
 
-SWP 패치 회차마다 하는 H-OTA 리프로그래밍 평가(버전 업·다운그레이드 확인)와 그 산출물을 CLI 로 처리한다. 패치 고유 재현 시험은 범위 밖이다(swp-delivery-patch S12). 사람이 하던 일 중 **판단이 필요 없는 일(이름 붙이기, 경로 넣기, 결과 읽기, 레포트·zip 만들기)을 도구가 하고, 사람은 버튼(H-OTA Start)과 확인만** 한다.
-
-케이스 정의·경로·레포트 개체 이름은 프로젝트 프로필 `references/projects/<프로젝트>.toml` 에 있다. 첫 프로필은 `he1i_psu` 다. 다른 차종은 `_template.toml` 을 복사해 채운다.
+SWP 패치 회차마다 하는 H-OTA 리프로그래밍 평가와 그 산출물을 다룬다. **도구는 Joule 저장소다** (2026-10-20 까지 이 스킬에 있던 `hota_eval.py` 를 `joule-hota-eval` 로 옮김).
+이 스킬은 언제·어떤 순서로 부르고 무엇을 사람에게 확인받는지만 다룬다. 사람은 H-OTA 의 Start 와 Output 로그 저장·캡처만 한다.
 
 ## 도구
 
-`python <스킬폴더>/scripts/hota_eval.py [--profile he1i_psu] [--swp 3.0.29] [--date 261008] <명령>`
+- 저장소 `D:\Mobase\asec_autotest_tool` (Joule). 그 폴더에서 `uv run <명령>` 으로 실행한다. 설치·복사하지 않는다. 저장소가 없으면 멈추고 알린다.
+- 사용법·명령·판정 기준·프로필 형식·실기 함정의 정본은 저장소 **`docs/joule-hota-eval.md`**. 조작 질문은 그 문서를 읽고 답한다.
 
-| 명령 | 하는 일 | 쓰기 |
-|---|---|---|
-| `status` | 케이스별 .asc/.log/.png 유무·판정·이름 검사·다음 할 일 | 없음 |
-| `identify --signed <폴더> [--ref <커밋>]` | aSIMS 서명본을 `aSIMS_hash_*.xml` 의 SHA-256 으로 변형 4벌에 맞춘다. 빌드 산출물(`rom_<버전>/*.s19`)과 다르면 **멈춘다** — 서명 뒤 재빌드 | 없음 |
-| `bins --signed <폴더> [--ref]` | identify 뒤 서명본 .bin 을 결과 폴더로 (없으면 Hex2Binary) | 결과 폴더 |
-| `prepare <케이스>[:<Rules>] [--manual]` | Report Config(.asc 경로)·OEUK 를 H-OTA 설정 파일에 넣고(백업 후) rom·target·기대를 보여 준다. 권한이 없으면 경로를 클립보드로 | H-OTA ini (관리자 터미널일 때만) |
-| `collect <케이스>[:<Rules>]` | 실행 뒤 .asc/.log 확인, 캡처 png 이름 맞춤(`screenshot_dir` 설정 시), 그 자리 판정, 다시 라이팅 안내 | 결과 폴더 |
-| `restore` | prepare 가 바꾼 H-OTA 설정 파일을 처음 상태로 | H-OTA ini |
-| `judge [--json]` | 업·다운그레이드 판정 (소요 시간은 표시만) | 없음 |
-| `names` | 이름 규칙 검사 (규칙 밖 · 없음, `.asc.asc`, `Rule`(s 빠짐) 힌트) | 없음 |
-| `report --bench <joule 실행 폴더> --fbl 3.0.19 [--template] [--out] [--dry-run]` | 보드평가레포트 첨부·그림·헤더 교체 (Excel COM) 후 첨부 바이트 검증 | 결과 폴더 |
-| `zip --issue <일감> --bench <폴더> [--dest]` | Redmine 첨부 묶음 (asc · log · png · bin · xlsx · CAN 벤치 · 하위 폴더별) | 지정 폴더 |
-| `summary` | 결과 표 (Redmine 코멘트 · Confluence 체크리스트 7. 결과 기록에 그대로) | 없음 |
-| `where [--issue]` | 산출물 저장 위치 목록 (결과 폴더 · 레포트 · zip · 백업 · 서명본) | 없음 |
+| 명령 | 하는 일 |
+|---|---|
+| `uv run joule-hota-eval <결선> <명령>` | 반자동 평가 도우미 - where · status · identify · bins · flash · prepare · collect · restore · judge · names · report · zip · summary |
+| `uv run joule-hota <결선> ...` | H-OTA 명령줄 (Hex2Binary · -Convert · -Rompackage · -HashValue · Updater -DIRECT) - 사람 없이 돌리는 평가 (실기 확인 전) |
+| `uv run joule-flash ...` | CVD 쓰기 (`joule-hota-eval flash` 가 대신 부른다) |
+| `uv run joule-full <결선> --run` | CAN 출력·동작 (레포트 TC_001, P2) |
 
-공통 옵션 `--result <폴더>` 로 결과 폴더를 직접 지정한다. 지정하면 이후 모든 명령에 같은 값을 준다.
+- 케이스·버전·레포트 개체는 `configs/hota_eval/<제어기>.toml`, 빌드·결과 폴더는 제어기 `[project]`, CVD 과제·서명 결과는 제어기 `[hota]` (`cvd_project`, `signed`).
+  새 제어기는 프로필을 같은 형식으로 만든다 (NQ6e = 2세대 본보기, HE1i = 1세대). 고칠 것이 생기면 저장소에서 고치고 `uv run pytest`.
+- H-OTA 설정 파일을 직접 다루는 일(xml 변환, Report Config, OEUK)은 관리자 권한이 필요하다. 일반 터미널이면 UAC 로 관리자 PowerShell 을 띄워 한 번에 하거나, `prepare --manual`(클립보드)로 사람에게 넘긴다.
 
 ## 흐름
 
 ```
-E0 저장 위치   where 로 기본 위치를 보여 주고 AskUserQuestion 으로 확인받는다 (결과 폴더 · 레포트 · zip).
-               바꾸면 그 값을 --result / report --out / zip --dest 로 끝까지 쓴다. 확인 전에는 아무것도 만들지 않는다
-E0 준비 점검   관리자 PowerShell 에서 claude 실행(권장) · PJ_Define(버전·OEUK) · CVD · VN1640A · H-OTA 로그인(1주일마다 로그아웃)
-E1 빌드        JENKINS_BUILD_TARGET ALL (커밋·push 는 지시받을 때) → swp-delivery-patch jenkins_wait.py → pull
-               → Debug/OEUK_xxx/ 4벌 확인. 이 빌드 번호·커밋을 기록 (E2 --ref)
-E2 서명        rom_<버전>.zip 4개를 aSIMS 에 (사람, 웹) → 받은 폴더 → identify → bins
-E3 결과 폴더   04_Reprogramming/v<SWP>/<YYMMDD>/ , 이전 회차 보드평가레포트 복사
-E4 A 그룹      cvd-project --version <low> --banks AB → 디버거 분리 → A1, A2 (External)
-               → 다시 라이팅 → A3, A4 (BG→Repro)
-E5 B 그룹      cvd-project --version <low>_test --banks AB → B1, B2(OEUK 체크) → 다시 라이팅 → B3(OEUK 해제), B4(OEUK 체크)
-               케이스마다: prepare → (사람) H-OTA Start, Output log 저장, 캡처 → collect
-E6 판정        judge / names — 8케이스 모두 통과, 대칭성(A2·A4 차단, B2·B4 성공)
-E7 산출물      CAN 벤치(can-bench-setup) → report → zip → summary → Confluence 체크리스트 · Redmine 결과 코멘트 (미리보기 후)
+E0 저장 위치   joule-hota-eval <결선> where -> AskUserQuestion 으로 확인 (결과 폴더 · 레포트 · zip). 바꾸면 --result 를 끝까지
+E0 준비 점검   H-OTA 로그인(1주일마다 로그아웃) · CVD 화면 닫힘 · CANoe 종료 · 릴레이 박스(joule-relay relaybox status)
+E1 빌드        JENKINS_BUILD_TARGET ALL -> Debug/OEUK_<차종>/ 4벌 (swp-delivery-patch)
+E2 서명        (사람) aSIMS -> 받은 zip/폴더 -> identify (멈추면 --ref <서명한 빌드 커밋>) -> bins
+E3 hcfg-r      H-OTA 설정 확인: 진단 ID · partNumber(TEST 빌드는 881P1TEST0 도) · dbVersion(2세대 필수) · 블록 합 = bin 크기.
+               파일을 바꾸면 H-OTA 탭을 닫고(저장 안 함) 다시 연다
+E4 케이스마다  status 의 "다음" 대로:
+                 flash <케이스>            계획을 보이고 확인받은 뒤 flash <케이스> --yes (보드 쓰기)
+                 prepare <케이스>          출력(.asc 이름, rom, target, OEUK, 실행 방법, 기대)을 사용자에게 그대로 전한다
+                 (사람) Output 창 비우기 -> Start -> Output 로그 저장 -> 캡처
+                 collect <케이스> [--fix]  결과·판정을 전한다. 기대와 다르면 .log/.asc 를 읽고 원인을 찾는다
+E5 판정        judge / names --fix - 대칭성 (A 다운그레이드 0xF4 차단 · B 강제 다운그레이드 성공)
+E6 산출물      joule-full (CAN) -> report -> zip -> summary -> Confluence 체크리스트 · Redmine (미리보기 뒤)
 ```
 
-단계별 세부·판정 기준·보드 상태 전이는 `references/flow.md`. 실기에서 겪은 함정은 `references/pitfalls.md` — **E2·E4 전에 꼭 읽는다.**
+### 2세대(CCU2)에서 기억할 것 (2026-10-20 NQ6e PSU)
+
+- Rules 는 Wired / Wireless 둘, 케이스마다 .asc 하나. 파일 이름 Rules 자리는 `WiredRules` / `WirelessRules`.
+- 다운그레이드 차단은 활성화 `31 01 FF01` -> `7F 31 F4`. 전송은 성공한다.
+- OEUK 는 wired · rollback 에서만 돈다. **B4 는 Wireless 시나리오가 아니라 Rule Units**: Add Background-Transfer + Pre Procedure + Rollback + Post Procedure (Activation 해제), OEUK 체크, **아래쪽 Apply** -> Start.
+- 실패한 회차 파일은 `_<까닭>NG` 를 붙여 근거로 남기고 다시 돌린다 (이름 검사가 규칙 밖으로 치지 않는다).
 
 ## 규칙
 
-1. **보드에 쓰는 일은 매번 확인.** CVD 라이팅(`--yes`), H-OTA Start, joule-hota `--run` 은 실행 전마다 사용자 확인을 받는다. 한 번 승인이 다음 실행까지 가지 않는다.
-2. **서명 뒤 APP 를 다시 빌드시키지 않는다.** 같은 소스라도 재빌드하면 Os 생성기가 스택 배치를 바꿔 이미지가 달라진다. identify 가 멈추면 서명한 빌드 커밋을 `--ref` 로 주고, 그 커밋의 산출물로 라이팅·PR 한다.
-3. **라이팅은 항상 `--banks AB`.** A 만 쓰면 FBL 이 다른 뱅크의 옛 버전으로 부팅할 수 있다.
-4. **파일 이름은 도구가 만든다.** `{대상}_PSU_{시험}(v시작_v목표)_{Rules}.asc` 6종 조합 밖의 이름은 쓰지 않는다. collect·names 가 어긋남을 알린다.
-5. **H-OTA 설정 파일은 백업 후에만 바꾸고 끝나면 restore.** 파일이 `C:\ProgramData` 아래라 관리자 권한이 필요하다 — 관리자 PowerShell 에서 claude 를 실행하면 prepare 가 직접 넣는다. 일반 터미널이면 바꾸지 않고 경로를 클립보드로 넘긴다.
-6. **산출물 저장 위치는 시작할 때 사용자에게 묻는다.** `where` 의 기본값을 첫 옵션(추천)으로 보여 주고 다른 위치도 받는다. 결과 폴더를 만들거나(prepare · bins) zip 을 쓰기 전에 확인이 끝나 있어야 한다.
-7. **저장소 커밋·push, Redmine·Confluence·Slack 등록은 지시받을 때만**, 미리보기 후. 결과 폴더 커밋·CURRENT 복귀·PR 은 swp-delivery-patch S13.
-8. 확인한 것과 못 한 것을 나눠 보고한다. H-OTA `.asc` 는 진단 ID(0x7A3·0x7AB·0x7DF)만 기록하므로 CAN 출력 판정에 쓰지 않는다.
+1. **보드에 쓰는 일은 매번 확인.** `flash --yes`, H-OTA Start, `joule-hota --run` 은 실행 전마다 사용자 확인을 받는다. 한 번 승인이 다음 실행까지 가지 않는다.
+2. **서명 뒤 APP 를 다시 빌드시키지 않는다.** identify 가 멈추면 서명한 빌드 커밋을 `--ref` 로 주고, 그 커밋의 산출물로 쓰기·PR 한다.
+3. **보드 준비는 항상 ALL·뱅크 AB·데이터 지움, 쓴 뒤 디버거 놓기 + IGN1->B+ 끄고 B+->IGN1 켜기** (`flash` 가 한다). B+ 만 끊으면 다시 부팅하지 않는다.
+4. **파일 이름은 도구가 만든다.** prepare 가 넣은 이름을 그대로 쓰게 하고, collect · names 가 알리면 `--fix` 로 고친다.
+5. **H-OTA 설정 파일은 백업 뒤에만 바꾸고 끝나면 `restore`.**
+6. **산출물 저장 위치는 시작할 때 사용자에게 묻는다** (`where` 의 기본값을 첫 옵션으로).
+7. **저장소 커밋·push, Redmine·Confluence 등록은 지시받을 때만**, 미리보기 뒤. 제품 저장소(psu_master 등)는 결과 폴더 밖은 읽기만.
+8. 확인한 것과 못 한 것을 나눠 보고한다. H-OTA `.asc` 는 진단 ID 만 기록하므로 CAN 출력 판정에 쓰지 않는다.
+9. 도구가 못 하는 일을 손으로 했으면 그 순서를 Joule 에 반영할 목록으로 남긴다 (나중에 CLI 로 끝까지 돌릴 수 있게).
 
-## 완전 CLI 모드 (파일럿 전)
+## 범위 밖
 
-H-OTA Start 까지 없애려면 Joule `joule-hota` 의 Updater `-DIRECT -task external|background|reprogram` 를 쓴다. Updater 가 Report Config·OEUK 설정을 따르는지, 결과 메시지 형식이 무엇인지 아직 실기로 확인하지 않았다. 파일럿 절차와 Joule 쪽에 필요한 개선 목록은 `references/cli-pilot.md`. 파일럿이 끝나기 전에는 반자동(위 흐름)이 기본이다.
-
-## 참고 문서
-
-| 파일 | 언제 |
-|---|---|
-| `references/flow.md` | 단계 세부, 케이스 표, 판정 기준, 보드 상태 |
-| `references/pitfalls.md` | E2·E4 전 — 실기 함정과 대응 |
-| `references/cli-pilot.md` | 완전 CLI 파일럿, Joule 개선 목록 |
-| `references/projects/*.toml` | 프로젝트 프로필 (케이스·경로·레포트 개체) |
+- 패치 고유 재현 시험 (swp-delivery-patch S12), 빌드·PR (swp-delivery-patch, gitea-jenkins-setup)
+- CVD 과제 만들기 (cvd-project init), CAN 평가 설정 (can-bench-setup)
