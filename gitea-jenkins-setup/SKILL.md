@@ -1,6 +1,6 @@
 ---
 name: gitea-jenkins-setup
-description: 사내 Gitea 저장소로 Jenkins 자동 빌드 환경을 구축하는 스킬. 모드 A(처음 구축) — Fork → build 계정 공동작업자(쓰기) → Clone·devel_ 작업 브랜치 생성 → 표준 배치 파일(Build_Hook_GIT_ASEC.bat, GitPush.bat) 추가·push → Jenkins Job 생성(비활성)·검증까지 한 번에 진행한다. 모드 B(브랜치 추가) — 이미 Fork된 내 저장소의 아무 브랜치(develop_*·feature/* 등)를 기준으로 devel_ 작업 브랜치를 새로 만들고 bat을 넣은 뒤, 그 브랜치를 이미 받아주는 Job이 있으면 재사용하고 없을 때만 새로 만든다. 모드 C(공유 Fork 직접 작업) — 다른 사람의 Fork(예: tglee/psu_master)에 내가 쓰기 권한이 있으면 개인 Fork 없이 그 저장소에서 바로 clone·작업 브랜치·bat·Job 을 진행한다. 개인 Fork 를 공유 Fork 로 옮기고 개인 Fork 를 없애는 이전 절차(references/migrate_to_shared_fork.md)는 사용자가 명시적으로 요청할 때만 쓴다. 사용자가 "젠킨스 빌드 환경 만들어줘", "새 과제 젠킨스 설정", "Gitea 포크하고 Job 만들어줘", "빌드 자동화 세팅", "Jenkins Job 생성", "fork부터 젠킨스까지", "새 제어기 빌드 서버 등록", "랩원 젠킨스 환경 구축", "gitea jenkins setup", "이미 포크한 저장소에 브랜치 추가해줘", "devel_ 브랜치 새로 만들어줘", "이 브랜치로 작업 브랜치 만들어줘", "빌드용 브랜치 추가", "tglee 저장소에서 바로 작업", "jdlee fork 없애줘", "개인 fork 제거", "공유 fork 로 옮겨줘" 등을 말하거나, AUTOSAR 제어기 저장소를 Jenkins 빌드에 처음 연결하려는 의도를 보이면 반드시 이 스킬을 사용하라. Claude Code CLI(사용자 PC, 사내망) 전용이며, API 토큰(GITEA_TOKEN·JENKINS_TOKEN)이 있으면 API로, 없으면 Claude in Chrome 연동으로 진행한다. 생성만 하고 기존 저장소·브랜치·파일·Job은 수정·삭제하지 않는다(사용자가 요청한 이전 절차만 예외). 첫 빌드 실행·패치 작업·PR 생성은 범위가 아니다.
+description: 사내 Gitea 저장소로 Jenkins 자동 빌드 환경을 구축하는 스킬. 모드 A(처음 구축) — Fork → build 계정 공동작업자(쓰기) → Clone·devel_ 작업 브랜치 생성 → 표준 배치 파일(Build_Hook_GIT_ASEC.bat, GitPush.bat) 추가·push → Jenkins Job 생성(비활성)·검증까지 한 번에 진행한다. 모드 B(브랜치 추가) — 이미 Fork된 내 저장소의 아무 브랜치(develop_*·feature/* 등)를 기준으로 devel_ 작업 브랜치를 새로 만들고 bat을 넣은 뒤, 그 브랜치를 이미 받아주는 Job이 있으면 재사용하고 없을 때만 새로 만든다. 모드 C(공유 Fork 직접 작업) — 다른 사람의 Fork(예: tglee/psu_master)에 내가 쓰기 권한이 있으면 개인 Fork 없이 그 저장소에서 바로 clone·작업 브랜치·bat·Job 을 진행한다. 모드 D(PR 구성) — 작업이 끝난 devel_ 작업 브랜치에서 Jenkins 자동 커밋·빌드 스크립트·JENKINS_BUILD_TARGET·중간 산출물을 걸러 PR 브랜치를 새로 만들고(평가한 빌드의 산출물 기준, 다른 차종 산출물 유지), 검증 후 승인을 받아 push·Gitea PR 생성·PR 제목/본문 수정까지 한다(references/pr_assembly.md). 개인 Fork 를 공유 Fork 로 옮기고 개인 Fork 를 없애는 이전 절차(references/migrate_to_shared_fork.md)는 사용자가 명시적으로 요청할 때만 쓴다. 사용자가 "젠킨스 빌드 환경 만들어줘", "새 과제 젠킨스 설정", "Gitea 포크하고 Job 만들어줘", "빌드 자동화 세팅", "Jenkins Job 생성", "fork부터 젠킨스까지", "새 제어기 빌드 서버 등록", "랩원 젠킨스 환경 구축", "gitea jenkins setup", "이미 포크한 저장소에 브랜치 추가해줘", "devel_ 브랜치 새로 만들어줘", "이 브랜치로 작업 브랜치 만들어줘", "빌드용 브랜치 추가", "tglee 저장소에서 바로 작업", "jdlee fork 없애줘", "개인 fork 제거", "공유 fork 로 옮겨줘", "PR 만들어줘", "PR 브랜치 만들어줘", "PR 진행해줘", "작업 브랜치 PR", "PR 어떻게 할지", "PR 제목 고쳐줘" 등을 말하거나, AUTOSAR 제어기 저장소를 Jenkins 빌드에 처음 연결하려는 의도나 devel_ 작업 브랜치 결과를 PR 로 올리려는 의도를 보이면 반드시 이 스킬을 사용하라. Claude Code CLI(사용자 PC, 사내망) 전용이며, API 토큰(GITEA_TOKEN·JENKINS_TOKEN)이 있으면 API로, 없으면 Claude in Chrome 연동으로 진행한다. 생성만 하고 기존 저장소·브랜치·파일·Job은 수정·삭제하지 않는다(사용자가 요청한 이전 절차와 이 스킬이 만든 PR 의 제목·본문 수정만 예외). 첫 빌드 실행·패치 작업·PR 머지·Redmine 기록은 범위가 아니다.
 ---
 
 # gitea-jenkins-setup
@@ -17,7 +17,8 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
    - 이미 있는데 기대와 다르면 → 건드리지 않고 사용자에게 보고, 해당 단계에서 멈춤 (`status: conflict`)
    - 예외: skill이 이번 실행에서 **방금 만든 것**의 초기값 조정(Chrome 모드에서 방금 추가한 공동작업자 권한을 쓰기로)은 허용
    - 예외: **사용자가 명시적으로 요청한 이전 절차**(`references/migrate_to_shared_fork.md` — 개인 Fork → 공유 Fork, 기존 Job 전환·이름 변경, 개인 Fork 삭제). 계획을 보여 주고 승인받은 뒤에만 하고, Fork 삭제는 실행 직전에 한 번 더 묻는다
-3. **생성 단계마다 확인을 받지 않는다.** 입력을 모두 받은 뒤 **요약 1회 확인** 후 끝까지 진행한다. 단, Job **활성화**는 첫 빌드가 바로 시작되므로 마지막에 따로 묻는다.
+   - 예외: 모드 D 에서 **이 스킬이 만든 PR** 의 제목·본문 수정(예: 일감 번호 교체). PR 브랜치 강제 push 는 따로 묻는다
+3. **생성 단계마다 확인을 받지 않는다.** 입력을 모두 받은 뒤 **요약 1회 확인** 후 끝까지 진행한다. 단, Job **활성화**는 첫 빌드가 바로 시작되므로 마지막에 따로 묻는다. 모드 D 는 PR 브랜치를 로컬에 만들고 검증한 뒤 **push·PR 생성 전에** 한 번 확인받는다.
 4. **토큰은 출력하지 않는다.** 환경변수 값을 echo·print하지 않고, 존재 여부만 확인한다.
 5. **남의 자원은 읽기만.** 원본 저장소, 다른 사람의 Job(인증정보 ID를 읽는 참고 Job 포함)은 GET만 한다.
 
@@ -30,6 +31,7 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
 - `references/chrome_mode.md` — 토큰이 없는 시스템을 Chrome으로 처리하는 절차
 - `references/troubleshooting.md` — 실패·conflict 대응
 - `references/migrate_to_shared_fork.md` — 개인 Fork → 공유 Fork 이전 (요청 시에만)
+- `references/pr_assembly.md` — 모드 D: PR 브랜치 구성(넣을 것·뺄 것), 명령 골격, 검증, push·PR 생성, 함정
 
 ## 실행 위치
 
@@ -39,7 +41,7 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
 
 ## 전체 흐름
 
-세 가지 모드가 있다. **입력받은 저장소가 누구의 무엇인지**로 갈린다 (`repo-info`의 `mode` — `owner_is_me`·`is_fork`·`can_push`로 판정).
+구축 모드 A·B·C 는 **입력받은 저장소가 누구의 무엇인지**로 갈린다 (`repo-info`의 `mode` — `owner_is_me`·`is_fork`·`can_push`로 판정). 모드 D(PR 구성)는 구축이 끝난 작업 브랜치의 결과를 올릴 때 쓴다.
 
 ```
 [모드 A] 처음 구축 — 원본 저장소를 준 경우
@@ -56,7 +58,13 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
 0 사전 점검 → 입력 수집 → 요약 확인 1회
 → 1 Fork 안 함 → 2 build 권한 확인만(--check-only) → 3 Clone·작업 브랜치 → 4 표준 bat
 → 5 job-match: 받아주는 Job이 있으면 재사용, 없으면 생성 → 6 검증·보고
+
+[모드 D] PR 구성 — 작업 브랜치(devel_*) 결과를 PR 로 올릴 때 (references/pr_assembly.md)
+기준 커밋·PR 대상·일감 번호·평가 빌드 확인 → 넣을 것/뺄 것 분류 → 임시 인덱스로 PR 브랜치 생성(로컬)
+→ 검증(diff 0, 남은 차이 = 뺄 것) → 커밋·대상·본문 미리보기 → 승인 → push · Gitea PR 생성 → 보고
 ```
+
+모드 D 는 FBL·APP 저장소를 따로 진행한다(FBL 은 squash 1개, APP 는 커밋 여러 개). 일감 번호는 사용자에게 받고, Redmine 기록은 redmine-issue 스킬이 한다.
 
 모드 C 는 `원본 → tglee(공유 Fork) → jdlee(개인 Fork) → clone` 에서 개인 Fork 층을 뺀 구조다. 작업 브랜치와 Jenkins 결과물이 공유 Fork 에 바로 쌓인다. HE1i PSU APP·FBL 이 2026-10 부터 이 구조다. 이미 개인 Fork 로 구축된 과제를 이 구조로 옮기는 것은 별도 절차(`references/migrate_to_shared_fork.md`)이고, 사용자가 요청할 때만 한다.
 
@@ -416,4 +424,4 @@ Jenkins: <JENKINS_URL>/job/<Job>/
 
 ## 범위 밖
 
-첫 빌드 결과 판정, 패치 작업·커밋, 원본 동기화(upstream merge), PR 생성, 기존 Job·저장소 설정 변경은 하지 않는다(사용자가 요청한 이전 절차 `references/migrate_to_shared_fork.md`만 예외). 작업 브랜치를 공유 브랜치로 되돌리는 일(체리픽·머지)도 범위 밖이다 — `GitPush.bat`이 `git add -f .`로 중간 산출물까지 담으므로 그대로 머지하면 안 된다는 점만 알린다. 요청받으면 이 skill의 범위가 아님을 알리고 필요한 절차만 안내한다.
+첫 빌드 결과 판정, 패치 작업·커밋, 원본 동기화(upstream merge), PR 리뷰·머지, Redmine 기록, 기존 Job·저장소 설정 변경은 하지 않는다(사용자가 요청한 이전 절차 `references/migrate_to_shared_fork.md`만 예외). 작업 브랜치를 공유 브랜치에 그대로 머지하지 않는다 — `GitPush.bat`이 `git add -f .`로 중간 산출물까지 담기 때문이다. 공유 브랜치로 올리는 것은 모드 D(PR 구성)로 한다. 요청받으면 이 skill의 범위가 아님을 알리고 필요한 절차만 안내한다.

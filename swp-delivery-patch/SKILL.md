@@ -190,7 +190,7 @@ ALL 빌드 전환(지시 시 커밋) → 산출물 4벌 확인
 
 ## S13. 마무리
 
-PR 방식·대상·머지 순서는 프로필, 브랜치 구성·검증은 `references/pr-assembly.md`. Redmine·IMS 상태 변경은 사용자 확인 후.
+PR 방식·대상·머지 순서는 프로필, 브랜치 구성·검증·push·PR 생성은 **gitea-jenkins-setup 모드 D**(`references/pr_assembly.md`), 패치 PR 에서 덧붙일 것은 `references/pr-assembly.md`. Redmine·IMS 상태 변경은 사용자 확인 후.
 
 ## 보고
 
@@ -210,7 +210,7 @@ PR 방식·대상·머지 순서는 프로필, 브랜치 구성·검증은 `refe
 | `references/jenkins-flow.md` | S10·S12 — Hook, ALL/CURRENT, 산출물 구조, 생성 경로, 남은 생성물, 커밋 주의 |
 | `references/verification.md` | 빌드 검수·실기 판정 기준, 결과 파일 규칙 |
 | `references/version-up.md` | 버전 세 종류, 산출물명·버전 문자 위치 |
-| `references/pr-assembly.md` | PR 브랜치 구성·검증 |
+| `references/pr-assembly.md` | 패치 PR 에서 덧붙일 것 (PR 구성 정본은 gitea-jenkins-setup 모드 D) |
 | `references/troubleshooting.md` | 실제 재작업 사례만 (단계순). 단계를 시작하기 전에 그 단계 행을 훑는다 |
 | `references/projects/*.md` | 프로젝트 프로필 — 저장소·Job·버전 위치·구성 전제·보호 설정·고유 판단 이력 |
 
