@@ -30,6 +30,9 @@ skills-repo/
 │   ├── SKILL.md
 │   ├── references/                     # mobilgene Classic 스택 규칙
 │   └── scripts/                        # 4단계 스캔 파이프라인
+├── confluence-cross-site-copy/
+│   ├── SKILL.md
+│   └── references/                     # 경로 판정, 클립보드 자동화·첨부 복원, storage→HTML 변환, 함정
 ├── confluence-project-page/
 │   ├── SKILL.md
 │   ├── assets/                         # 페이지 본문 HTML 템플릿
@@ -175,6 +178,7 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `aspice-audit-report` | ASPICE 품질점검 체크리스트를 자동 1차 작성하고 사람 작성본과 대비해 일치율 측정·개선 |
 | `autosar-artifact-map` | AUTOSAR 프로젝트 폴더를 4단계 스캔해 BSWMD → ECUC → 코드 → 모듈 의존의 산출물 추적성 지도 생성 |
 | `canoe-project-setup` | CANoe 차종별 측정 컨피그를 통폴더에서 추출해 단독 폴더로 만들고, 저장소 현행 CAN DB·진단(CDD)·참조 무결성을 대조 (원본 무수정, 측정은 사람이) |
+| `confluence-cross-site-copy` | 서로 다른 Confluence 사이트 간에 페이지·폴더 트리를 복사 (MCP/브라우저 경로 판정, 클립보드 자동화로 서식·SVG·PNG 첨부까지 복원) |
 | `confluence-project-page` | mobaseasec Confluence 에 신규 프로젝트 페이지 세트를 표준 템플릿으로 생성 |
 | `confluence-writing` | Confluence 글쓰기 톤·구조·서식과 MCP 발행 규약의 정본 |
 | `cvd-project` | CVD(CodeViser) 과제 단위로 빌드 결과를 CLI 로 MCU 에 기록하고 이미지와 대조 검증. 프로젝트 폴더를 조사해 모르는 것만 묻고, 스킬 동봉 기본 틀로 생성 (쓰기는 매번 확인 후, S32_Config 무참조) |
@@ -195,4 +199,4 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `tech-research-to-confluence` | 기술 자료를 조사·기획해 다중 페이지 Confluence 가이드로 발행 |
 | `travel-english-weekly` | 초중급 학습자용 해외여행 영어 회화 주간 학습 브리핑 |
 
-계정에는 있지만 이 저장소에 두지 않은 스킬도 있다 (`python-dev`, `mcu-c-dev`, `office-file-slimmer`, `portfolio-theme`, `sw-tech-doc`, `wanted-resume-tailoring`, `confluence-cross-site-copy`, `aspice-audit-process-check`, `aspice-audit-wp-check`, `aspice-audit-final-report`). 필요해지면 그때 추가한다.
+계정에는 있지만 이 저장소에 두지 않은 스킬도 있다 (`python-dev`, `mcu-c-dev`, `office-file-slimmer`, `portfolio-theme`, `sw-tech-doc`, `wanted-resume-tailoring`, `aspice-audit-process-check`, `aspice-audit-wp-check`, `aspice-audit-final-report`). 필요해지면 그때 추가한다.
