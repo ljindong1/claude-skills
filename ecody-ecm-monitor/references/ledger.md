@@ -13,7 +13,7 @@
 | SAG | `eCoDY 원장 - SW Application Guide (SAG)` | SAG |
 | IM | `eCoDY 원장 - Integration Manual (IM)` | IM |
 | UM | `eCoDY 원장 - R44 User Manual (UM)` | UM |
-| 기타 | `eCoDY 원장 - 기타 (C Studio · FoD · m.Security · Tool Chain)` | CSTUDIO · OTHER · MISC |
+| 기타 | `eCoDY 원장 - 기타 (C Studio · FoD · m.Security · Tool Chain)` | CSTUDIO · ToU · OTHER · MISC |
 
 원장 페이지가 없으면(M2 4-2) 그 그룹에 반영할 행이 생긴 실행에서 `createConfluencePage`로 만든다(§3 골격). 반영할 행이 없는 그룹의 빈 원장은 미리 만들지 않는다.
 

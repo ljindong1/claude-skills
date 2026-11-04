@@ -1,6 +1,6 @@
 ---
 name: ecody-ecm-monitor
-description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Classic FAQ 등 고객 기술지원 Confluence)의 변경사항을 "직전 수집 이후~지금" 구간으로 빠짐없이 수집해 중요도순(공지 → Policy → IA/VC 점검규칙 → SAG → IM → UM → 기타)으로 분류·요약하고, 사내 Confluence(mobaseasec) "eCoDY ECM" 페이지 아래에 그룹별 누적 원장(문서 1개 = 1행, 새 문서는 맨 위에 추가, 이미 있는 문서는 그 행을 갱신)과 날짜별 변경 기록 페이지(같은 날 재실행분은 당일 페이지에 추가)로 발행하고, 실패 페이지는 다음 성공 때 복구 표시하는 매일 모니터링 스킬. Cowork 예약 작업이 매일 호출하는 무인 실행용이며 크롬 연동(Claude in Chrome)으로 로그인 세션을 사용한다. 사용자(또는 예약 루틴)가 "eCoDY 모니터링", "ECM 모니터링 실행", "eCoDY 변경사항 정리", "모빌진 FAQ 새 소식", "오토에버 기술지원 사이트 업데이트 확인", "오늘 eCoDY 뭐 바뀌었어", "ECM 일일 리포트" 등을 언급하거나 eCoDY-ECM 변경분을 주기적으로 정리·기록하려는 의도를 보이면 반드시 이 스킬을 사용하라. 특정 주제·설정 방법을 찾아 답하는 요청(예를 들어 "CanSM Bus-Off 설정 찾아줘")은 이 스킬이 아니라 ecody-search 담당이다.
+description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Classic FAQ 등 고객 기술지원 Confluence)의 변경사항을 "직전 수집 이후~지금" 구간으로 빠짐없이 수집해 중요도순(공지 → Policy → IA/VC 점검규칙 → SAG → IM → UM → 기타)으로 분류·요약하고, 사내 Confluence(mobaseasec) "eCoDY ECM" 페이지 아래에 그룹별 누적 원장(문서 1개 = 1행, 새 문서는 맨 위에 추가, 이미 있는 문서는 그 행을 갱신)과 날짜별 변경 기록 페이지(같은 날 재실행분은 당일 페이지에 추가)로 발행하고, 실패 페이지는 다음 성공 때 복구 표시하는 매일 모니터링 스킬. Cowork 예약 작업이 매일 호출하는 무인 실행용이며 수집은 API 토큰(환경변수 ECODY_ECM_TOKEN)으로 하고 토큰이 없거나 만료되면 크롬 연동(Claude in Chrome) 로그인 세션으로 폴백한다. 사용자(또는 예약 루틴)가 "eCoDY 모니터링", "ECM 모니터링 실행", "eCoDY 변경사항 정리", "모빌진 FAQ 새 소식", "오토에버 기술지원 사이트 업데이트 확인", "오늘 eCoDY 뭐 바뀌었어", "ECM 일일 리포트" 등을 언급하거나 eCoDY-ECM 변경분을 주기적으로 정리·기록하려는 의도를 보이면 반드시 이 스킬을 사용하라. 특정 주제·설정 방법을 찾아 답하는 요청(예를 들어 "CanSM Bus-Off 설정 찾아줘")은 이 스킬이 아니라 ecody-search 담당이다.
 ---
 
 # eCoDY-ECM 일일 변경 모니터링
@@ -11,7 +11,8 @@ description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Clas
 
 | 항목 | 값 |
 | --- | --- |
-| 수집 대상 | `https://ecody-ecm.autoever.com` (Confluence DC 9.2, 크롬 로그인 세션 필요) |
+| 수집 대상 | `https://ecody-ecm.autoever.com` (Confluence DC 9.2) |
+| 접속 방법 | **기본: API 토큰** `ECODY_ECM_TOKEN` + `scripts/ecm_monitor.py` / 폴백: 크롬 로그인 세션 + `collect.js`·`dump.js`·`read_pages.js` |
 | 발행 인스턴스 | `mobaseasec.atlassian.net` |
 | 발행 스페이스 | `mobaseasec4` (spaceId `43843599`) |
 | 부모 페이지 | `330366991` "eCoDY ECM" |
@@ -25,9 +26,9 @@ description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Clas
 ## 권한 원칙
 
 **eCoDY-ECM — 읽기 전용**
-- **조회(GET)만** 한다. 스크립트는 GET 이외 요청을 스스로 차단하는 가드를 품고 있으며, 스크립트 밖에서 임의의 `fetch`·폼 제출·편집/삭제/댓글/좋아요/감시 버튼 클릭을 하지 않는다. (2026-09-15 실측: 현재 로그인 계정은 페이지 권한이 `read`뿐이라 서버에서도 쓰기가 거부된다 — 그래도 계정 권한이 바뀔 수 있으므로 스킬이 먼저 지킨다.)
-- 탭 DOM 덮어쓰기(dump·read)는 내 브라우저 화면에만 적용되는 로컬 동작이며 서버 데이터와 무관하다. 끝나면 `index.action`으로 다시 열어 원복한다.
-- 로그인·OTP·비밀번호는 입력하지 않는다.
+- **조회(GET)만** 한다. 스크립트(`ecm_monitor.py`·`_ecody_common.py`, `collect.js`·`dump.js`·`read_pages.js`)는 GET 이외 요청을 스스로 차단하는 가드를 품고 있으며, 스크립트 밖에서 임의의 `fetch`·폼 제출·편집/삭제/댓글/좋아요/감시 버튼 클릭을 하지 않는다. (2026-09-15 실측: 현재 계정은 페이지 권한이 `read`뿐이라 서버에서도 쓰기가 거부된다 — 그래도 계정 권한이 바뀔 수 있으므로 스킬이 먼저 지킨다.)
+- 크롬 폴백에서 탭 DOM 덮어쓰기(dump·read)는 내 브라우저 화면에만 적용되는 로컬 동작이며 서버 데이터와 무관하다. 끝나면 `index.action`으로 다시 열어 원복한다. 토큰 모드는 탭을 쓰지 않는다.
+- 로그인·OTP·비밀번호는 입력하지 않는다. 토큰 값도 페이지·보고·로그에 쓰지 않는다. 접속 계정이 공용 계정이면(2026-11-04 실측: 본인 계정이 아닌 공용 계정) 그 사실을 알고 권한 범위를 그 계정 기준으로 본다.
 
 **사내 Confluence(mobaseasec) — 생성·수정 가능, 삭제 금지** (사용자 설정: MCP는 삭제 외 전부 허용)
 - 생성: 부모 `330366991` 아래 날짜별 기록 페이지, 없는 원장 페이지(최초 1회).
@@ -48,10 +49,10 @@ description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Clas
 
 ```
 M0  컨텍스트     KST 날짜·요일, 현재 UTC
-M1  브라우저     탭 확보 → ECM 접속 → 세션 검사              (실패 시 M7-F)
+M1  접속 확인    ecm_monitor.py check (실패 시 크롬 폴백, 둘 다 실패면 M7-F)
 M2  구간 확정    하위 페이지 목록 → 직전 마커 · 당일 기록 여부 · 미복구 실패 · 원장 id · 원장 미반영분
-M3  수집         collect.js → dump.js → get_page_text
-M4  정독         read_pages.js 로 신규 본문 / 변경 줄 확보
+M3  수집         ecm_monitor.py collect (폴백: collect.js → dump.js → get_page_text)
+M4  정독         ecm_monitor.py read 로 신규 본문 / 변경 줄 확보
 M5  작성         references/page-format.md 형식
 M6  회계 검사    본문에 실린 건수 = 수집 rows
 M7  기록 발행    A. 당일 기록 없음 → 신규 생성 / B. 있음 → 추가 수집분 덧붙이기
@@ -71,7 +72,22 @@ TZ=Asia/Seoul date '+%Y-%m-%d %u %H:%M'; date -u '+%Y-%m-%dT%H:%M:%SZ'
 
 요일 매핑 `1=월 … 7=일`. 이 값만 오늘의 날짜로 쓰고, 이전 페이지 제목의 날짜를 복사하지 않는다. 이 시각(UTC)이 `WINDOW_END`다.
 
-## M1. 브라우저·세션
+## M1. 접속 확인
+
+**기본은 API 토큰이다** — 크롬·OTP 세션이 필요 없어 무인 예약 실행이 안정적이다. 토큰이 막히면 크롬으로 폴백하고, 둘 다 안 되면 M7-F(실패 기록)로 간다.
+
+### 토큰 모드 (기본)
+
+```powershell
+python <스킬폴더>\scripts\ecm_monitor.py check
+```
+
+- `ECM_CHECK OK … : <계정명>` 이면 M2 로 간다. 이 모드에서는 크롬 도구를 아예 로드하지 않는다.
+- `TOKEN_MISSING`·`HTTP 401` 이면 토큰이 없거나 만료다(현재 발급분 만료 2027-03 — `setx ECODY_ECM_TOKEN` 재등록). 무인 실행이므로 **되묻지 않고** 크롬 폴백을 시도한다.
+- `setx` 직후 세션이 환경변수를 못 읽으면 명령 앞에 붙인다: `$env:ECODY_ECM_TOKEN=[Environment]::GetEnvironmentVariable('ECODY_ECM_TOKEN','User');`
+- 발급·등록 절차는 `ecody-search` 스킬의 `references/api-token.md` 가 정본이다(토큰은 두 스킬이 같은 환경변수를 쓴다).
+
+### 크롬 폴백
 
 > ⚠️ **무인 실행 전제 (실측)**: `navigate`는 `browser_batch` 안에서 호출하면 사이트 권한 확인에 걸려 멈춘다 — **항상 단독 호출**한다. 또 예약 실행이 권한 팝업에서 서지 않도록 Claude in Chrome 확장에서 `ecody-ecm.autoever.com` 사이트 권한을 "항상 허용"으로 두어야 한다. 크롬이 켜져 있고 eCoDY-ECM 로그인(OTP)이 살아 있어야 한다.
 
@@ -83,7 +99,7 @@ TZ=Asia/Seoul date '+%Y-%m-%d %u %H:%M'; date -u '+%Y-%m-%dT%H:%M:%SZ'
    const u = r.ok ? await r.json() : null;
    JSON.stringify({status:r.status, url:location.href, type:u?.type, name:u?.displayName})
    ```
-   `type`이 `known`이 아니거나, 주소가 로그인 페이지이거나, 크롬 연결 자체가 안 되면 **세션 실패** → M7-F로 간다. 로그인·OTP를 대신 입력하지 않는다(비밀번호·인증 입력은 사용자만 한다).
+   `type`이 `known`이 아니거나, 주소가 로그인 페이지이거나, 크롬 연결 자체가 안 되면 **세션 실패** → M7-F로 간다. 로그인·OTP를 대신 입력하지 않는다(비밀번호·인증 입력은 사용자만 한다). 실패 페이지의 조치 문구에는 **토큰 재발급**과 크롬 재로그인을 함께 적는다.
 
 ## M2. 구간 확정
 
@@ -101,19 +117,36 @@ TZ=Asia/Seoul date '+%Y-%m-%d %u %H:%M'; date -u '+%Y-%m-%dT%H:%M:%SZ'
 
 ## M3. 수집
 
-1. `scripts/collect.js`를 읽어 `__WINDOW_START_UTC__`, `__WINDOW_END_UTC__`를 치환하고, 첫 줄 주석들은 빼고 `javascript_tool`로 실행한다. 반환값은 통계 JSON(`raw`, `rows`, `imgExcluded`, `byGroup`)이다.
+**토큰 모드 (기본)** — 수집과 펼치기가 한 번에 끝난다.
+
+```powershell
+python <스킬폴더>\scripts\ecm_monitor.py collect --start <WINDOW_START ISO UTC> --end <WINDOW_END ISO UTC> --out <스크래치패드\collect.txt>
+```
+
+파일 첫 줄이 `#STATS {…}`(`window`, `raw`, `rows`, `imgExcluded`, `byGroup`)이고 그 뒤가 행 목록이다.
+
+**크롬 폴백** — 두 단계다.
+1. `scripts/collect.js`를 읽어 `__WINDOW_START_UTC__`, `__WINDOW_END_UTC__`를 치환하고, 첫 줄 주석들은 빼고 `javascript_tool`로 실행한다. 반환값은 통계 JSON이다.
 2. `scripts/dump.js` 실행 → 곧바로 `get_page_text`. 탭 DOM에 펼친 전체 목록이 온다.
    - **왜 두 단계인가**: `javascript_tool` 반환값은 수천 자에서 잘린다(실측). `get_page_text`는 긴 본문도 온전히 준다.
-   - 줄 형식: `n|종류(P/B/C/A)|id|그룹|하위분류|NEW/MOD/CMT|버전|KST시각|작성자|제목|버전메시지|태그`, 끝에 `IMG|컨테이너|개수`.
-3. `#STATS`의 `rows`와 실제 줄 수가 같은지 확인한다. 다르면 dump를 다시 실행한다.
 
-그룹 코드: `NOTICE`(공지) `POLICY` `IA`(Integration Auditor) `VC`(Validation Checker) `SAG` `IM` `UM`(R44 User Manual) `CSTUDIO` `OTHER`(FoD·m.Security·Tool Chain 공간) `MISC`(분류 밖 — 스페이스 루트의 버전 사본 등).
+어느 모드든 줄 형식은 같다: `n|종류(P/B/C/A)|id|그룹|하위분류|NEW/MOD/CMT|버전|KST시각|작성자|제목|버전메시지|태그`, 끝에 `IMG|컨테이너|개수`. `#STATS`의 `rows`와 실제 줄 수가 같은지 확인한다(다르면 다시 실행).
+
+그룹 코드: `NOTICE`(공지) `POLICY`(Quality & Verification 정책·STR) `IA`(Integration Auditor) `VC`(Validation Checker·필수 통합 점검) `SAG` `IM` `UM`(R44 User Manual) `CSTUDIO`(Tool Manual) `ToU`(Terms of Use) `OTHER`(FoD·m.Security·Tool Chain 공간) `MISC`(분류 밖 — 스페이스 루트의 버전 사본 등). 원장 반영에서 `CSTUDIO·ToU·OTHER·MISC` 는 `기타` 원장으로 묶는다.
 
 **수집기 실측 사실** (2026-09-15 검증): CQL 날짜는 서버에서 UTC로 해석되므로 하루 앞당겨 받고 `version.when`으로 정밀 필터한다 / 한 번에 최대 200건이라 `_links.next`로 넘긴다 / 첨부 대부분은 스크린샷 png이므로 이미지는 건수만 세고, xlsm·zip·pdf 등은 행으로 남긴다(예: Policy "SWP 모듈 Baseline Release" 정보 파일).
 
 ## M4. 정독 — 무엇을 읽는가
 
-`scripts/read_pages.js`의 `__WINDOW_START_UTC__`와 `__JOBS__`를 치환해 실행하고 `get_page_text`로 읽는다. 한 번에 8건 이하로 끊는다.
+**토큰 모드 (기본)**: 작업 목록을 JSON 파일로 쓰고 한 번에 8건 이하로 끊어 돈다.
+
+```powershell
+python <스킬폴더>\scripts\ecm_monitor.py read --start <WINDOW_START ISO UTC> --jobs <스크래치패드\jobs.json> --out <스크래치패드\read1.txt>
+```
+
+`jobs.json` = `[{"id":"380196632","mode":"body"},{"id":"319465743","mode":"diff"}]`. 출력 상한은 페이지당 2500자(`--max`).
+
+**크롬 폴백**: `scripts/read_pages.js`의 `__WINDOW_START_UTC__`와 `__JOBS__`를 치환해 실행하고 `get_page_text`로 읽는다. 한 번에 8건 이하로 끊는다. 출력 형식은 두 모드가 같다.
 
 | 대상 | mode | 이유 |
 | --- | --- | --- |
@@ -180,8 +213,8 @@ M7-A/B가 성공했고 M2에서 미복구 실패 페이지가 있었다면, 각 
 
 ## M11. 마무리
 
-1. 탭 원복: `navigate`(단독 호출)로 `https://ecody-ecm.autoever.com/index.action`을 다시 연다(dump가 DOM을 덮어썼다 — 해시만 다른 주소는 새로고침이 안 된다). 이 스킬이 만든 탭이면 닫는다.
-2. 실행 결과를 짧게 보고한다: 모드(신규/추가/실패), 기록 페이지 링크, 구간, 그룹별 건수, 핵심 3줄, 원장별 "새 행 N · 갱신 N", 미반영 그룹, 복구 표시한 페이지 수.
+1. 토큰 모드면 정리할 것이 없다(스크래치패드 파일은 세션용이라 둔다). 크롬 폴백을 썼다면 탭 원복: `navigate`(단독 호출)로 `https://ecody-ecm.autoever.com/index.action`을 다시 연다(dump가 DOM을 덮어썼다 — 해시만 다른 주소는 새로고침이 안 된다). 이 스킬이 만든 탭이면 닫는다.
+2. 실행 결과를 짧게 보고한다: 접속 모드(토큰/크롬), 발행 모드(신규/추가/실패), 기록 페이지 링크, 구간, 그룹별 건수, 핵심 3줄, 원장별 "새 행 N · 갱신 N", 미반영 그룹, 복구 표시한 페이지 수.
 
 ## 추후 확장 — 과제 MCU·모듈 필터 (검토 중)
 
