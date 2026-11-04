@@ -51,6 +51,7 @@ JS 작은따옴표로 감싸면 JQL 큰따옴표 이스케이프가 필요 없�
 
 ## 5. 함정
 
-- `javascript_tool` 반환값은 짧게 잘리고, `key=value` 형태가 섞이면 "Cookie/query string data" 필터로 통째로 차단된다 → 결과는 항상 DOM 에 펼쳐 `get_page_text` 로 읽는다(스크립트가 그렇게 한다).
-- 로그인 계정은 과제별 권한만 있다. 다른 협력사 과제는 안 보인다.
+- 기본은 토큰 모드(`scripts/ims_api.py`)다 — 크롬·OTP 세션이 필요 없다. JQL 은 `[{"tag","jql"}]` JSON 파일로 넘기고, JSON 안에서 따옴표는 `\"` 로 escape 한다.
+- 크롬 폴백에서는 `javascript_tool` 반환값이 짧게 잘리고, `key=value` 형태가 섞이면 "Cookie/query string data" 필터로 통째로 차단된다 → 결과는 항상 DOM 에 펼쳐 `get_page_text` 로 읽는다(스크립트가 그렇게 한다).
+- 접속 계정은 과제별 권한만 있다. 다른 협력사 과제는 안 보인다. 토큰 모드도 토큰 소유자의 권한을 그대로 따른다(2026-11-04 실측: 본인 계정이 아닌 공용 계정).
 - 댓글은 HAE 로 나가는 외부 메시지다 — 이 스킬은 쓰지 않는다(댓글 작성은 swp-delivery-patch 의 승인 절차).
