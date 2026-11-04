@@ -2,3 +2,8 @@
 # Python bytecode cache
 __pycache__/
 *.pyc
+
+# Claude Code 스킬 동기화가 쓰는 자리 (~/.claude/skills 가 이 저장소를 가리키는 junction)
+# synced/ = 계정 스킬 사본과 진행 표시, .trash/ = 동기화가 치운 옛 스킬. 지우지 말고 커밋만 안 한다.
+/synced/
+/.trash/
