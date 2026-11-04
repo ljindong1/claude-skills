@@ -1,17 +1,17 @@
 # eCoDY-IMS 작업 방법
 
-eCoDY-IMS 는 HAE 의 Jira(`https://ecody-ims.autoever.com`)다. 패치 티켓은 `MCP0806-xxx` 처럼 프로젝트 키 + 번호다. 당사 Atlassian MCP(mobaseasec)와는 다른 인스턴스이므로, **현재는 Claude in Chrome 의 로그인 세션으로 읽고 쓴다.**
+eCoDY-IMS 는 HAE 의 Jira(`https://ecody-ims.autoever.com`)다. 패치 티켓은 `MCP0806-xxx` 처럼 프로젝트 키 + 번호다. 당사 Atlassian MCP(mobaseasec)와는 다른 인스턴스다. **읽기는 API 토큰(개인 액세스 토큰)으로 PC 에서 바로 하고, 쓰기(질문 댓글)는 Claude in Chrome 의 로그인 세션으로 한다.**
 
 역할 분담:
-- **읽기·검색 → `ecody-search` 스킬(IMS 범위)**. 세션 확인, JQL 검색(`ims_search.js`), 정독(`ims_read.js` — 본문·댓글·첨부·연결·하위작업·변경 이력), 읽기 전용 가드, 차단 필터 회피(DOM 에 펼쳐 `get_page_text`)가 그 스킬에 있다. 이 스킬은 IMS 를 직접 읽는 스크립트를 따로 두지 않는다.
+- **읽기·검색 → `ecody-search` 스킬(IMS 범위)**. 토큰 확인(`ims_api.py check`), JQL 검색(`ims_api.py search`), 정독(`ims_api.py read` — 본문·댓글·첨부·연결·하위작업·변경 이력), 읽기 전용 가드(GET 전용)가 그 스킬에 있다. 토큰이 없으면 그 스킬이 크롬 폴백(`ims_search.js`/`ims_read.js`)으로 돈다. 이 스킬은 IMS 를 직접 읽는 스크립트를 따로 두지 않는다.
 - **쓰기(질문 댓글) → 이 스킬**. `ecody-search` 는 읽기 전용이고 IMS 댓글을 이 스킬로 넘긴다.
 
 ## 1. 패치 티켓 읽기 (S1)
 
 `ecody-search` 스킬을 IMS 범위로 쓴다(`/ecody-search IMS …` 또는 대화로 "IMS 만"). 패치 티켓에 맞춘 사용법:
-- 정독: `ims_read.js` 에 `__KEYS__ = ["<패치 키>", "<연결 수평전개 키>"]`, `__MAX__` 는 **60000 정도** — 설정변경 안내 댓글 하나가 1만 자를 넘는다(MCP0806-279 실측 약 1.7만 자). 기본값 8000 이면 안내 표가 잘린다.
+- 정독: `python <ecody-search>\scripts\ims_api.py read <패치 키> <연결 수평전개 키> --max 60000 --out <파일>` — `--max` 는 **60000 정도**로 준다. 설정변경 안내 댓글 하나가 1만 자를 넘는다(MCP0806-279 실측 약 1.7만 자). 기본값 8000 이면 안내 표가 잘린다. (크롬 폴백이면 `ims_read.js` 의 `__KEYS__`·`__MAX__` 에 같은 값)
 - 검색(S3·선행 작업): 같은 모듈·버전의 다른 과제 Delivery_Patch, 수평전개 원본(CPINFO), 과거 문의·답변을 JQL 로 찾는다(그 스킬의 `references/ims-query-guide.md`).
-- 화면 텍스트(`navigate` → `get_page_text`)만으로 읽으면 오래된 댓글이 "더 많은 이전 댓글 로드" 뒤에 숨어 빠진다. 반드시 `ims_read.js` 로 읽는다.
+- 화면 텍스트(`navigate` → `get_page_text`)만으로 읽으면 오래된 댓글이 "더 많은 이전 댓글 로드" 뒤에 숨어 빠진다. 반드시 `ims_api.py read`(또는 폴백 `ims_read.js`)로 읽는다.
 
 ### 읽을 것 (요청 항목 목록을 만들기 위한 기준)
 
@@ -38,21 +38,21 @@ eCoDY-IMS 는 HAE 의 Jira(`https://ecody-ims.autoever.com`)다. 패치 티켓�
 - **기본**: 초안을 사용자에게 주고 사용자가 직접 등록한다.
 - **대행**: 사용자가 그 댓글 하나의 등록을 승인했을 때만. Chrome 탭 준비(`tabs_context_mcp` → 새 탭, `navigate` 는 단독 호출, 로그인·OTP 는 사용자가) 후 둘 중 하나.
   - 화면: 티켓 하단 "댓글 추가" 클릭 → 편집기에 입력 → 저장. 저장 전에 화면을 캡처해 사용자에게 보여 주면 더 안전하다.
-  - REST: `POST /rest/api/2/issue/<KEY>/comment` (`{"body": "..."}`), 헤더에 `X-Atlassian-Token: no-check`. 본문 표기는 Jira wiki 문법.
-- 등록 후 `ims_read.js` 로 다시 읽어 댓글이 올라갔는지 확인하고, 댓글 시각을 Redmine 일감에 기록한다. 끝나면 탭을 닫는다.
+  - REST: `POST /rest/api/2/issue/<KEY>/comment` (`{"body": "..."}`), 헤더에 `X-Atlassian-Token: no-check`. 본문 표기는 Jira wiki 문법. 크롬 탭에서 보내도 되고, 승인된 그 댓글 하나에 한해 PC 에서 `Authorization: Bearer $ECODY_IMS_TOKEN` 로 보내도 된다 — 어느 쪽이든 **승인 없이는 보내지 않는다**(`ecody-search` 의 `ims_api.py` 는 GET 전용이라 쓰기에 쓰지 않는다).
+- 등록 후 `ims_api.py read` 로 다시 읽어 댓글이 올라갔는지 확인하고, 댓글 시각을 Redmine 일감에 기록한다. 크롬 탭을 썼으면 닫는다.
 
 상태 변경·담당자 변경·첨부 삭제 같은 다른 쓰기는 이 스킬에서 하지 않는다. 필요하면 사용자에게 화면에서 직접 하도록 안내한다.
 
 ## 3. MCP 연결 시 (향후)
 
-eCoDY-IMS 가 Atlassian MCP 등으로 연결되면 Chrome 대신 MCP 를 쓴다. 읽기 쪽은 `ecody-search` 스킬도 함께 바꿔야 한다. 대응:
+eCoDY-IMS 가 Atlassian MCP 등으로 연결되면 토큰·Chrome 대신 MCP 를 쓴다. 읽기 쪽은 `ecody-search` 스킬도 함께 바꿔야 한다. 대응:
 
-| 작업 | Chrome (현재) | MCP (연결 시) |
+| 작업 | 현재 | MCP (연결 시) |
 |---|---|---|
-| 접속 확인 | ecody-search S0 (`/rest/api/2/myself`) | `getAccessibleAtlassianResources` 로 IMS 인스턴스 cloudId 확인 |
-| 티켓 읽기 | ecody-search `ims_read.js` + `get_page_text` | `getJiraIssue`(changelog·comment 확장), `searchJiraIssuesUsingJql` |
-| 연결 티켓 | `ims_read.js` 의 연결·하위작업 | `getJiraIssue` 결과의 issuelinks, 또는 JQL `issue in linkedIssues(KEY)` |
-| 댓글 등록 | 화면 입력 / REST POST (이 스킬) | `addCommentToJiraIssue` |
+| 접속 확인 | ecody-search S0 — `ims_api.py check` (토큰, `/rest/api/2/myself`) | `getAccessibleAtlassianResources` 로 IMS 인스턴스 cloudId 확인 |
+| 티켓 읽기 | ecody-search `ims_api.py read` (폴백 `ims_read.js` + `get_page_text`) | `getJiraIssue`(changelog·comment 확장), `searchJiraIssuesUsingJql` |
+| 연결 티켓 | `ims_api.py read` 의 연결·하위작업 | `getJiraIssue` 결과의 issuelinks, 또는 JQL `issue in linkedIssues(KEY)` |
+| 댓글 등록 | 화면 입력 / REST POST (이 스킬, 승인 후) | `addCommentToJiraIssue` |
 | 첨부 | 사용자 다운로드 | MCP 가 첨부 다운로드를 지원하지 않으면 계속 사용자 다운로드 |
 
 연결되면 먼저 확인할 것: 어느 cloudId 가 IMS 인지(당사 mobaseasec 와 혼동 금지), 댓글 본문 형식(ADF/markdown/wiki), 계정 권한(읽기만인지). 승인 규칙은 바뀌지 않는다 — MCP 로 쓰든 화면으로 쓰든 IMS 댓글은 HAE 로 나가는 외부 메시지다.

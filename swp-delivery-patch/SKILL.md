@@ -70,7 +70,7 @@ S13 마무리                PR, IMS·Redmine 상태
 
 ## S1. eCoDY-IMS 수집
 
-`ecody-search`(IMS)의 `ims_read.js` 로 패치 티켓과 연결 수평전개를 함께 읽는다(`__MAX__` 60000). 뽑을 것과 읽는 법 → `references/ims-workflow.md` §1. 놓치기 쉬운 것:
+`ecody-search`(IMS)의 `ims_api.py read` 로 패치 티켓과 연결 수평전개를 함께 읽는다(`--max 60000`, API 토큰 모드 — 크롬 불필요). 뽑을 것과 읽는 법 → `references/ims-workflow.md` §1. 놓치기 쉬운 것:
 
 - **재배포·안내 개정** — 첨부는 최신본만 받지 않고 날짜순으로 모두 받는다. 안내 댓글도 날짜순으로 다 읽고 항목별 최신값(harmonize 대상 등)을 쓴다.
 - **개정 안내에서 빠진 요청은 철회로 단정하지 않는다** — IM 링크·같은 날 문답과 대조한다.
