@@ -14,7 +14,7 @@
 | 최근 | `lastmodified >= "2026/09/01"` | 서버가 UTC로 해석 |
 | 정렬 | `order by lastmodified desc` | 공지·릴리즈 질문에 |
 
-CQL 문자열 안의 큰따옴표는 JS 작은따옴표 문자열로 감싸면 이스케이프가 필요 없다: `{tag:"T1", cql:'space=mclassicfaq and type=page and title ~ "Wdg"'}`.
+토큰 모드(기본)는 CQL 을 JSON 파일로 넘기므로 안쪽 큰따옴표를 `\"` 로 적는다: `{"tag":"T1","cql":"space=mclassicfaq and type=page and title ~ \"Wdg\""}`. 크롬 폴백에서는 JS 작은따옴표로 감싸면 이스케이프가 필요 없다: `{tag:"T1", cql:'… title ~ "Wdg"'}`.
 
 그룹을 CQL로 직접 한정할 조상 ID는 쓰지 않는다(바뀔 수 있음). 대신 제목 관례를 쓴다.
 

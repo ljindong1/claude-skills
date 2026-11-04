@@ -8,19 +8,30 @@ const __get = window.__ecmGetOnly || (window.__ecmGetOnly = (u, o = {}) => {
 const QUERIES = __QUERIES__;
 const PER_QUERY = 25;
 
+// 2026-11-04 실측 트리(mclassicfaq 최상위): 📢 Notice / 🏁 Terms of Use (ToU) /
+// 🔧 Technical Reference(1️⃣ IM, 2️⃣ SAG) / 📝Autosar Module User Manual /
+// 📚mobilgene Tool Manual / ✅ Quality & Verification / 파일 목록.
+// 제목에 이모지·번호 접두사가 붙어 있어 비교 전에 앞쪽 비문자를 떼어 낸다(ecm_api.py 와 같은 표).
 const ROOTS = [
-  ["Integration Auditor Guide", "IA"], ["Validation Checker Guide", "VC"], ["Validation checker로", "VC"],
-  ["Notice", "NOTICE"], ["Policy", "POLICY"],
-  ["IM (Integration Manual)", "IM"], ["SAG (SW Application Guide)", "SAG"],
-  ["Autosar Module User Manual", "UM"], ["C Studio Manual", "CSTUDIO"],
+  ["Integration Auditor Guide", "IA"],
+  ["Validation Checker Guide", "VC"], ["Validation checker", "VC"], ["필수 통합 점검", "VC"],
+  ["IM (Integration Manual)", "IM"],
+  ["SAG (", "SAG"],
+  ["Notice", "NOTICE"],
+  ["Policy", "POLICY"], ["Quality & Verification", "POLICY"],
+  ["Terms of Use", "ToU"],
+  ["Autosar Module User Manual", "UM"],
+  ["C Studio", "CSTUDIO"], ["mobilgene Tool Manual", "CSTUDIO"],
 ];
+const norm = t => String(t || "").replace(/^[^0-9A-Za-z가-힣[(]+/, "").trim();
 function classify(spaceKey, anc) {
   if (spaceKey !== "mclassicfaq") return { g: "OTHER", sub: spaceKey };
+  const titles = anc.map(norm);
   for (const [needle, code] of ROOTS) {
-    const i = anc.findIndex(t => (needle === "Notice" || needle === "Policy") ? t === needle : t.includes(needle));
-    if (i >= 0) return { g: code, sub: (anc[i + 1] || "").slice(0, 30) };
+    const i = titles.findIndex(t => (needle === "Notice" || needle === "Policy") ? t === needle : t.includes(needle));
+    if (i >= 0) return { g: code, sub: (titles[i + 1] || "").slice(0, 30) };
   }
-  return { g: "MISC", sub: (anc[1] || "").slice(0, 30) };
+  return { g: "MISC", sub: (titles[0] || "").slice(0, 30) };
 }
 const kstDate = iso => new Date(new Date(iso).getTime() + 9 * 3600e3).toISOString().slice(0, 10);
 const map = new Map(); const log = [];
