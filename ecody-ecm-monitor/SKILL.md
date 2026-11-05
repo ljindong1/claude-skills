@@ -36,7 +36,7 @@ description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Clas
 
 `run.cmd` 는 ASCII·CRLF 로 유지한다(cmd.exe 가 ANSI 코드페이지로 읽어 한글·LF 에서 깨진다). 토큰은 작업 스케줄러가 넘겨주는 사용자 환경변수를 쓰고, 없으면 레지스트리에서 한 번 더 읽는다. 종료 코드가 0 이 아니면 로그에 남고 비프음이 난다 — 흔한 원인은 토큰 만료(2027-03), MCP OAuth 만료, 사내망 미연결이다.
 
-점검기는 `D:\Ljindong\automation\watchdog\check_runs.ps1` 다. Claude 를 쓰지 않는 순수 PowerShell 이라 API/DNS 가 죽은 날에도 동작한다. 로그의 `RUN START` / `EXIT CODE` 줄로 판정하고, 결과를 `watchdog\check-YYYY-MM.log` 에 쌓고, 문제가 있으면 `ALERT-YYYY-MM-DD.txt` 를 메모장으로 띄운다. ECM 과 Redmine 두 작업을 함께 본다.
+점검기는 `D:\Ljindong\automation\watchdog\check_runs.ps1` 다. Claude 를 쓰지 않는 순수 PowerShell 이라 API/DNS 가 죽은 날에도 동작한다. 로그의 `RUN START` / `EXIT CODE` 줄로 판정하고, 결과를 `watchdog\check-YYYY-MM.log` 에 쌓고, 문제가 있으면 `ALERT-YYYY-MM-DD.txt` 를 메모장으로 띄운다 - **하루 한 번만** 띄우고, 그 뒤로는 내용만 갱신한다. 예약을 등록·변경한 날은 판정하지 않는다(시각이 지난 뒤 등록하면 기록이 없는 것이 당연하다). 머리글은 `^=+ 날짜 시각 RUN START` 로 정확히 맞춰 찾는다 - 느슨하게 찾으면 로그에 적어 둔 메모까지 실행으로 오인한다(2026-11-05 실측).
 
 2026-09-15 최초 실행 뒤 50일간 멈춰 있던 원인이 "부르는 곳이 없었다"였다(2026-11-04 실측). 구간 사슬은 Confluence 마커가 쥐고 있어 공백이 생겨도 다음 성공 실행이 이어 받는다.
 
