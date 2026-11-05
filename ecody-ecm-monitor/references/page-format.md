@@ -59,6 +59,7 @@
 | IM | `🔧 Integration Manual (IM)` |
 | UM | `📝 R44 User Manual (UM)` |
 | CSTUDIO | `📚 C Studio Manual` |
+| ToU | `🏁 Terms of Use (ToU)` |
 | OTHER | `🗂️ 기타 공간 (FoD · m.Security · Tool Chain)` |
 | MISC | `📦 분류 외` |
 | 비이미지 첨부 | `📎 배포 파일·문서 첨부` |

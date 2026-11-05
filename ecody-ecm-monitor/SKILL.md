@@ -1,11 +1,11 @@
 ---
 name: ecody-ecm-monitor
-description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Classic FAQ 등 고객 기술지원 Confluence)의 변경사항을 "직전 수집 이후~지금" 구간으로 빠짐없이 수집해 중요도순(공지 → Policy → IA/VC 점검규칙 → SAG → IM → UM → 기타)으로 분류·요약하고, 사내 Confluence(mobaseasec) "eCoDY ECM" 페이지 아래에 그룹별 누적 원장(문서 1개 = 1행, 새 문서는 맨 위에 추가, 이미 있는 문서는 그 행을 갱신)과 날짜별 변경 기록 페이지(같은 날 재실행분은 당일 페이지에 추가)로 발행하고, 실패 페이지는 다음 성공 때 복구 표시하는 매일 모니터링 스킬. Cowork 예약 작업이 매일 호출하는 무인 실행용이며 수집은 API 토큰(환경변수 ECODY_ECM_TOKEN)으로 하고 토큰이 없거나 만료되면 크롬 연동(Claude in Chrome) 로그인 세션으로 폴백한다. 사용자(또는 예약 루틴)가 "eCoDY 모니터링", "ECM 모니터링 실행", "eCoDY 변경사항 정리", "모빌진 FAQ 새 소식", "오토에버 기술지원 사이트 업데이트 확인", "오늘 eCoDY 뭐 바뀌었어", "ECM 일일 리포트" 등을 언급하거나 eCoDY-ECM 변경분을 주기적으로 정리·기록하려는 의도를 보이면 반드시 이 스킬을 사용하라. 특정 주제·설정 방법을 찾아 답하는 요청(예를 들어 "CanSM Bus-Off 설정 찾아줘")은 이 스킬이 아니라 ecody-search 담당이다.
+description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Classic FAQ 등 고객 기술지원 Confluence)의 변경사항을 "직전 수집 이후~지금" 구간으로 빠짐없이 수집해 중요도순(공지 → Policy → IA/VC 점검규칙 → SAG → IM → UM → 기타)으로 분류·요약하고, 사내 Confluence(mobaseasec) "eCoDY ECM" 페이지 아래에 그룹별 누적 원장(문서 1개 = 1행, 새 문서는 맨 위에 추가, 이미 있는 문서는 그 행을 갱신)과 날짜별 변경 기록 페이지(같은 날 재실행분은 당일 페이지에 추가)로 발행하고, 실패 페이지는 다음 성공 때 복구 표시하는 매일 모니터링 스킬. Windows 작업 스케줄러가 평일 아침 호출하는 무인 실행용이며 수집은 API 토큰(환경변수 ECODY_ECM_TOKEN)으로 하고 토큰이 없거나 만료되면 크롬 연동(Claude in Chrome) 로그인 세션으로 폴백한다. 사용자(또는 예약 루틴)가 "eCoDY 모니터링", "ECM 모니터링 실행", "eCoDY 변경사항 정리", "모빌진 FAQ 새 소식", "오토에버 기술지원 사이트 업데이트 확인", "오늘 eCoDY 뭐 바뀌었어", "ECM 일일 리포트" 등을 언급하거나 eCoDY-ECM 변경분을 주기적으로 정리·기록하려는 의도를 보이면 반드시 이 스킬을 사용하라. 특정 주제·설정 방법을 찾아 답하는 요청(예를 들어 "CanSM Bus-Off 설정 찾아줘")은 이 스킬이 아니라 ecody-search 담당이다.
 ---
 
 # eCoDY-ECM 일일 변경 모니터링
 
-오토에버 eCoDY-ECM 사이트의 변경분을 모아 사내 Confluence에 두 가지로 쌓는다. **그룹별 원장**은 문서마다 한 행을 두고 계속 누적·갱신하는 "현재 상태 장부"이고, **날짜별 기록**은 그날 무엇이 바뀌었는지 남기는 "일지"다. 매일 아침 Cowork 예약 작업이 부르는 무인 실행이 기본이므로, **실행 중 사용자에게 되묻지 않는다** — 막히면 막힌 사실을 페이지로 남기고 끝낸다.
+오토에버 eCoDY-ECM 사이트의 변경분을 모아 사내 Confluence에 두 가지로 쌓는다. **그룹별 원장**은 문서마다 한 행을 두고 계속 누적·갱신하는 "현재 상태 장부"이고, **날짜별 기록**은 그날 무엇이 바뀌었는지 남기는 "일지"다. 평일 아침 Windows 작업 스케줄러(작업 이름 `eCoDY ECM 일일 모니터링`, 05:30)가 `run.cmd` 로 부르는 무인 실행이 기본이므로, **실행 중 사용자에게 되묻지 않는다** — 막히면 막힌 사실을 페이지로 남기고 끝낸다.
 
 ## 고정 설정
 
@@ -22,6 +22,20 @@ description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Clas
 
 발행 형식·톤은 `confluence-writing` 스킬 규약(H3부터, html + `data-colwidth` 표, 첨부 있는 페이지는 html 왕복, 수정 직전 fetch)을 따른다. 단 **"수정 전 사용자 허락" 규칙은 이 스킬이 관리하는 페이지(그룹별 원장·부모 안내 영역·자신이 만든 기록 페이지)에 한해 사용자가 사전 승인했다**(2026-09-15). 부모·스페이스는 위 표로 고정되어 매번 확인하지 않는다.
 
+
+## 예약 실행
+
+| 항목 | 값 |
+| --- | --- |
+| 작업 이름 | `eCoDY ECM 일일 모니터링` (Windows 작업 스케줄러, 사용자 작업) |
+| 시각 | 평일 05:30 · 놓친 회차는 PC 를 켠 뒤 따라 실행(StartWhenAvailable) · 실행 제한 1시간 |
+| 실행 파일 | `<스킬폴더>\run.cmd` (스킬 폴더에 두어 저장소로 형상관리된다) |
+| 작업 폴더 | `D:\Ljindong\automation\ecody-ecm-monitor` — 로그 `logs\run-YYYY-MM.log` |
+| 호출 | `claude -p "/ecody-ecm-monitor"` · `--permission-mode acceptEdits` · `--permission-prompts none` · allowedTools 는 python 실행·Read/Write·Atlassian MCP 5종 |
+
+`run.cmd` 는 ASCII·CRLF 로 유지한다(cmd.exe 가 ANSI 코드페이지로 읽어 한글·LF 에서 깨진다). 토큰은 작업 스케줄러가 넘겨주는 사용자 환경변수를 쓰고, 없으면 레지스트리에서 한 번 더 읽는다. 종료 코드가 0 이 아니면 로그에 남고 비프음이 난다 — 흔한 원인은 토큰 만료(2027-03), MCP OAuth 만료, 사내망 미연결이다.
+
+2026-09-15 최초 실행 뒤 50일간 멈춰 있던 원인이 "부르는 곳이 없었다"였다(2026-11-04 실측). 구간 사슬은 Confluence 마커가 쥐고 있어 공백이 생겨도 다음 성공 실행이 이어 받는다.
 
 ## 권한 원칙
 
