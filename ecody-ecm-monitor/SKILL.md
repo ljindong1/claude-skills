@@ -31,9 +31,12 @@ description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Clas
 | 시각 | 평일 09:00 · 놓친 회차는 PC 를 켠 뒤 따라 실행(StartWhenAvailable) · 실행 제한 1시간 |
 | 실행 파일 | `<스킬폴더>\run.cmd` (스킬 폴더에 두어 저장소로 형상관리된다) |
 | 작업 폴더 | `D:\Ljindong\automation\ecody-ecm-monitor` — 로그 `logs\run-YYYY-MM.log` |
+| 실행 점검 | 별도 작업 `예약 실행 점검` 이 평일 10:00 에 로그를 읽어 돌았는지 확인한다 - 안 돌았거나 실패면 보고서를 띄운다 |
 | 호출 | `claude -p "/ecody-ecm-monitor"` · `--permission-mode acceptEdits` · `--permission-prompts none` · allowedTools 는 python 실행·Read/Write·Atlassian MCP 5종 |
 
 `run.cmd` 는 ASCII·CRLF 로 유지한다(cmd.exe 가 ANSI 코드페이지로 읽어 한글·LF 에서 깨진다). 토큰은 작업 스케줄러가 넘겨주는 사용자 환경변수를 쓰고, 없으면 레지스트리에서 한 번 더 읽는다. 종료 코드가 0 이 아니면 로그에 남고 비프음이 난다 — 흔한 원인은 토큰 만료(2027-03), MCP OAuth 만료, 사내망 미연결이다.
+
+점검기는 `D:\Ljindong\automation\watchdog\check_runs.ps1` 다. Claude 를 쓰지 않는 순수 PowerShell 이라 API/DNS 가 죽은 날에도 동작한다. 로그의 `RUN START` / `EXIT CODE` 줄로 판정하고, 결과를 `watchdog\check-YYYY-MM.log` 에 쌓고, 문제가 있으면 `ALERT-YYYY-MM-DD.txt` 를 메모장으로 띄운다. ECM 과 Redmine 두 작업을 함께 본다.
 
 2026-09-15 최초 실행 뒤 50일간 멈춰 있던 원인이 "부르는 곳이 없었다"였다(2026-11-04 실측). 구간 사슬은 Confluence 마커가 쥐고 있어 공백이 생겨도 다음 성공 실행이 이어 받는다.
 
