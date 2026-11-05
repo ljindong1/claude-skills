@@ -83,11 +83,13 @@ M11 마무리      탭 원복 → 결과 보고
 
 ## M0. 컨텍스트
 
-```bash
-TZ=Asia/Seoul date '+%Y-%m-%d %u %H:%M'; date -u '+%Y-%m-%dT%H:%M:%SZ'
+```
+python -c "import datetime as d;u=d.datetime.now(d.timezone.utc);k=u+d.timedelta(hours=9);print('KST',k.strftime('%Y-%m-%d'),k.isoweekday(),k.strftime('%H:%M'));print('UTC',u.strftime('%Y-%m-%dT%H:%M:%SZ'))"
 ```
 
-요일 매핑 `1=월 … 7=일`. 이 값만 오늘의 날짜로 쓰고, 이전 페이지 제목의 날짜를 복사하지 않는다. 이 시각(UTC)이 `WINDOW_END`다.
+출력은 `KST 2026-11-05 4 14:36` / `UTC 2026-11-05T05:36:43Z` 꼴이다. 요일 매핑 `1=월 … 7=일`. 이 값만 오늘의 날짜로 쓰고, 이전 페이지 제목의 날짜를 복사하지 않는다. UTC 쪽이 `WINDOW_END` 다.
+
+**왜 `date` 나 `Get-Date` 가 아니라 python 인가** (2026-11-05 실측): 무인 실행은 `run.cmd` 의 허용 목록을 `Bash(python *)`·`PowerShell(python *)` 로 좁혀 두었다. `Get-Date` 로 요일을 물으면 목록에 없어 거부되고, 무인 세션은 승인 창도 띄울 수 없어 그대로 막힌다. python 은 허용 목록에 있으니 통한다. 한국은 서머타임이 없어 UTC+9 고정 환산이 정확하다.
 
 ## M1. 접속 확인
 
