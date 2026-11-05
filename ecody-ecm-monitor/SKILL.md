@@ -5,7 +5,7 @@ description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Clas
 
 # eCoDY-ECM 일일 변경 모니터링
 
-오토에버 eCoDY-ECM 사이트의 변경분을 모아 사내 Confluence에 두 가지로 쌓는다. **그룹별 원장**은 문서마다 한 행을 두고 계속 누적·갱신하는 "현재 상태 장부"이고, **날짜별 기록**은 그날 무엇이 바뀌었는지 남기는 "일지"다. 평일 아침 Windows 작업 스케줄러(작업 이름 `eCoDY ECM 일일 모니터링`, 05:30)가 `run.cmd` 로 부르는 무인 실행이 기본이므로, **실행 중 사용자에게 되묻지 않는다** — 막히면 막힌 사실을 페이지로 남기고 끝낸다.
+오토에버 eCoDY-ECM 사이트의 변경분을 모아 사내 Confluence에 두 가지로 쌓는다. **그룹별 원장**은 문서마다 한 행을 두고 계속 누적·갱신하는 "현재 상태 장부"이고, **날짜별 기록**은 그날 무엇이 바뀌었는지 남기는 "일지"다. 평일 아침 Windows 작업 스케줄러(작업 이름 `eCoDY ECM 일일 모니터링`, 09:00)가 `run.cmd` 로 부르는 무인 실행이 기본이므로, **실행 중 사용자에게 되묻지 않는다** — 막히면 막힌 사실을 페이지로 남기고 끝낸다.
 
 ## 고정 설정
 
@@ -28,7 +28,7 @@ description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Clas
 | 항목 | 값 |
 | --- | --- |
 | 작업 이름 | `eCoDY ECM 일일 모니터링` (Windows 작업 스케줄러, 사용자 작업) |
-| 시각 | 평일 05:30 · 놓친 회차는 PC 를 켠 뒤 따라 실행(StartWhenAvailable) · 실행 제한 1시간 |
+| 시각 | 평일 09:00 · 놓친 회차는 PC 를 켠 뒤 따라 실행(StartWhenAvailable) · 실행 제한 1시간 |
 | 실행 파일 | `<스킬폴더>\run.cmd` (스킬 폴더에 두어 저장소로 형상관리된다) |
 | 작업 폴더 | `D:\Ljindong\automation\ecody-ecm-monitor` — 로그 `logs\run-YYYY-MM.log` |
 | 호출 | `claude -p "/ecody-ecm-monitor"` · `--permission-mode acceptEdits` · `--permission-prompts none` · allowedTools 는 python 실행·Read/Write·Atlassian MCP 5종 |
