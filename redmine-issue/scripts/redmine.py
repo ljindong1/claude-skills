@@ -765,6 +765,105 @@ def cmd_note_edit(args):
 # ---------------------------------------------------------------- 진입점
 
 
+# ---------------------------------------------------------------- 첨부 올리기
+
+UPLOAD_TIMEOUT = 600  # 수십 MB 는 20초로 모자란다
+
+MIME = {
+    ".zip": "application/zip", ".7z": "application/x-7z-compressed",
+    ".txt": "text/plain", ".log": "text/plain", ".md": "text/markdown",
+    ".csv": "text/csv", ".json": "application/json",
+    ".xml": "application/xml", ".arxml": "application/xml",
+    ".html": "text/html", ".pdf": "application/pdf",
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".xls": "application/vnd.ms-excel",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".doc": "application/msword",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+
+
+def human(n):
+    if n < 1024:
+        return "%dB" % n
+    for u in ("KB", "MB", "GB"):
+        n /= 1024.0
+        if n < 1024 or u == "GB":
+            return "%.1f%s" % (n, u)
+
+
+def upload_file(path):
+    """파일 하나를 올려 토큰을 받는다.
+
+    토큰만 받은 상태에서는 아무 이슈에도 붙지 않는다 - 그래서 '올릴 수 있는가' 는
+    이슈를 건드리지 않고 확인할 수 있다. 실제로 붙이는 것은 뒤의 PUT 이다.
+    """
+    base, key = config()
+    name = os.path.basename(path)
+    with open(path, "rb") as f:
+        data = f.read()
+    url = base + "/uploads.json?" + urllib.parse.urlencode({"filename": name})
+    req = urllib.request.Request(
+        url, data=data, method="POST",
+        headers={"Content-Type": "application/octet-stream",
+                 "Accept": "application/json",
+                 "X-Redmine-API-Key": key})
+    try:
+        with urllib.request.urlopen(req, timeout=UPLOAD_TIMEOUT) as r:
+            d = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", "replace")[:300]
+        if e.code in (413, 422):
+            die("%s (%s) 거부됨 (HTTP %d) - 대개 용량 제한이다." % (name, human(len(data)), e.code)
+                + "\n  서버 응답: " + body
+                + "\n  관리 > 설정 > 파일 > '첨부 파일 최대 크기' 를 확인하거나 파일을 쪼개라.")
+        _http_error(e, url)
+    except urllib.error.URLError as e:
+        die("%s 업로드 실패: %s" % (name, e.reason))
+    ext = os.path.splitext(name)[1].lower()
+    return d["upload"]["token"], MIME.get(ext, "application/octet-stream")
+
+
+def cmd_attach(args):
+    files = []
+    for raw in args.file:
+        if not os.path.isfile(raw):
+            die("파일이 없습니다: %s\n  폴더는 올릴 수 없다 - 먼저 압축하라." % raw)
+        ap = os.path.abspath(raw)
+        files.append((ap, os.path.getsize(ap)))
+
+    issue = get("/issues/%d.json" % args.id)["issue"]
+    require_own(issue)
+
+    total = sum(n for _, n in files)
+    lines = ["이슈 : #%d  %s" % (args.id, issue.get("subject", "")), ""]
+    for ap, n in files:
+        lines.append("  %10s  %s" % (human(n), os.path.basename(ap)))
+    lines.append("")
+    lines.append("  합계 %d개  %s" % (len(files), human(total)))
+    lines.append("")
+    lines.append("올리면 이 이슈를 볼 수 있는 모든 사람에게 보인다.")
+    lines.append("지우는 것은 Redmine 화면에서 사람이 한다 - 이 스킬은 첨부를 지우지 않는다.")
+    if args.note:
+        lines += ["", "코멘트:", "  " + args.note]
+    confirm_gate(args.yes, "첨부 올리기", lines)
+
+    uploads = []
+    for ap, n in files:
+        tok, ctype = upload_file(ap)
+        print("  올림  %10s  %s" % (human(n), os.path.basename(ap)))
+        uploads.append({"token": tok, "filename": os.path.basename(ap),
+                        "content_type": ctype})
+
+    body = {"issue": {"uploads": uploads}}
+    if args.note:
+        body["issue"]["notes"] = args.note
+    request("PUT", "/issues/%d.json" % args.id, body=body)
+    print("")
+    print("첨부 완료: #%d  %d개  %s" % (args.id, len(uploads), human(total)))
+    print(issue_url(args.id))
+
+
 def main():
     p = argparse.ArgumentParser(description="Redmine CLI (조회 + 내 이슈 생성·수정)")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -863,6 +962,13 @@ def main():
     s.add_argument("--text", help="짧은 본문")
     s.add_argument("--file", help="본문 파일 ('-' 는 stdin). 본문 전체를 교체한다")
     s.set_defaults(func=cmd_note_edit)
+
+    s = add_yes(sub.add_parser("attach", help="내가 등록한 이슈에 파일 첨부"))
+    s.add_argument("id", type=int)
+    s.add_argument("--file", action="append", required=True,
+                   help="올릴 파일 경로 (여러 번 지정 가능). 폴더는 먼저 압축하라")
+    s.add_argument("--note", help="첨부와 함께 남길 코멘트")
+    s.set_defaults(func=cmd_attach)
 
     args = p.parse_args()
     args.func(args)
