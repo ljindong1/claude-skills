@@ -1,11 +1,11 @@
 ---
 name: hota-eval
-description: H-OTA 리프로그래밍 평가(A 그룹 차종 빌드 다운그레이드 차단 · B 그룹 OEUK_TEST 강제 다운그레이드, 1세대 External · BG→Repro / 2세대 Wired · Wireless · Rule Units)를 H-OTA Studio 와 함께 끌고 가는 스킬. 실행은 회사 저장소 Joule(D:\Mobase\asec_autotest_tool)의 joule-hota-eval · joule-hota · joule-flash 를 그 자리에서 부른다 — 서명본 4벌 판별(aSIMS hash ↔ 빌드, 서명 뒤 재빌드 감지), bin 배치, 케이스 전 보드 준비(서명본 확인·ALL·AB 쓰기·디버거 놓기·IGN1/B+ 재투입), 케이스별 Report Config(.asc 이름)·OEUK 넣기, 실행 뒤 .log 정리·캡처 이름·자동 판정(Success · NRC 0xF4 · 27 13/14 · SW/HW 버전), 이름 규칙 검사·수정, 보드평가레포트 xlsx, Redmine 첨부 zip, 결과 표. 사용자가 "H-OTA 평가", "A 그룹 B 그룹", "리프로그래밍 평가", "업그레이드 다운그레이드 평가", "OEUK 강제 다운그레이드", "External / BG / Repro Rules", "Wired Rules", "Wireless Rules", "Rule Units", "Report Config", ".asc 파일명 알려줘", "보드평가레포트 첨부 바꿔줘", "aSIMS 서명 받았어", "서명본 bin", "26310 26320 평가", "평가 결과 정리", "결과 폴더 압축", "H-OTA 체크리스트", "hcfg 확인" 등을 말하거나 SWP 패치 실기 검증(swp-delivery-patch S12)의 H-OTA 부분에 들어서면 반드시 이 스킬을 사용하라. Claude Code CLI(H-OTA Studio · CVD · VN1640A · 릴레이 박스가 있는 사용자 PC, 관리자 PowerShell 권장) 전용.
+description: H-OTA 리프로그래밍 평가(A 그룹 차종 빌드 다운그레이드 차단 · B 그룹 OEUK_TEST 강제 다운그레이드, 1세대 External · BG→Repro / 2세대 Wired · Wireless · Rule Units)를 H-OTA Studio 와 함께 끌고 가는 스킬. 실행은 회사 저장소 Joule(D:\Mobase\asec_autotest_tool)의 joule-hota · joule-flash 를 그 자리에서 부른다 — 서명본 4벌 판별(aSIMS hash ↔ 빌드, 서명 뒤 재빌드 감지), bin 배치, 케이스 전 보드 준비(서명본 확인·ALL·AB 쓰기·디버거 놓기·IGN1/B+ 재투입), 케이스별 Report Config(.asc 이름)·OEUK 넣기, 실행 뒤 .log 정리·캡처 이름·자동 판정(Success · NRC 0xF4 · 27 13/14 · SW/HW 버전), 이름 규칙 검사·수정, 보드평가레포트 xlsx, Redmine 첨부 zip, 결과 표. 사용자가 "H-OTA 평가", "A 그룹 B 그룹", "리프로그래밍 평가", "업그레이드 다운그레이드 평가", "OEUK 강제 다운그레이드", "External / BG / Repro Rules", "Wired Rules", "Wireless Rules", "Rule Units", "Report Config", ".asc 파일명 알려줘", "보드평가레포트 첨부 바꿔줘", "aSIMS 서명 받았어", "서명본 bin", "26310 26320 평가", "평가 결과 정리", "결과 폴더 압축", "H-OTA 체크리스트", "hcfg 확인" 등을 말하거나 SWP 패치 실기 검증(swp-delivery-patch S12)의 H-OTA 부분에 들어서면 반드시 이 스킬을 사용하라. Claude Code CLI(H-OTA Studio · CVD · VN1640A · 릴레이 박스가 있는 사용자 PC, 관리자 PowerShell 권장) 전용.
 ---
 
 # hota-eval — H-OTA A·B 그룹 평가
 
-SWP 패치 회차마다 하는 H-OTA 리프로그래밍 평가와 그 산출물을 다룬다. **도구는 Joule 저장소다** (2026-10-20 까지 이 스킬에 있던 `hota_eval.py` 를 `joule-hota-eval` 로 옮김).
+SWP 패치 회차마다 하는 H-OTA 리프로그래밍 평가와 그 산출물을 다룬다. **도구는 Joule 저장소다** (2026-10-20 까지 이 스킬에 있던 `hota_eval.py` 를 Joule 로 옮겼고, 2026-10-21 에 `joule-hota` 한 명령으로 합쳤다).
 이 스킬은 언제·어떤 순서로 부르고 무엇을 사람에게 확인받는지만 다룬다. 사람은 H-OTA 의 Start 와 Output 로그 저장·캡처만 한다.
 
 ## 도구
@@ -15,13 +15,13 @@ SWP 패치 회차마다 하는 H-OTA 리프로그래밍 평가와 그 산출물�
   도구가 막히거나 경로·설정이 맞지 않으면 그 자리에서 멈추고, 고칠 내용을 **요청 문구**(현상 · 근거 파일:행 · 원인 · 요청 · 테스트)로 써서 사용자에게 넘긴다.
   명령줄 옵션(`--result`, `--signed`, `--ref` 등)으로 풀리는 것만 옵션으로 하고, 그 밖은 반자동(prepare / 사람 Start / collect)으로 진행한다.
   (그날 결과 폴더를 예외 위치로 바꾸자 `configs/ota` 패키지 경로를 고치고, Updater 인자 순서를 `studio.py` 에서 바꿔 본 일이 있었다 - 하지 말 것)
-- 사용법·명령·판정 기준·프로필 형식·실기 함정의 정본은 저장소 **`docs/joule-hota-eval.md`**. 조작 질문은 그 문서를 읽고 답한다.
+- 사용법·명령·판정 기준·프로필 형식·실기 함정의 정본은 저장소 **`docs/joule-hota.md`**. 조작 질문은 그 문서를 읽고 답한다.
 
 | 명령 | 하는 일 |
 |---|---|
-| `uv run joule-hota-eval <결선> <명령>` | 반자동 평가 도우미 - where · status · identify · bins · flash · prepare · collect · restore · judge · names · report · zip · summary |
+| `uv run joule-hota <결선> <하위명령>` | plan · check · where · restore · status · summary · signed · bins · build · flash · run · prepare · collect · judge · names · report · zip · tester-project · tester-tc · call |
 | `uv run joule-hota <결선> ...` | H-OTA 명령줄 (Hex2Binary · -Convert · -Rompackage · -HashValue · Updater -DIRECT) - 사람 없이 돌리는 평가 (실기 확인 전) |
-| `uv run joule-flash ...` | CVD 쓰기 (`joule-hota-eval flash` 가 대신 부른다) |
+| `uv run joule-flash ...` | CVD 쓰기 (`joule-hota <결선> flash` 가 대신 부른다) |
 | `uv run joule-verify <결선> full --run` | CAN 출력·동작 (레포트 TC_001, P2) |
 
 - 케이스·버전·레포트 개체는 `configs/hota_eval/<제어기>.toml`, 빌드·결과 폴더는 제어기 `[project]`, CVD 과제·서명 결과는 제어기 `[hota]` (`cvd_project`, `signed`).
@@ -31,7 +31,7 @@ SWP 패치 회차마다 하는 H-OTA 리프로그래밍 평가와 그 산출물�
 ## 흐름
 
 ```
-E0 저장 위치   joule-hota-eval <결선> where -> AskUserQuestion 으로 확인 (결과 폴더 · 레포트 · zip). 바꾸면 --result 를 끝까지
+E0 저장 위치   joule-hota <결선> where -> AskUserQuestion 으로 확인 (결과 폴더 · 레포트 · zip). 바꾸면 --result 를 끝까지
 E0 준비 점검   H-OTA 로그인(1주일마다 로그아웃) · CVD 화면 닫힘 · CANoe 종료 · 릴레이 박스(joule-power relaybox status)
 E1 빌드        JENKINS_BUILD_TARGET ALL -> Debug/OEUK_<차종>/ 4벌 (swp-delivery-patch)
 E2 서명        (사람) aSIMS -> 받은 zip/폴더 -> identify (멈추면 --ref <서명한 빌드 커밋>) -> bins

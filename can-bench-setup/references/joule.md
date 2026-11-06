@@ -57,12 +57,12 @@ Joule      환경변수 JOULE_HOME, 없으면 D:\Mobase\asec_autotest_tool
    uv run --directory <Joule> python "<스킬>\scripts\project_info.py" <프로젝트 폴더> --json
    ```
    (Joule 의 파이썬으로 돌린다 — 표준 라이브러리만 쓰는 스크립트다.) 읽는 것은 SKILL.md "공통 근거" 표. 종료 코드 2(앱 폴더 없음)면 프로젝트 폴더에서 부른 게 아니다 — ②에서 묻거나 결선만으로 진행한다.
-4. **결선·제어기 목록** — `configs/benches/*.toml` 의 `target`·`device`, 그 제어기의 `[dut].node`, 버스별 `dbc`·보율.
+4. **결선·제어기 목록** — `configs/benches/*.toml` 의 `ecu`·`device`, 그 제어기의 `[ecu].node`, 버스별 `dbc`·보율.
 5. **프로젝트와 맞대기** — 3의 결과와 4의 제어기를 비교한다.
 
    | 비교 | 같은 것으로 보는 조건 |
    |---|---|
-   | 대상 | 제어기 `[dut].node` == 프로젝트의 시험 대상 노드 |
+   | 대상 | 제어기 `[ecu].node` == 프로젝트의 시험 대상 노드 |
    | DB | 버스별 `dbc` 파일 이름 == 프로젝트 **빌드 DB** |
    | 보율 | `bitrate` `data_bitrate` `sample_point` `data_sample_point` == 프로젝트 값 |
 
@@ -102,9 +102,9 @@ Joule 설정은 **사용자 저장소 파일**이다. 쓰기 전에 바꿀 내�
 
 | 파일 | 항목 | 채우는 곳 | 모르면 |
 |---|---|---|---|
-| `targets/<차종>_<제어기>_<위치>.toml` | `[dut].node` | 프로젝트 시험 대상 노드 | 여럿이면 묻는다 |
+| `ecus/<차종>_<제어기>_<위치>.toml` | `[ecu].node` | 프로젝트 시험 대상 노드 | 여럿이면 묻는다 |
 | | `[[bus]] name` · `dbc` · `bitrate` · `data_bitrate` · `sample_point` · `data_sample_point` | 프로젝트 빌드 DB(사본 경로) · `Ecud_Can.arxml` | — |
-| | `[dut].e2e` · `[bus.signals]`(IGN 등) | 같은 제어기 기존 설정, CANoe 패널·CAPL | 비워 두고 묻는다 |
+| | `[ecu].e2e` · `[bus.signals]`(IGN 등) | 같은 제어기 기존 설정, CANoe 패널·CAPL | 비워 두고 묻는다 |
 | `benches/<결선>.toml` | `device` · `target` · 버스별 `channel` | 장비 파일, 실제 결선 | **채널은 반드시 묻는다** |
 | | `exclude` | ②의 질문 4 | — |
 
