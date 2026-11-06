@@ -1,6 +1,6 @@
 ---
 name: swp-delivery-patch
-description: 현대오토에버(HAE) mobilgene Classic(R44/R4x) SWP Delivery_Patch 를 당사 제어기 프로젝트(FBL·APP, 차종·제어기 무관)에 적용하는 전 과정 — eCoDY-IMS 티켓 수집, 배포본 판별, HAE 이전/현재 형상과 당사 설정의 3-way 판정(그대로 복사해도 되는지, 당사 전용 설정은 어떻게 반영할지), 과거 회차 이력 대조, 적용, 정적 검수, Jenkins 빌드 결과 검수(생성물 diff·RAM/ROM), 버전업, 실기 검증 순서, 리뷰어 지적 대응, Redmine·IMS·Confluence 기록, PR 까지 — 을 안내하고 반복 작업은 동봉 스크립트로 처리하는 스킬. 사용자가 "Delivery_Patch", "SWP 패치", "패치 딜리버리", "MCP0806-xxx 패치 적용", "eCoDY-IMS 패치 티켓", "모듈 패치 적용해줘", "HAE 패치 받았어", "v3.0.xx 패치", "FBL 패치", "APP 패치", "재배포본", "배포본 비교", "패치 검수", "HAE 형상 그대로 복사해도 돼?", "당사 설정이랑 충돌", "IMS 에 질문 댓글", "패치 누락 지적", "리뷰 코멘트 반영", "버전업", "JENKINS_BUILD_TARGET ALL" 등을 말하거나, HAE 가 배포한 모듈·설정 변경을 당사 저장소에 반영하려는 의도를 보이면 반드시 이 스킬을 사용하라. Claude Code CLI(사내망, 사용자 PC) 전용. 개별 도구 작업은 담당 스킬로 넘긴다 — Redmine 쓰기는 redmine-issue, eCoDY-ECM·IMS 읽기·검색은 ecody-search, 보드 라이팅은 cvd-project, CAN 확인은 can-bench-setup / canoe-project-setup, H-OTA 평가는 hota-eval, Confluence 규약은 confluence-writing, 작업 브랜치·Jenkins Job 신설은 gitea-jenkins-setup.
+description: 현대오토에버(HAE) mobilgene Classic(R44/R4x) SWP Delivery_Patch 를 당사 제어기 프로젝트(FBL·APP, 차종·제어기 무관)에 적용하는 전 과정 — eCoDY-IMS 티켓 수집, 배포본 판별, HAE 이전/현재 형상과 당사 설정의 3-way 판정(그대로 복사해도 되는지, 당사 전용 설정은 어떻게 반영할지), 과거 회차 이력 대조, 적용, 정적 검수, Jenkins 빌드 결과 검수(생성물 diff·RAM/ROM), 버전업, 실기 검증 순서, 리뷰어 지적 대응, Redmine·IMS·Confluence 기록, PR 까지 — 을 안내하고 반복 작업은 동봉 스크립트로 처리하는 스킬. 사용자가 "Delivery_Patch", "SWP 패치", "패치 딜리버리", "MCP0806-xxx 패치 적용", "eCoDY-IMS 패치 티켓", "모듈 패치 적용해줘", "HAE 패치 받았어", "v3.0.xx 패치", "FBL 패치", "APP 패치", "재배포본", "배포본 비교", "패치 검수", "HAE 형상 그대로 복사해도 돼?", "당사 설정이랑 충돌", "IMS 에 질문 댓글", "패치 누락 지적", "리뷰 코멘트 반영", "버전업", "JENKINS_BUILD_TARGET ALL" 등을 말하거나, HAE 가 배포한 모듈·설정 변경을 당사 저장소에 반영하려는 의도를 보이면 반드시 이 스킬을 사용하라. Claude Code CLI(사내망, 사용자 PC) 전용. 개별 도구 작업은 담당 스킬로 넘긴다 — Redmine 쓰기는 redmine-issue, eCoDY-ECM·IMS 읽기·검색은 ecody-search, 보드 라이팅은 cvd-project, CAN 확인은 can-bench-setup / canoe-project-setup, H-OTA 평가는 hota, Confluence 규약은 confluence-writing, 작업 브랜치·Jenkins Job 신설은 gitea-jenkins-setup.
 ---
 
 # SWP Delivery_Patch 적용
@@ -182,7 +182,7 @@ C 경로 항목만, 한 패치의 질문은 한 댓글에 번호를 매겨 모�
 ALL 빌드 전환(지시 시 커밋) → 산출물 4벌 확인
 → 라이팅 (cvd-project, 양 뱅크) → CAN 출력 (can-bench-setup)
 → 진단 회귀 · 패치 고유 시험 (수평전개 결함 재현 조건)
-→ 서명 요청 → H-OTA (hota-eval)
+→ 서명 요청 → H-OTA (hota)
 → 결과 정리 → CURRENT 복귀 (지시 시 커밋)
 ```
 
@@ -221,6 +221,6 @@ PR 방식·대상·머지 순서는 프로필, 브랜치 구성·검증·push·P
 - 작업 브랜치·Jenkins Job 신설 → gitea-jenkins-setup
 - eCoDY-ECM·IMS 읽기·검색 → ecody-search (이 스킬은 IMS 댓글 쓰기만)
 - 라이팅·CAN 측정 → cvd-project, can-bench-setup, canoe-project-setup
-- H-OTA A·B 그룹 평가·산출물 → hota-eval
+- H-OTA A·B 그룹 평가·산출물 → hota
 - Redmine 일감 단순 조회 → redmine-issue
 - PR 머지, 공유 브랜치 정리

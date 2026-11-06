@@ -1,9 +1,9 @@
 ---
-name: hota-eval
+name: hota
 description: H-OTA 리프로그래밍 평가(A 그룹 차종 빌드 다운그레이드 차단 · B 그룹 OEUK_TEST 강제 다운그레이드, 1세대 External · BG→Repro / 2세대 Wired · Wireless · Rule Units)를 H-OTA Studio 와 함께 끌고 가는 스킬. 실행은 회사 저장소 Joule(D:\Mobase\asec_autotest_tool)의 joule-hota · joule-flash 를 그 자리에서 부른다 — 서명본 4벌 판별(aSIMS hash ↔ 빌드, 서명 뒤 재빌드 감지), bin 배치, 케이스 전 보드 준비(서명본 확인·ALL·AB 쓰기·디버거 놓기·IGN1/B+ 재투입), 케이스별 Report Config(.asc 이름)·OEUK 넣기, 실행 뒤 .log 정리·캡처 이름·자동 판정(Success · NRC 0xF4 · 27 13/14 · SW/HW 버전), 이름 규칙 검사·수정, 보드평가레포트 xlsx, Redmine 첨부 zip, 결과 표. 사용자가 "H-OTA 평가", "A 그룹 B 그룹", "리프로그래밍 평가", "업그레이드 다운그레이드 평가", "OEUK 강제 다운그레이드", "External / BG / Repro Rules", "Wired Rules", "Wireless Rules", "Rule Units", "Report Config", ".asc 파일명 알려줘", "보드평가레포트 첨부 바꿔줘", "aSIMS 서명 받았어", "서명본 bin", "26310 26320 평가", "평가 결과 정리", "결과 폴더 압축", "H-OTA 체크리스트", "hcfg 확인" 등을 말하거나 SWP 패치 실기 검증(swp-delivery-patch S12)의 H-OTA 부분에 들어서면 반드시 이 스킬을 사용하라. Claude Code CLI(H-OTA Studio · CVD · VN1640A · 릴레이 박스가 있는 사용자 PC, 관리자 PowerShell 권장) 전용.
 ---
 
-# hota-eval — H-OTA A·B 그룹 평가
+# hota — H-OTA A·B 그룹 평가
 
 SWP 패치 회차마다 하는 H-OTA 리프로그래밍 평가와 그 산출물을 다룬다. **도구는 Joule 저장소다** (2026-10-20 까지 이 스킬에 있던 `hota_eval.py` 를 Joule 로 옮겼고, 2026-10-21 에 `joule-hota` 한 명령으로 합쳤다).
 이 스킬은 언제·어떤 순서로 부르고 무엇을 사람에게 확인받는지만 다룬다. 사람은 H-OTA 의 Start 와 Output 로그 저장·캡처만 한다.
