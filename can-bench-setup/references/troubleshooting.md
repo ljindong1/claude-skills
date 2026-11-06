@@ -28,7 +28,7 @@ CAN FD 버스에 Classic CAN 컨트롤러를 붙이면, BRS 가 선 프레임을
 
 | 모드 | FD 여부를 정하는 곳 |
 |---|---|
-| python-can (Joule) | 제어기 설정 `configs/targets/<이름>.toml` 의 `[[bus]] fd` (빼면 `true`) 와 보율·샘플포인트 |
+| python-can (Joule) | 제어기 설정 `configs/ecus/<이름>.toml` 의 `[[bus]] fd` (빼면 `true`) 와 보율·샘플포인트 |
 | CANoe | Vector Hardware Manager — `.cfg` 에 없고 바이너리라 파일로 확인 불가 |
 
 보율 근거는 저장소다.
@@ -98,7 +98,7 @@ Setup 으로 설치한다. 없으면 `[연결 오류]` 에 그 사실이 나온�
 일부러 멈추게 만든 것이다. 오타를 조용히 무시하면 기본값으로 돌아 실물 ECU 와
 같은 ID 를 보낼 수 있다. 제안된 이름으로 고친다.
 
-DB 경로가 상대 경로면 **제어기 설정 파일이 있는 폴더(`configs/targets/`) 기준**이다
+DB 경로가 상대 경로면 **제어기 설정 파일이 있는 폴더(`configs/ecus/`) 기준**이다
 (Joule 은 `../../can_db/<차종>/…` 처럼 쓴다). 실행 폴더 기준이 아니다.
 
 ## `--listen` 에서 전부 "수신 없음"

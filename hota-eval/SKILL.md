@@ -22,7 +22,7 @@ SWP 패치 회차마다 하는 H-OTA 리프로그래밍 평가와 그 산출물�
 | `uv run joule-hota-eval <결선> <명령>` | 반자동 평가 도우미 - where · status · identify · bins · flash · prepare · collect · restore · judge · names · report · zip · summary |
 | `uv run joule-hota <결선> ...` | H-OTA 명령줄 (Hex2Binary · -Convert · -Rompackage · -HashValue · Updater -DIRECT) - 사람 없이 돌리는 평가 (실기 확인 전) |
 | `uv run joule-flash ...` | CVD 쓰기 (`joule-hota-eval flash` 가 대신 부른다) |
-| `uv run joule-full <결선> --run` | CAN 출력·동작 (레포트 TC_001, P2) |
+| `uv run joule-verify <결선> full --run` | CAN 출력·동작 (레포트 TC_001, P2) |
 
 - 케이스·버전·레포트 개체는 `configs/hota_eval/<제어기>.toml`, 빌드·결과 폴더는 제어기 `[project]`, CVD 과제·서명 결과는 제어기 `[hota]` (`cvd_project`, `signed`).
   새 제어기 프로필이나 고칠 것이 생기면 직접 만들거나 고치지 않고 요청 문구로 사용자에게 넘긴다 (위 "절대 수정하지 않는다").
@@ -32,7 +32,7 @@ SWP 패치 회차마다 하는 H-OTA 리프로그래밍 평가와 그 산출물�
 
 ```
 E0 저장 위치   joule-hota-eval <결선> where -> AskUserQuestion 으로 확인 (결과 폴더 · 레포트 · zip). 바꾸면 --result 를 끝까지
-E0 준비 점검   H-OTA 로그인(1주일마다 로그아웃) · CVD 화면 닫힘 · CANoe 종료 · 릴레이 박스(joule-relay relaybox status)
+E0 준비 점검   H-OTA 로그인(1주일마다 로그아웃) · CVD 화면 닫힘 · CANoe 종료 · 릴레이 박스(joule-power relaybox status)
 E1 빌드        JENKINS_BUILD_TARGET ALL -> Debug/OEUK_<차종>/ 4벌 (swp-delivery-patch)
 E2 서명        (사람) aSIMS -> 받은 zip/폴더 -> identify (멈추면 --ref <서명한 빌드 커밋>) -> bins
 E3 hcfg-r      H-OTA 설정 확인: 진단 ID · partNumber(TEST 빌드는 881P1TEST0 도) · dbVersion(2세대 필수) · 블록 합 = bin 크기.
@@ -43,7 +43,7 @@ E4 케이스마다  status 의 "다음" 대로:
                  (사람) Output 창 비우기 -> Start -> Output 로그 저장 -> 캡처
                  collect <케이스> [--fix]  결과·판정을 전한다. 기대와 다르면 .log/.asc 를 읽고 원인을 찾는다
 E5 판정        judge / names --fix - 대칭성 (A 다운그레이드 0xF4 차단 · B 강제 다운그레이드 성공)
-E6 산출물      joule-full (CAN) -> report -> zip -> summary -> Confluence 체크리스트 · Redmine (미리보기 뒤)
+E6 산출물      joule-verify full (CAN) -> report -> zip -> summary -> Confluence 체크리스트 · Redmine (미리보기 뒤)
 ```
 
 ### 2세대(CCU2)에서 기억할 것 (2026-10-20 NQ6e PSU)

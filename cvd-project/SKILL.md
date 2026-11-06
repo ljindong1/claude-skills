@@ -38,34 +38,34 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 **쓰기 전에 반드시 사용자 확인을 받는다.**
 
 0. **전원 방식을 먼저 정한다 - 릴레이 박스가 응답하면 자동, 아니면 수동.**
-   `uv run joule-relay relaybox status` (릴레이를 바꾸지 않으니 확인 없이 실행). 장비 설정 `configs/devices/relaybox.toml` (COM3·19200·ID 1, CH1 = B+, CH2 = IGN1).
+   `uv run joule-power relaybox status` (릴레이를 바꾸지 않으니 확인 없이 실행). 장비 설정 `configs/devices/relaybox.toml` (COM3·19200·ID 1, CH1 = B+, CH2 = IGN1).
    - 응답하면 **자동**: 지금 B+·IGN1 공급 상태를 보이고, 아래 3·4 의 전원 조작을 릴레이로 한다.
-   - 응답 없음·포트 없음이면 **수동**: 멈추지 않고 그 사실을 알린 뒤, 3·4 에서 사람에게 전원을 안내한다. 원인(박스 12V +·GND, 포트·보율·ID, A/B 결선)은 저장소 `docs/joule-relay.md` "처음 붙이기" 로 짚어 준다.
+   - 응답 없음·포트 없음이면 **수동**: 멈추지 않고 그 사실을 알린 뒤, 3·4 에서 사람에게 전원을 안내한다. 원인(박스 12V +·GND, 포트·보율·ID, A/B 결선)은 저장소 `docs/joule-power.md` "처음 붙이기" 로 짚어 준다.
 1. `flash --name <과제명> [인자]` 를 `--yes` 없이 → 계획과 `[옵션]`·`[알림]` 만 나온다 (보드·config 그대로).
 2. 과제 · APP 버전 · 모드 · APP 뱅크 · FBL/APP/ELF/HSM 경로와 `[알림]` 을 그대로 보이고 AskUserQuestion 으로 확인받는다. 정하지 않은 것은 함께 묻는다.
-   - 전원(자동일 때): "쓰기 전 B+ -> IGN1 켜기, 쓴 뒤 IGN1 -> B+ 끄고 3초 뒤 B+ -> IGN1 켜기를 릴레이로 한다" 를 함께 보인다. `joule-relay on/off` 는 묻지 않고 바로 ECU 전원을 바꾸므로 **이 확인 한 번이 전원 조작 승인**이다.
+   - 전원(자동일 때): "쓰기 전 B+ -> IGN1 켜기, 쓴 뒤 IGN1 -> B+ 끄고 3초 뒤 B+ -> IGN1 켜기를 릴레이로 한다" 를 함께 보인다. `joule-power on/off` 는 묻지 않고 바로 ECU 전원을 바꾸므로 **이 확인 한 번이 전원 조작 승인**이다.
    - APP 버전: config 버전이 기본. `[알림]` 의 현재 소스·더 새 버전도 옵션으로.
    - 무엇을 쓸지: IMAGE(FBL+APP, 기본) / HSM / ALL. 새 보드나 다른 HSM 이면 ALL.
    - 데이터 영역(DTC·NvM·학습값)은 **언제나 지운다** - 묻지 않는다 (유지 옵션은 2026-10-16 없앰). 같은 보드에 다른 제어기를 쓰면 NvM 이 넘어오기 때문이라고 알린다.
    - APP 뱅크(듀얼뱅크, IMAGE/ALL): config 설정을 첫 옵션으로. A 를 고르면 B 에 다른 버전이 남아 FBL 이 B 로 부팅할 때 그 버전이 돈다는 점을 짚는다.
-3. 확인되면 CVD 화면은 닫아 둔다 (포트가 겹친다). 보드에 B+·IGN1 이 들어가야 한다 - joule-deep/full 은 끝날 때 전원을 끈다 (그대로 쓰면 종료 코드 6 / 0xEC2).
-   - 자동: 꺼진 채널만 `uv run joule-relay relaybox on B+` -> `on IGN1` 순서로 켜고 1초 뒤 같은 인자에 `--yes`.
+3. 확인되면 CVD 화면은 닫아 둔다 (포트가 겹친다). 보드에 B+·IGN1 이 들어가야 한다 - joule-verify deep/full 은 끝날 때 전원을 끈다 (그대로 쓰면 종료 코드 6 / 0xEC2).
+   - 자동: 꺼진 채널만 `uv run joule-power relaybox on B+` -> `on IGN1` 순서로 켜고 1초 뒤 같은 인자에 `--yes`.
    - 수동: "B+ -> IGN1 을 켜 주세요" 라고 안내하고, 켰다는 답을 받은 뒤 `--yes`.
 4. 끝나면 CVD 를 닫은 상태에서 **B+·IGN1 을 함께** 껐다 켠다. 순서 IGN1 -> B+ 끄고, 3초 뒤 B+ -> IGN1 켜고, 2초 뒤(부팅) 판정한다 (`joule-run` 과 같은 순서·시간).
    - 자동: 아래 명령을 순서대로 실행하고 끝난 뒤 `status` 로 둘 다 공급인지 보인다.
      ```
-     uv run joule-relay relaybox off IGN1
-     uv run joule-relay relaybox off B+
+     uv run joule-power relaybox off IGN1
+     uv run joule-power relaybox off B+
      (3초)
-     uv run joule-relay relaybox on B+
-     uv run joule-relay relaybox on IGN1
+     uv run joule-power relaybox on B+
+     uv run joule-power relaybox on IGN1
      ```
    - 수동: 같은 순서를 사람에게 안내한다.
    - 포드를 꽂아 둔 채 평가(부팅·슬립·암전류)를 이어 하면, 재투입 전에 저장소에서 `uv run python tools/cvd/cvd_session.py release <결선>` 을 돌린다. 리셋 없이 붙어 디버그 전원 요청(`OPTION.DBGPWRUPREQ OFF`)을 내리고 `DisConnect` 하므로, 포드를 뗀 것과 같아진다. 보드에 쓰지 않으니 확인 없이 실행해도 된다. 재투입 뒤 부팅 확인은 같은 도구의 `probe <결선>` 으로 한다 (OsTick 이 작으면 새로 부팅한 것).
    - 쓰기가 실패해도(종료 코드 ≠ 0) 재투입한다. 보드에 남은 빌드로라도 부팅시켜 두기 위해서다. **5(쓰기 시간 초과)만은 예외**로, CVD 가 떠 있으니 사용자가 화면을 보고 닫았다고 답한 뒤에 재투입한다.
    **B+ 만 끊으면 IGN1 이 켜진 채라 다시 부팅하지 않는다** (2026-10-16 NQ6e PSU, 데이터 영역을 실제로 지운 뒤). 포드는 꽂아 둬도 된다 (암전류만 분리).
 
-- 사람 없이 쓰기부터 평가까지 한 번에 하려면 `uv run joule-run <결선>` 을 쓴다 (저장소가 전원 켜기 -> 쓰기 -> 재투입 -> joule-full 을 위 순서로 한다. 박스가 응답하지 않으면 시작하지 않는다).
+- 사람 없이 쓰기부터 평가까지 한 번에 하려면 `uv run joule-run <결선>` 을 쓴다 (저장소가 전원 켜기 -> 쓰기 -> 재투입 -> joule-verify full 을 위 순서로 한다. 박스가 응답하지 않으면 시작하지 않는다).
 
 - 검증만 `verify --name <과제명>`, 설정만 `set --name <과제명> --version/--banks ...`, 목록 `list` - 보드에 쓰지 않으니 확인 없이 실행해도 된다.
 - Joule 을 갱신한 뒤(기본 틀 변환 규칙이 바뀜) 기존 과제는 `refresh --name <과제명>`.
