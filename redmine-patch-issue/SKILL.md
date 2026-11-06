@@ -218,6 +218,19 @@ python ../ecody-search/scripts/ecm_api.py read <페이지id>
 
 403·404 로 막혔던 자료는 **매번 다시 두드려라**. 권한은 풀린다(실제 전례 있음).
 
+**ECM 문서에서 "없다"를 말하려면 전문을 받아라.** `ecm_api.py read` 는 기본값에서 본문을
+잘라 내고 말미에 `(이하 N자 생략)` 을 붙인다. 잘린 본문으로 키워드를 세고 "eCoDY 에 없다"
+고 결론 내면 **그 틀린 결론이 스킬에 박힌다** — 2026-11-06 에 실제로 그럴 뻔했다.
+
+```bash
+python ../ecody-search/scripts/ecm_api.py read <id>... --max 400000 --out "<스크래치>/ecm_full.txt"
+grep -c "자 생략" "<스크래치>/ecm_full.txt"   # 0 이어야 전문이다
+```
+
+그리고 **참조 가이드(SAG·IM)는 링크만 보지 말고 열어라.** 설정 변경이 `3.3.1`~`3.3.5`,
+`2.1.1.x` 처럼 여러 절에 나뉘어 있고, 정리 페이지가 그중 한 절만 담은 전례가 있다
+(`references/page-gaps.md` §2). 표 머리가 `Location | Description | Image` 인 절이 설정 변경이다.
+
 ### S6. 어긋남을 둘로 가른다
 
 | 어긋남 | 어디로 |
