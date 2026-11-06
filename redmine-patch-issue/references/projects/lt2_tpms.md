@@ -28,13 +28,23 @@
 | 구분 | 버전 | 일감 | IMS |
 | --- | --- | --- | --- |
 | FBL | 2.1.9 → **2.1.10** | **#49949** (2026-11-06 생성) | MCP1001-198 |
-| APP | 2.1.10 → 2.1.11 | (FBL 뒤에 합침) | MCP1001-199 |
+| APP | 2.1.10 → **2.1.11** | **#49951** (2026-11-06 생성) | MCP1001-199 |
+
+일감은 **구분마다 따로** 둔다. 한쪽에서 나온 결론이 다른 쪽에 영향을 주면 그때 그 일감을
+갱신한다 — 한 일감에 합치지 않는다(사용자 방침 2026-11-06).
 
 ## 이 제어기 고유 주의
 
 - **짝 패치와 설정 변경이 거의 겹치지 않는다.** 같은 `Dcm_R44 2.1.1.0_HF2 → HF4` 인데
   DefineOption 이 FBL `DCM_FOTA_USED_FBL` / APP `__GHS__` 로 다르고, harmonize 대상도
   FBL `EcuM·BswM` / APP `Rte·EcuM` 으로 다르다. **"짝과 같겠지"로 넘기면 안 된다.**
+  - **그런데 패치 스크립트는 FBL·APP 이 md5 까지 같다**(`patch_Dcm_common.py` ddf7a731,
+    `patch_Dcm_v2_1_1_0_HF4.py` abea6033, 2026-11-06 확인). 차이는 스크립트가 아니라
+    **HAE 안내와 당사 형상**에서 온다.
+  - `DCM_FOTA_USED` 쪽은 조건이 코드에 있다 — `add_dcm_fota_define_option()` 은 **`Fota`
+    모듈이 있을 때만** 돌고, `Configuration/Ecu/Ecud_NvM.arxml` 이 있으면 RTSW 로 보아
+    `DCM_FOTA_USED`, 없으면 `DCM_FOTA_USED_FBL` 을 넣는다. APP 배포본 DefineOption 에는
+    `DCM_FOTA_USED` 가 없고 FBL 배포본에는 `DCM_FOTA_USED_FBL` 이 4건 있다.
 - **FBL 설정 변경의 절반은 Dcm 패치와 무관한 정리 작업**이다(Com_R44 빌드 제외,
   EcuMDriverInitListThree 폐지, SCons ShortName 대소문자 2건, FBL 2.0 잔존물 삭제).
   HAE 가 배포할 때 눈에 걸린 것을 함께 안내하는 관행이다.
@@ -65,3 +75,21 @@ V2.1.10 회차의 Harmonize 대조표(`Automation_2026-11-02 17_26_19.462.xls`, 
 
 EcuM 시트는 **차이 0건**이었다. harmonize 대상이 EcuM·BswM 둘인데 실제로 움직인 것은
 BswM 뿐이다.
+
+## Harmonize 는 pre → GEN → post 3단이다 (2026-11-06 확인)
+
+APP 회차(V2.1.11) 배포본 `patch_tool/module_patch/_harmonize/` 에서 확인한 것이다.
+FBL 회차에서 "Harmonize 결과를 그대로 받으면 안 된다"고 배운 것의 **근거가 여기 있다** —
+HAE 가 선별 로직을 스크립트로 주고 있었다.
+
+| 스크립트 | 단계 | 하는 일 |
+| --- | --- | --- |
+| `pre_harmonize.py` | `[2/8]` | — |
+| `rte_pre_harmonize.py` | `[5/8]` | `BswModuleInstance` 스냅샷 저장(`bsw_instance_snapshot.json`) |
+| `gen_harmonize.py` | `[5/8]` | GEN Harmonize 실행 |
+| `rte_post_harmonize.py` | `[5/8]` | Harmonize 가 **새로 만든** 인스턴스를 스냅샷과 대조해 삭제 · 잘못된 `DcmCommunicationControl__`(언더바 둘, 클러스터 이름 누락) 삭제 · `BswInstance_Mcu` 없으면 생성(`SchM_Mcu.h` 필요) · `BswInstance_Spi` 삭제됐으면 복원(`SchM_Spi.h` 필요) |
+| `bswm_pre/post_harmonize.py` | `[5/8]` | BswM 쪽 같은 처리 |
+
+⚠ **`patch_manifest.json` 의 `scripts` 는 `clear_harmonize_json.py` 하나만 부른다.**
+pre/post 처리는 **자동으로 돌지 않는다.** 실행 방법을 HAE 에 확인해야 한다(#49951 확인 항목 (사)).
+돌리지 않으면 Harmonize 가 만든 잘못된 설정이 그대로 남는다.
