@@ -28,16 +28,24 @@ $Jobs = @(
         Grace = 45
     }
 
-    # Redmine 은 eCoDY 쪽이 안정된 뒤에 되살린다(폐기가 아니다).
-    # 되살릴 때 아래 쉼표와 블록의 주석만 풀면 된다. 예약 시각이 바뀌면 Due 도 함께 고친다.
-    # ,
-    # [pscustomobject]@{
-    #     Label  = 'Redmine 일일 대시보드'
-    #     Task   = 'Redmine 일일 대시보드'
-    #     LogDir = Join-Path $Base 'redmine-dashboard\logs'
-    #     Due    = '01:00'
-    #     Grace  = 30
-    # }
+    [pscustomobject]@{
+        Label = 'eCoDY IMS 패치 모니터링'
+        Task  = 'eCoDY IMS 패치 모니터링'
+        LogDir = Join-Path $Base 'ecody-ims-patch-monitor\logs'
+        Due   = '09:30'
+        Grace = 45
+    }
+
+    # Redmine 되살림 (2026-11-06). 11월 5회 중 2회가 실패였는데 점검 대상이 아니라
+    # 아무도 몰랐다 - 11-02 는 콘솔 창이 닫혀 즉사(로그 0바이트), 11-05 는 새벽
+    # 01:00 이라 사내망이 없어 api_error. 둘 다 고치면서 감시에 다시 넣는다.
+    [pscustomobject]@{
+        Label  = 'Redmine 일일 대시보드'
+        Task   = 'Redmine 일일 대시보드'
+        LogDir = Join-Path $Base 'redmine-dashboard\logs'
+        Due    = '10:00'
+        Grace  = 30
+    }
 )
 
 $now = Get-Date

@@ -9,8 +9,10 @@ if (-not (Test-Path -LiteralPath $script)) { throw "점검 스크립트가 없�
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
     -Argument ('-NoProfile -ExecutionPolicy Bypass -File "' + $script + '"')
 
+# 11:00 인 이유: 점검 대상이 ECM 09:00 . IMS 09:30 . Redmine 10:00 이다.
+# 10:00 이면 Redmine 과 같은 시각이라 그 회차를 판정할 수 없다(2026-11-06 변경).
 $trigger = New-ScheduledTaskTrigger -Weekly `
-    -DaysOfWeek Monday, Tuesday, Wednesday, Thursday, Friday -At '10:00'
+    -DaysOfWeek Monday, Tuesday, Wednesday, Thursday, Friday -At '11:00'
 
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable `
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
@@ -18,7 +20,7 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable `
 
 Register-ScheduledTask -TaskName '예약 실행 점검' `
     -Action $action -Trigger $trigger -Settings $settings `
-    -Description 'eCoDY ECM / Redmine 예약 실행이 실제로 돌았는지 확인하고, 안 돌았거나 실패했으면 보고서를 띄운다.' `
+    -Description 'eCoDY ECM / eCoDY IMS / Redmine 예약 실행이 실제로 돌았는지 확인하고, 안 돌았거나 실패했으면 보고서를 띄운다.' `
     -Force | Out-Null
 
 $t = Get-ScheduledTask -TaskName '예약 실행 점검'
