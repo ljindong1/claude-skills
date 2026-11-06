@@ -9,10 +9,13 @@ if (-not (Test-Path -LiteralPath $script)) { throw "점검 스크립트가 없�
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
     -Argument ('-NoProfile -ExecutionPolicy Bypass -File "' + $script + '"')
 
-# 11:00 인 이유: 점검 대상이 ECM 09:00 . IMS 09:30 . Redmine 10:00 이다.
-# 10:00 이면 Redmine 과 같은 시각이라 그 회차를 판정할 수 없다(2026-11-06 변경).
+# 11:15 인 이유: 점검 대상이 ECM 09:00 . IMS 09:30 . Redmine 10:00 이다.
+# 10:00 이면 Redmine 과 같은 시각이라 그 회차를 판정할 수 없다.
+# Redmine 의 Grace 가 60분이라 판정 시각이 정각 11:00 인데, 점검도 11:00 이면
+# '$now -lt $deadline' 이 간발로 참이 되어 [대기] 로 넘어가는 날이 생긴다.
+# 15분을 띄워 그 경계를 피한다 (2026-11-06).
 $trigger = New-ScheduledTaskTrigger -Weekly `
-    -DaysOfWeek Monday, Tuesday, Wednesday, Thursday, Friday -At '11:00'
+    -DaysOfWeek Monday, Tuesday, Wednesday, Thursday, Friday -At '11:15'
 
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable `
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `

@@ -44,7 +44,7 @@ $Jobs = @(
         Task   = 'Redmine 일일 대시보드'
         LogDir = Join-Path $Base 'redmine-dashboard\logs'
         Due    = '10:00'
-        Grace  = 30
+        Grace  = 60
     }
 )
 
