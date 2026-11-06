@@ -1,28 +1,30 @@
-﻿# eCoDY-IMS 패치 모니터링 - 예약 작업 등록
+﻿# eCoDY IMS 패치 모니터링 - 예약 작업 등록 / 실행 방식 교체
 #
 # 실행:  powershell -NoProfile -ExecutionPolicy Bypass -File "<이 파일>"
 #
-# ECM 모니터링(09:00) 뒤인 09:30 평일에 run.cmd 를 돌린다.
-# 프로그램은 스킬 폴더(저장소), 기록(logs)은 작업 폴더에 남는다.
+#   작업이 없으면  -> 평일 09:30 로 새로 등록한다
+#   작업이 있으면  -> **실행 대상(Action)만** run-hidden.vbs 로 바꾼다.
+#                     트리거.설정.계정은 손대지 않는다
+#
+# run.cmd 를 직접 부르지 않고 run-hidden.vbs 를 거치는 이유:
+#   콘솔 창이 빈 화면으로 몇 분씩 떠 있으면 멈춘 줄 알고 닫게 되고,
+#   닫으면 실행이 죽는다. 이 방식은 창이 아예 뜨지 않는다.
+#
 # 이 파일은 UTF-8 BOM 으로 저장해야 한다 - PowerShell 5.1 은 BOM 이 없으면
 # .ps1 을 ANSI 로 읽어 한글 작업 이름이 깨진다.
 
 $ErrorActionPreference = 'Stop'
 
 $TaskName = 'eCoDY IMS 패치 모니터링'
+$Launcher = Join-Path $PSScriptRoot 'run-hidden.vbs'
 $RunCmd   = Join-Path $PSScriptRoot 'run.cmd'
 $WorkHome = 'D:\Ljindong\automation\ecody-ims-patch-monitor'
 
-if (-not (Test-Path $RunCmd)) {
-    Write-Host "[FAIL] run.cmd 가 없습니다: $RunCmd" -ForegroundColor Red
-    exit 9
-}
-
-$existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-if ($null -ne $existing) {
-    Write-Host "[SKIP] 같은 이름의 작업이 이미 있습니다: $TaskName" -ForegroundColor Yellow
-    Write-Host "       지우고 다시 만들려면:  Unregister-ScheduledTask -TaskName '$TaskName' -Confirm:`$false"
-    exit 1
+foreach ($f in @($Launcher, $RunCmd)) {
+    if (-not (Test-Path $f)) {
+        Write-Host "[FAIL] 파일이 없습니다: $f" -ForegroundColor Red
+        exit 9
+    }
 }
 
 if (-not (Test-Path $WorkHome)) {
@@ -30,34 +32,60 @@ if (-not (Test-Path $WorkHome)) {
     Write-Host "[OK]   작업 폴더 생성: $WorkHome"
 }
 
-$action = New-ScheduledTaskAction -Execute $RunCmd -WorkingDirectory $WorkHome
+# wscript.exe 로 숨겨 실행한다. 창이 전혀 뜨지 않는다.
+$action = New-ScheduledTaskAction -Execute 'wscript.exe' `
+    -Argument ('"' + $Launcher + '"') -WorkingDirectory $WorkHome
 
-$trigger = New-ScheduledTaskTrigger -Weekly -At '09:30' `
-    -DaysOfWeek Monday, Tuesday, Wednesday, Thursday, Friday
+$existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 
-$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable `
-    -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew
+if ($null -ne $existing) {
 
-$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME `
-    -LogonType Interactive -RunLevel Limited
+    $before = $existing.Actions[0]
+    if ($before.Execute -eq 'wscript.exe') {
+        Write-Host "[SKIP] 이미 창 없이 실행하도록 되어 있습니다." -ForegroundColor Yellow
+        exit 0
+    }
+    if ($existing.State -eq 'Running') {
+        Write-Host "[FAIL] 지금 실행 중입니다. 끝난 뒤에 다시 시도하세요." -ForegroundColor Red
+        Write-Host "       상태 보기:  Get-ScheduledTask -TaskName '$TaskName'"
+        exit 2
+    }
 
-$desc = 'eCoDY-IMS SWP Delivery_Patch 티켓을 추적해 사내 Confluence 334594056 하위에 정리. ' +
-        '구간 내 신규 티켓은 페이지 생성, 기존 페이지는 변화 시 갱신, ' +
-        '결과는 일별 기록(380698635 하위). ECM 모니터링(09:00) 뒤에 실행.'
+    Write-Host "[..]   실행 대상만 교체합니다 (트리거.설정은 그대로)"
+    Write-Host "       전 : $($before.Execute) $($before.Arguments)"
 
-Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
-    -Settings $settings -Principal $principal -Description $desc | Out-Null
+    Set-ScheduledTask -TaskName $TaskName -Action $action | Out-Null
 
-$t = Get-ScheduledTask -TaskName $TaskName
-$i = Get-ScheduledTaskInfo -TaskName $TaskName
+    $t = Get-ScheduledTask -TaskName $TaskName
+    $i = Get-ScheduledTaskInfo -TaskName $TaskName
+    Write-Host "       후 : $($t.Actions[0].Execute) $($t.Actions[0].Arguments)"
+    Write-Host ""
+    Write-Host "[OK]   교체 완료 - 이제 창 없이 돕니다" -ForegroundColor Green
+    Write-Host "       트리거    : $($t.Triggers[0].StartBoundary)"
+    Write-Host "       다음 실행 : $($i.NextRunTime)"
 
-Write-Host ""
-Write-Host "[OK]   등록 완료" -ForegroundColor Green
-Write-Host "       이름      : $($t.TaskName)"
-Write-Host "       상태      : $($t.State)"
-Write-Host "       프로그램  : $RunCmd"
-Write-Host "       작업 폴더 : $WorkHome"
-Write-Host "       다음 실행 : $($i.NextRunTime)"
+} else {
+
+    $trigger = New-ScheduledTaskTrigger -Weekly -At '09:30' `
+        -DaysOfWeek Monday, Tuesday, Wednesday, Thursday, Friday
+
+    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable `
+        -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew
+
+    $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME `
+        -LogonType Interactive -RunLevel Limited
+
+    Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
+        -Settings $settings -Principal $principal -Description 'eCoDY-IMS SWP Delivery_Patch 티켓을 추적해 사내 Confluence 334594056 하위에 정리. 창 없이 돈다 - 진행 상황은 작업 폴더의 logs 를 본다.' | Out-Null
+
+    $t = Get-ScheduledTask -TaskName $TaskName
+    $i = Get-ScheduledTaskInfo -TaskName $TaskName
+    Write-Host ""
+    Write-Host "[OK]   새로 등록 완료 (창 없이 실행)" -ForegroundColor Green
+    Write-Host "       이름      : $($t.TaskName)"
+    Write-Host "       다음 실행 : $($i.NextRunTime)"
+}
+
 Write-Host ""
 Write-Host "지금 한 번 돌려 보려면:  Start-ScheduledTask -TaskName '$TaskName'"
-Write-Host "로그:                    $WorkHome\logs\run-<yyyy-MM>.log"
+Write-Host "진행 상황 보기:          Get-Content '$WorkHome\logs\run-<yyyy-MM>.log' -Tail 20 -Wait"

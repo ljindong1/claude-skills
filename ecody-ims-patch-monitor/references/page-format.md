@@ -82,6 +82,37 @@
 
 속성 표 바로 아래에 경과 표(§1.1)를 둔다.
 
+### 1.0-A 매크로 마크업 (2026-11-06 실측)
+
+`details` 는 **본문을 품는** 매크로이므로 `bodied-extension` 이다. 속성 표를 그 `<div>` **안에** 둔다.
+
+```html
+<div data-type="bodied-extension" data-extension-key="details"
+     data-extension-type="com.atlassian.confluence.macro.core" data-layout="default"
+     data-parameters="{&quot;macroMetadata&quot;:{&quot;macroId&quot;:{&quot;value&quot;:&quot;<새 uuid4>&quot;},&quot;schemaVersion&quot;:{&quot;value&quot;:&quot;1&quot;},&quot;title&quot;:&quot;페이지 속성&quot;}}">
+  <table data-layout="default" data-display-mode="fixed">
+    <thead><tr><th data-colwidth="160"><p>티켓</p></th><td data-colwidth="600"><p><a href="...">MCP1001-198</a></p></td></tr></thead>
+    <tbody>
+      <tr><th data-colwidth="160"><p>구분</p></th><td data-colwidth="600"><p>FBL</p></td></tr>
+      <!-- 나머지 12개 속성도 같은 꼴: th = 속성 이름, td = 값 -->
+    </tbody>
+  </table>
+</div>
+```
+
+지켜야 하는 것 넷이다.
+
+| 규칙 | 이유 |
+| --- | --- |
+| **행마다 `<th>`(이름) + `<td>`(값)** | 보고서 매크로는 `<th>` 를 속성 이름으로 읽는다. 둘 다 `<td>` 면 속성으로 인식되지 않아 목록 표가 빈다 |
+| **첫 행은 `<thead>` 안에** | 그렇지 않으면 저장 시 표 구조가 재배치돼 첫 속성이 깨진다 |
+| **`macroId` 는 매번 새 uuid4** | 같은 값을 여러 페이지에 쓰면 Confluence 가 같은 매크로 인스턴스로 취급한다 |
+| **`schemaVersion` 은 `"1"`** (보고서 쪽은 `"3"`) | 두 매크로의 스키마 버전이 다르다. 틀리면 마이그레이터가 돌다가 깨진다 — SKILL.md 실측 함정의 `NullPointerException` 건이 그것이다 |
+
+> 🔴 **`data-parameters` 안에 큰따옴표를 넣지 않는다.**
+>
+> JSON 이스케이프를 한 군데라도 빠뜨리면 파라미터가 **통째로 버려지고** 매크로가 "Corrupted content" 로 깨진다(실측). 값에 따옴표가 필요하면 **작은따옴표**를 쓴다. 발행 뒤 `getConfluencePage` 로 한 번 읽어 `__confluenceADFMigrationUnsupportedContentInternalExtension__` 가 **없는지** 확인한다.
+
 ### 1.0 속성에 담지 않는 상세
 
 속성 14개로 다 담기지 않는 것은 속성 표 **아래**에 일반 표로 둔다 — 담당자·왕복 횟수, 연관 수평전개와 원본 키, 사전 공지, 제어기 단계(SOP/P2/M), MCAL 버전, 모듈 표준 설정값, 라벨 등이다.

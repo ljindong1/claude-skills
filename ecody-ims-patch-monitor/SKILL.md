@@ -27,6 +27,7 @@ SWP Delivery_Patch 티켓 하나를 출발점으로 **연결된 자료 전부**�
 | 일별 기록 | 묶음 페이지 **`380698635`** "일별 기록 (eCoDY IMS 패치 모니터링)" 하위. 제목 `eCoDY IMS 패치 모니터링 YYYY-MM-DD (요일)` |
 | 추적 기준선 | **2026-11-05 00:00 KST** (= `2026-11-04T15:00:00Z`). 기준점 페이지 `380764172` 가 이 값을 들고 있다 |
 | 패치 목록 색인 | 부모의 **페이지 속성 보고서 매크로가 자동으로 그린다** — 스킬이 목록 표를 손으로 고치지 않는다. 스킬이 쓰는 곳은 `PATCH-INDEX-BEGIN ~ END` 영역(마지막 실행)뿐이다 |
+| **실행 방식** | 예약 작업은 `wscript.exe <스킬폴더>\run-hidden.vbs` 를 부른다 → **창이 뜨지 않는다.** `run.cmd` 를 작업에 직접 걸면 빈 콘솔 창이 몇 분 떠 있어 멈춘 줄 알고 닫게 되고, **닫으면 실행이 죽는다**(사용자 실측). 등록·교체는 `setup-task.ps1` — 기존 작업이 있으면 **실행 대상만** 바꾸고 트리거·설정은 손대지 않는다 |
 | **작성 규약** | **`confluence-writing` 스킬이 정본이다.** 발행·수정 전에 반드시 읽는다 (H3 시작 · 표는 셀마다 `data-colwidth` · `<colgroup>` 금지 · 수정은 직전 fetch) |
 
 발행 형식·톤은 `confluence-writing` 스킬 규약(H3부터, html + `data-colwidth` 표, 수정 직전 fetch)을 따른다. 단 **"수정 전 사용자 허락" 규칙은 이 스킬이 관리하는 페이지(부모 `334594056` 아래 자신이 만든 패치 페이지와 그 부모의 색인 영역)에 한해 사용자가 사전 승인했다**(2026-11-05).
@@ -39,7 +40,7 @@ SWP Delivery_Patch 티켓 하나를 출발점으로 **연결된 자료 전부**�
 - 로그인·OTP·비밀번호는 입력하지 않는다. **토큰 값은 페이지·보고·로그에 절대 쓰지 않는다.** 접속 계정이 공용 계정이면 그 사실을 알고 권한 범위를 그 계정 기준으로 본다.
 
 **사내 Confluence(mobaseasec) — 생성·수정 가능, 삭제 금지**
-- 생성: 부모 `334594056` 아래 패치 페이지(사용자가 명시적으로 요청할 때만 — 무인 실행은 생성하지 않는다).
+- 생성: 부모 `334594056` 아래 **① 구간 내 신규 티켓의 패치 페이지**(P8N — 무인 실행도 만든다), **② 일별 기록 페이지**(`380698635` 하위). 기준선 이전의 과거 티켓은 만들지 않고 일지의 목록에만 올린다.
 - 수정 허용 범위는 둘뿐이다: ① 이 스킬이 관리하는 패치 페이지 본문, ② 부모 페이지의 `PATCH-INDEX` 관리 영역.
 - 모든 수정은 **직전 `getConfluencePage(contentFormat="html")` → 필요한 부분만 바꿈 → 나머지는 받은 html 그대로 → `updateConfluencePage`** 순서를 지킨다. MCP 는 본문 전체를 교체하므로, 받은 html 을 건너뛰고 새로 쓰면 사람이 붙여 둔 내용·첨부가 사라진다.
 - 삭제·이동(`parentId` 변경)은 하지 않는다.
@@ -404,5 +405,8 @@ IMS-RUN: 신규 N · 갱신 N · 건너뜀 N · 실패 N
 | ✅ 매크로는 쓸 수 있다 | `data-type="extension"`(본문 없음) / `"bodied-extension"`(본문 있음) `<div>` 로 쓰면 서버가 `<ac:structured-macro>` 로 변환해 저장한다(2026-11-06 실측: `children`·`detailssummary`·`details` 확인). 써드파티 플러그인 매크로는 가정하지 않는다 |
 | 보고서 수집 조건 | 라벨이 아니라 **`parent` + `title ~`** 로 모은다 — MCP 로 라벨을 달 필요가 없다. 밑줄 토큰화를 피해 `title ~ "Delivery"` 로 쓴다 |
 | 🔴 **표 폭이 날아간다** | `<colgroup><col data-colwidth>` 로 쓰면 **서버가 통째로 지운다** — 발행된 페이지의 표 19개 전부 균등 폭이 됐다(2026-11-06 실측). 셀마다 `data-colwidth` + `<table data-layout="default" data-display-mode="fixed">` 가 맞다. `confluence-writing` 을 안 읽어서 생긴 일이다 |
+| 🔴 **매크로 파라미터가 통째로 버려진다** | `data-parameters` JSON 안에서 CQL 의 큰따옴표 이스케이프를 **하나 빠뜨리자** JSON 이 깨져 `headings`·`cql` 이 버려졌고, 매크로가 `schema-version 1` 로 간주돼 구버전 마이그레이터가 schema 1 의 `label` 을 찾다가 `NullPointerException` → 페이지에 **"Corrupted content"** 블록이 박혔다(2026-11-06 실측). 대책: **CQL 문자열은 작은따옴표로 쓴다** — `parent = '334594056' and title ~ 'Delivery'`. 이스케이프가 0개가 되어 깨질 구석이 없다 |
+| 🟡 **깨진 매크로를 다시 보내면 굳는다** | MCP 는 본문 전체 교체다. `getConfluencePage` 로 받은 html 에 `__confluenceADFMigrationUnsupportedContentInternalExtension__` 가 있으면 그대로 되보내는 순간 그 상태가 저장돼 매크로를 되살릴 수 없다. **send 전에 그 문자열이 없는지 확인하고, 있으면 그 영역 갱신을 건너뛰고 보고한다**(2026-11-06 실측: 무인 1회차가 이 안전장치에 걸려 PATCH-INDEX 를 일부러 비웠다 — 올바른 동작이다) |
+| 🔴 **무인 실행은 스킬 폴더를 못 읽는다** | 작업 폴더가 `D:\Ljindong\automation\...` 이라 `references/page-format.md` 와 형제 `ecody-search/scripts/` 가 **범위 밖**이었다. `Read` 를 허용해도 경로로 막힌다(2026-11-06 1회차 실측). `run.cmd` 에 `--add-dir <skills 루트>` 와 `--add-dir %USERPROFILE%\.claude\skills` 를 둘 다 준다(junction 이라 어느 경로로 풀릴지 모른다) |
 | JQL `created` 시간대 | `created >=` 는 **KST** 로 쓴다(Jira DC 서버 시간대). UTC 구간값에 +9h |
 | ERR 예측 가능 | IM 표준 설정값(`DcmDemIntegrated: False`)과 ERR 조건을 대조하면 **걸릴 에러를 미리 지목**할 수 있다 → P5 ⭐ |
