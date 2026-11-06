@@ -82,36 +82,48 @@
 
 속성 표 바로 아래에 경과 표(§1.1)를 둔다.
 
-### 1.0-A 매크로 마크업 (2026-11-06 실측)
+### 1.0-A 매크로 마크업 — **짓지 말고 복제한다** (2026-11-06 개정)
 
-`details` 는 **본문을 품는** 매크로이므로 `bodied-extension` 이다. 속성 표를 그 `<div>` **안에** 둔다.
+마크업을 손으로 쓰지 않는다. **표본 페이지 `380665864` "패치 표본 페이지 양식"** 을
+`getConfluencePage(cloudId="mobaseasec.atlassian.net", pageId="380665864", contentFormat="html")`
+로 읽어 그 골격을 그대로 쓰고 **태그 사이의 글자만** 바꾼다.
 
-```html
-<div data-type="bodied-extension" data-extension-key="details"
-     data-extension-type="com.atlassian.confluence.macro.core" data-layout="default"
-     data-parameters="{&quot;macroMetadata&quot;:{&quot;macroId&quot;:{&quot;value&quot;:&quot;<새 uuid4>&quot;},&quot;schemaVersion&quot;:{&quot;value&quot;:&quot;1&quot;},&quot;title&quot;:&quot;페이지 속성&quot;}}">
-  <table data-layout="default" data-display-mode="fixed">
-    <thead><tr><th data-colwidth="160"><p>티켓</p></th><td data-colwidth="600"><p><a href="...">MCP1001-198</a></p></td></tr></thead>
-    <tbody>
-      <tr><th data-colwidth="160"><p>구분</p></th><td data-colwidth="600"><p>FBL</p></td></tr>
-      <!-- 나머지 12개 속성도 같은 꼴: th = 속성 이름, td = 값 -->
-    </tbody>
-  </table>
-</div>
-```
+표본은 전역 템플릿 **"모빌진 패치 티켓 정리"** 에서 나온 것이고, 템플릿은 MCP 로 읽을 수 없다
+(`searchConfluenceUsingCql` 의 `type` 목록에 `template` 이 없다 — 서버가 직접 답했다).
+표본이 바뀌면 그대로 따라간다. **이 문서에 골격을 베껴 적어 두지 않는다** — 베껴 두면 반드시 어긋난다.
 
-지켜야 하는 것 넷이다.
+크롬이 없는 세션에서 표본을 못 읽으면 비상용 사본 `references/page-skeleton.html` 을 쓴다.
+
+#### 복제할 때 떼어내는 것 둘
+
+| 떼어낼 것 | 왜 |
+| --- | --- |
+| `macroId` | **넣지 않는다.** Confluence 가 새로 만들어 준다. 공식 형식 안내에도 "Omit `macroId`" 라고 적혀 있다 |
+| `_parentId` | `macroParams` 안에 **원본 페이지 번호**가 박혀 있을 수 있다. 지워서 `macroParams` 를 `{}` 로 둔다 |
+
+#### 그래도 알고 있어야 하는 규칙
 
 | 규칙 | 이유 |
 | --- | --- |
-| **행마다 `<th>`(이름) + `<td>`(값)** | 보고서 매크로는 `<th>` 를 속성 이름으로 읽는다. 둘 다 `<td>` 면 속성으로 인식되지 않아 목록 표가 빈다 |
-| **첫 행은 `<thead>` 안에** | 그렇지 않으면 저장 시 표 구조가 재배치돼 첫 속성이 깨진다 |
-| **`macroId` 는 매번 새 uuid4** | 같은 값을 여러 페이지에 쓰면 Confluence 가 같은 매크로 인스턴스로 취급한다 |
+| **행마다 `<th>`(이름) + `<td>`(값)** = 헤더**열** | 보고서 매크로는 `<th>` 를 속성 이름으로 읽는다. 둘 다 `<td>` 거나 `<th>` 만 있는 헤더**행**이면 속성으로 인식되지 않아 목록 표가 빈다. 일반 표(§1.1·§2.1 등)는 반대로 헤더행이다 |
+| **`<thead>` 는 있어도 없어도 된다** | Confluence 가 저장할 때 모든 행을 `<tbody>` 로 합친다(실측). 예전 판에 "첫 행은 `<thead>` 안에" 라고 적었던 것은 **틀린 지침이었다** |
 | **`schemaVersion` 은 `"1"`** (보고서 쪽은 `"3"`) | 두 매크로의 스키마 버전이 다르다. 틀리면 마이그레이터가 돌다가 깨진다 — SKILL.md 실측 함정의 `NullPointerException` 건이 그것이다 |
+| **속성 20개, 이름·순서 그대로** | 표본 = 전역 템플릿 = 부모 페이지 안내, 셋이 같아야 한다. 한 글자만 달라도 그 열이 조용히 빈다 |
 
-> 🔴 **`data-parameters` 안에 큰따옴표를 넣지 않는다.**
+> 🔴 **`data-parameters` 의 따옴표.**
 >
-> JSON 이스케이프를 한 군데라도 빠뜨리면 파라미터가 **통째로 버려지고** 매크로가 "Corrupted content" 로 깨진다(실측). 값에 따옴표가 필요하면 **작은따옴표**를 쓴다. 발행 뒤 `getConfluencePage` 로 한 번 읽어 `__confluenceADFMigrationUnsupportedContentInternalExtension__` 가 **없는지** 확인한다.
+> JSON 이스케이프를 한 군데라도 빠뜨리면 파라미터가 **통째로 버려지고** 매크로가 "Corrupted content" 로 깨진다(실측).
+> 가장 안전한 꼴은 **홑따옴표 속성 + 민낯 JSON** 이다 — `data-parameters='{"macroParams":{},"macroMetadata":{...}}'`.
+> 발행 뒤 `getConfluencePage` 로 한 번 읽어 `__confluenceADFMigrationUnsupportedContentInternalExtension__` 가 **없는지** 확인한다.
+
+> 📌 **라벨은 복제되지 않는다.**
+>
+> 부모의 목록 보고서는 `label = "patch"` 로 모은다. 라벨은 본문이 아니라 별도 메타데이터라
+> **본문을 복제해도 따라오지 않고, MCP 로는 달 수도 없다**(2026-11-06 실험 확인).
+> 새로 만든 페이지의 라벨은 **사용자가 직접 붙인다.** 스킬은 부모 페이지에 안내를 쓰지 않고,
+> 일지의 "신규 페이지" 줄에 링크만 남긴다. 붙었는지는
+> `searchConfluenceUsingCql("label = 'patch' and space = 'mobaseasec4'")` 로 확인할 수 있다.
+
 
 ### 1.0 속성에 담지 않는 상세
 

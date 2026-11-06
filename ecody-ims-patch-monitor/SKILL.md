@@ -27,6 +27,8 @@ SWP Delivery_Patch 티켓 하나를 출발점으로 **연결된 자료 전부**�
 | 일별 기록 | 묶음 페이지 **`380698635`** "일별 기록 (eCoDY IMS 패치 모니터링)" 하위. 제목 `eCoDY IMS 패치 모니터링 YYYY-MM-DD (요일)` |
 | 추적 기준선 | **2026-11-05 00:00 KST** (= `2026-11-04T15:00:00Z`). 기준점 페이지 `380764172` 가 이 값을 들고 있다 |
 | 패치 목록 색인 | 부모의 **페이지 속성 보고서 매크로가 자동으로 그린다** — 스킬이 목록 표를 손으로 고치지 않는다. 스킬이 쓰는 곳은 `PATCH-INDEX-BEGIN ~ END` 영역(마지막 실행)뿐이다 |
+| **페이지 양식** | 표본 페이지 **`380665864`** "패치 표본 페이지 양식" 이 마크업 정본이다. 새 패치 페이지는 이 페이지를 `getConfluencePage(contentFormat="html")` 로 읽어 **골격을 그대로 복제하고 태그 사이 글자만 바꾼다** — 마크업을 손으로 짓지 않는다. 원본은 전역 템플릿 "모빌진 패치 티켓 정리"(MCP 로는 못 읽는다) |
+| **라벨** | 부모의 목록 보고서 수집 조건이 `label = "patch"` 다. **MCP 는 라벨을 못 단다**(실험 확인) — 새로 만든 페이지는 사용자가 직접 붙인다. 스킬은 **부모 페이지에 안내 문구를 넣지 않는다**(사용자 방침 2026-11-06: 지우는 게 더 번거롭다). 일지의 "신규 페이지" 줄에 링크만 남긴다 |
 | **실행 방식** | 예약 작업은 `wscript.exe <스킬폴더>\run-hidden.vbs` 를 부른다 → **창이 뜨지 않는다.** `run.cmd` 를 작업에 직접 걸면 빈 콘솔 창이 몇 분 떠 있어 멈춘 줄 알고 닫게 되고, **닫으면 실행이 죽는다**(사용자 실측). 등록·교체는 `setup-task.ps1` — 기존 작업이 있으면 **실행 대상만** 바꾸고 트리거·설정은 손대지 않는다 |
 | **작성 규약** | **`confluence-writing` 스킬이 정본이다.** 발행·수정 전에 반드시 읽는다 (H3 시작 · 표는 셀마다 `data-colwidth` · `<colgroup>` 금지 · 수정은 직전 fetch) |
 
@@ -278,24 +280,18 @@ python <저장소>\ecody-search\scripts\ecm_api.py read <pageId들> --max 60000 
 
 ## P7. 작성
 
-> ⭐ **§1 은 페이지 속성 매크로로 쓴다.** 부모의 보고서 매크로가 이 값을 모아 목록 표를 자동으로 그린다 — **속성 이름이 흔들리면 열이 어긋난다.** 14개 항목의 이름·순서는 `references/page-format.md` §1 이 정본이고, 부모 페이지 `334594056` 에도 같은 표가 걸려 있다.
+> ⭐ **§1 은 페이지 속성 매크로로 쓴다.** 부모의 보고서 매크로가 이 값을 모아 목록 표를 자동으로 그린다 — **속성 이름이 흔들리면 열이 어긋난다.** **20개** 항목의 이름·순서는 **표본 페이지 `380665864`** 가 정본이고, 부모 페이지 `334594056` 와 전역 템플릿 "모빌진 패치 티켓 정리" 에도 같은 목록이 있다. 셋이 어긋나면 안 된다.
 >
-> 실측 확인된 마크업 (2026-11-06):
-> ```html
-> <div data-type="bodied-extension" data-extension-key="details"
->      data-extension-type="com.atlassian.confluence.macro.core" data-layout="default"
->      data-parameters="{&quot;macroParams&quot;:{},&quot;macroMetadata&quot;:{&quot;macroId&quot;:{&quot;value&quot;:&quot;<새 uuid>&quot;},&quot;schemaVersion&quot;:{&quot;value&quot;:&quot;1&quot;},&quot;title&quot;:&quot;페이지 속성&quot;}}">
->   <table data-width="760">
->     <thead><tr><th data-colwidth="140"><p><strong>티켓</strong></p></th>
->                <td data-colwidth="620"><p>…</p></td></tr></thead>
->     <tbody><tr><th data-colwidth="140"><p><strong>구분</strong></p></th>
->                <td data-colwidth="620"><p>FBL</p></td></tr>
->            …
->     </tbody>
->   </table>
-> </div>
-> ```
-> 속성 표는 **행마다 `<th>`(이름) + `<td>`(값)** 이고 **첫 행은 `<thead>`** 안에 둔다. `macroId` 는 행마다가 아니라 매크로당 하나이고 새로 만들 때 새 UUID 를 넣는다.
+> **마크업은 짓지 않고 복제한다.** 표본 페이지 `380665864` 를 `getConfluencePage(contentFormat="html")` 로 읽어 그 골격을 그대로 쓰고, **태그 사이의 글자만** 바꾼다. 지금까지 난 실수는 전부 손으로 마크업을 지은 자리에서 났다.
+>
+> 복제할 때 **반드시 떼어내는 것 둘**:
+>
+> - `macroId` — 받은 html 에 있으면 지운다. Confluence 가 새로 만든다
+> - `_parentId` — `macroParams` 안에 원본 페이지 번호가 박혀 있으면 지워 `macroParams` 를 `{}` 로 둔다
+>
+> 속성 표는 **행마다 `<th>`(이름) + `<td>`(값)** 인 **헤더열**이다. 헤더행(`<th>` 만 있는 줄)으로 쓰면 속성으로 인식되지 않는다. 일반 표(§1.1·§2.1 등)는 반대로 헤더행이다.
+>
+> 표본이 달라졌으면 그대로 따라간다 — 이 문서에 골격을 베껴 적어 두지 않는다. 크롬이 있는 세션이 아니면 비상용 사본 `references/page-skeleton.html` 을 쓴다.
 >
 > 🔴 **먼저 `confluence-writing` 스킬을 읽는다.** 이 스킬의 `references/page-format.md` 는 **무엇을 어느 절에 담을까**를 정하고, `confluence-writing` 은 **어떤 마크업으로 쓸까**를 정한다. 둘 다 필요하다. 특히 표: **셀마다 `data-colwidth`** + `<table data-layout="default" data-display-mode="fixed">` 이고 **`<colgroup>` 은 쓰지 않는다**(서버가 지운다).
 
@@ -403,7 +399,9 @@ IMS-RUN: 신규 N · 갱신 N · 건너뜀 N · 실패 N
 | 설정 표에 섞인 점검 | HAE 설정 변경 표 마지막 행에 `ValidationChecker 검증항목`(IA-086)이 끼어 있다. **패치 설정과 떼어 적는다** |
 | 점검 등급 재확인 | IA-086 은 🟡 **Advisory** 이고 문서 지침은 "false 로 바꿔라"가 아니라 "**프로젝트에 맞추어 값을 정한다**" 다 |
 | ✅ 매크로는 쓸 수 있다 | `data-type="extension"`(본문 없음) / `"bodied-extension"`(본문 있음) `<div>` 로 쓰면 서버가 `<ac:structured-macro>` 로 변환해 저장한다(2026-11-06 실측: `children`·`detailssummary`·`details` 확인). 써드파티 플러그인 매크로는 가정하지 않는다 |
-| 보고서 수집 조건 | 라벨이 아니라 **`parent` + `title ~`** 로 모은다 — MCP 로 라벨을 달 필요가 없다. 밑줄 토큰화를 피해 `title ~ "Delivery"` 로 쓴다 |
+| 보고서 수집 조건 | **`label = "patch"`** 다(2026-11-06 사용자 변경). 편집 창에서 라벨 칸이 필수라 그렇게 됐다. 전역 템플릿이 만든 페이지는 라벨이 자동으로 붙지만 **API 로 만든 페이지는 안 붙는다** |
+| 🔴 **MCP 는 라벨을 못 단다** | `updateConfluencePage` 에 `labels` 를 줘도 **받아들이는 척하고 버린다**(2026-11-06 실험: `zz-label-test` 요청 → 결과 `["patch"]` 그대로). 라벨은 본문이 아니라 별도 메타데이터라 **본문을 복제해도 따라오지 않는다**. 크롬 REST(`POST /rest/api/content/<id>/label`, 200)와 **페이지 복사 API**(`POST .../copy` + `copyLabels:true`, 200)로는 되지만 **사용자 방침상 크롬과 섞지 않는다** — 새 페이지의 라벨은 사용자가 붙인다 |
+| 라벨 확인은 된다 | `searchConfluenceUsingCql("label = 'patch' and space = 'mobaseasec4'")` 로 라벨 붙은 페이지를 **MCP 로 조회할 수 있다**. 새로 만든 페이지가 빠졌는지 이걸로 확인하고 **보고에만** 적는다(페이지에는 안 쓴다) |
 | 🔴 **표 폭이 날아간다** | `<colgroup><col data-colwidth>` 로 쓰면 **서버가 통째로 지운다** — 발행된 페이지의 표 19개 전부 균등 폭이 됐다(2026-11-06 실측). 셀마다 `data-colwidth` + `<table data-layout="default" data-display-mode="fixed">` 가 맞다. `confluence-writing` 을 안 읽어서 생긴 일이다 |
 | 🔴 **매크로 파라미터가 통째로 버려진다** | `data-parameters` JSON 안에서 CQL 의 큰따옴표 이스케이프를 **하나 빠뜨리자** JSON 이 깨져 `headings`·`cql` 이 버려졌고, 매크로가 `schema-version 1` 로 간주돼 구버전 마이그레이터가 schema 1 의 `label` 을 찾다가 `NullPointerException` → 페이지에 **"Corrupted content"** 블록이 박혔다(2026-11-06 실측). 대책: **CQL 문자열은 작은따옴표로 쓴다** — `parent = '334594056' and title ~ 'Delivery'`. 이스케이프가 0개가 되어 깨질 구석이 없다 |
 | 🟡 **깨진 매크로를 다시 보내면 굳는다** | MCP 는 본문 전체 교체다. `getConfluencePage` 로 받은 html 에 `__confluenceADFMigrationUnsupportedContentInternalExtension__` 가 있으면 그대로 되보내는 순간 그 상태가 저장돼 매크로를 되살릴 수 없다. **send 전에 그 문자열이 없는지 확인하고, 있으면 그 영역 갱신을 건너뛰고 보고한다**(2026-11-06 실측: 무인 1회차가 이 안전장치에 걸려 PATCH-INDEX 를 일부러 비웠다 — 올바른 동작이다) |
