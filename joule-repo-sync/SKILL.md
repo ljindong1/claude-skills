@@ -32,7 +32,15 @@ joule 은 원래 개인 저장소에서 개발했는데 회사 업무에 필요�
 [회사 저장소]                      [동기화 작업장]              [개인 GitHub]
 D:\Mobase\asec_autotest_tool  ->  D:\Ljindong\joule       ->   ljindong1/Joule
 개발은 여기서만                     *.dbc 를 걸러낸다              백업 (private)
+                                                                    |
+                                                                    v  (pull 만)
+                                                        [개인 PC - 보기 전용]
+                                                        D:\Python_Program\Joule
 ```
+
+개인 PC 의 `D:\Python_Program\Joule` 은 joule 을 처음 개발하던 원조 폴더이고, 지금은
+**받아서 보기만 한다** (사용자 결정 2026-11-07). 거기서 작업하지 않으므로 개인 -> 회사 방향은
+여전히 없다. 그 PC 가 있다는 것은 **이력을 다시 쓸 때만** 문제가 된다 (아래 `rebuild`).
 
 가운데를 거치는 까닭은 회사 저장소에서 바로 보내면 DBC 가 함께 올라가기 때문이다.
 작업장의 브랜치 두 개가 역할이 다르다. 헷갈리면 사고가 난다.
@@ -141,6 +149,27 @@ git update-ref refs/heads/public <전 sha>
 | `[경고] 설명되지 않는 차이` | 사본과 회사 트리가 제외·안내 밖에서 다르다. 푸시하지 말고 원인을 찾는다 |
 | 회사 저장소에 커밋 안 된 변경이 있다는 알림 | 동기화는 커밋된 것만 다룬다. 먼저 커밋할지 사용자에게 묻는다 |
 | `[중단] 기준점을 찾지 못했다` | 사본 tip 에 `Mirror-Of` 가 없다. 지금은 모든 사본 커밋에 박혀 있어 날 일이 없다 - 났다면 사본을 밖에서 손댄 것이다. `--from <회사 커밋>` 으로 한 번 준다 |
+| 받아 보는 PC 에서 `fatal: refusing to merge unrelated histories` | `rebuild` 로 이력을 다시 쓴 뒤 그 PC 가 처음 pull 한 것이다. 아래 절차로 맞춘다 |
+
+### 받아 보는 PC 맞추기
+
+이력을 다시 쓴 뒤에만 필요하다. **먼저 그 PC 에만 있는 작업이 없는지 확인한다** - 있으면 맞추는 순간 사라진다.
+
+```bash
+cd /d/Python_Program/Joule
+git log --oneline <전 origin/main sha>..main    # pull 화면에 찍힌 옛 sha
+git status --short
+```
+
+둘 다 비어 있으면 맞춘다. 무언가 나오면 사용자에게 보이고, 그 커밋을 새 이력 위로 옮긴 뒤에 맞춘다.
+
+```bash
+git branch backup-<날짜> main      # 되돌릴 가지
+git reset --hard origin/main
+git log --oneline -1               # 사본 tip 과 같으면 끝
+```
+
+추적하지 않는 파일(로컬 DBC 등)은 `reset --hard` 가 건드리지 않는다.
 
 ## 하지 않는 일
 
@@ -160,6 +189,11 @@ git update-ref refs/heads/public <전 sha>
 쓸 때는 `--force` 가 무엇을 버리는지(GitHub 의 지금 이력) 사용자에게 분명히 말하고 승인을 받는다.
 `--force-with-lease` 로 보내므로 GitHub 쪽이 그 사이 바뀌었으면 거부된다.
 전 사본은 `refs/sync/public-before-rebuild` 에 남아 푸시 전이라면 되돌릴 수 있다.
+
+**다른 PC 의 clone 도 함께 맞춰야 한다.** 이력을 다시 쓰면 사본을 받아 둔 쪽은 공통 조상이
+없어져 `git pull` 이 `fatal: refusing to merge unrelated histories` 로 멈춘다.
+지금 받아 보는 곳은 개인 PC 의 `D:\Python_Program\Joule` 하나다 - force push 를 승인받을 때
+**그 PC 도 맞춰야 한다는 것을 함께 말한다.** 맞추는 법은 아래 "흔한 문제" 에 있다.
 
 `rebuild` 는 돌면서 스스로 세 가지를 확인하고, 하나라도 어긋나면 종료 코드가 0 이 아니다:
 **1:1 대조**(커밋 수·날짜·제목·`Mirror-Of` 짝) · **최신 트리 비교**(전 사본과 같은지) · **verify**.
