@@ -23,6 +23,38 @@ Bash 로 돌릴 때는 한글이 깨지지 않게 `PYTHONIOENCODING=utf-8` 을 �
 점검에서 나온 것, 검증 통과 여부)를 사용자에게 보여 주고 **"보낼까요?" 를 물은 뒤** `push` 한다.
 승인을 받았으면 `push --confirmed` 로 돌린다. 승인은 그 턴에 받은 것만 유효하다.
 
+**주간 작업이 이미 쌓아 둔 때**(아래 "주간 자동 sync")는 `preview` 가 "덧붙일 커밋 0 개" 로
+나온다. 그때는 점검 결과가 **주간 로그**에 있으니 그것을 읽어 사용자에게 보고한 뒤 `push` 한다.
+
+```powershell
+Get-Content "$env:LOCALAPPDATA\joule-repo-sync\weekly.log" -Tail 60
+```
+
+## 주간 자동 sync (2026-11-07 설치)
+
+Windows 작업 스케줄러에 `joule-repo-sync weekly` 가 등록돼 있다. **매주 금요일 17:00**,
+`scripts\weekly_sync.ps1` 이 돌아 회사 저장소의 새 커밋을 **로컬 사본 브랜치에 쌓는다.**
+
+**푸시는 하지 않는다.** 밖으로 나가는 일은 사람이 보고 승인한다는 규칙 그대로다.
+쌓을 것이 있었으면 끝에 **알림 창**이 떠서 "올릴 커밋 N 개" 를 알려 준다. 사용자가 그것을 보고
+"푸시해줘" 라고 하면 Claude 가 로그의 점검 결과를 보고한 뒤 `push` 한다.
+
+- 로그: `%LOCALAPPDATA%\joule-repo-sync\weekly.log` - `preview`(점검 포함)와 `sync` 를 함께 남긴다.
+  `preview` 를 먼저 돌리는 까닭은, `sync` 뒤에는 "덧붙일 커밋 0 개" 가 되어
+  "사본에 처음 들어가는 확장자·폴더" 점검을 아무도 볼 수 없기 때문이다.
+- 알림이 뜨는 때: 올릴 것이 생겼을 때, 또는 `sync` 가 끝내지 못했을 때(그때는 로그를 보라고 한다).
+- 노트북이라 그 시각에 꺼져 있을 수 있어 `-StartWhenAvailable` 로 등록했다. 놓치면 다음에 켤 때 돈다.
+- 시간 바꾸기: `.\install_weekly_task.ps1 -At 18:30 -Day Thursday` / 끄기: `-Remove`
+
+`.ps1` 을 고칠 때는 **UTF-8 BOM 으로 저장한다.** Windows PowerShell 5.1 은 BOM 없는 UTF-8 을
+cp949 로 읽어 한글 주석에서 파싱이 깨진다.
+
+```powershell
+$p = '...\weekly_sync.ps1'
+$c = Get-Content -Raw -Encoding UTF8 $p
+[System.IO.File]::WriteAllText($p, $c, (New-Object System.Text.UTF8Encoding $true))
+```
+
 ## 구조
 
 joule 은 원래 개인 저장소에서 개발했는데 회사 업무에 필요해져 사본을 회사 Gitea 로 옮겼다.
