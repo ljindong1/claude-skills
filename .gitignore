@@ -7,3 +7,7 @@ __pycache__/
 # synced/ = 계정 스킬 사본과 진행 표시, .trash/ = 동기화가 치운 옛 스킬. 지우지 말고 커밋만 안 한다.
 /synced/
 /.trash/
+
+# Claude Code 가 작업 폴더마다 만드는 로컬 설정. 지금은 전역 ignore 가 덮고 있지만
+# 다른 PC 에서 clone 하면 그 규칙이 없다 — README 의 ".claude/ 금지" 규칙과 짝이다.
+/.claude/

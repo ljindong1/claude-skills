@@ -25,11 +25,18 @@ skills-repo/
 │   ├── SKILL.md
 │   ├── assets/                         # 체크리스트 템플릿(.xlsx)
 │   ├── references/
-│   └── scripts/                        # 매핑·판정·검증
+│   ├── scripts/                        # 매핑·판정·검증
+│   └── *.example.json                  # deliverable_map·intent_map 예시
 ├── autosar-artifact-map/
 │   ├── SKILL.md
 │   ├── references/                     # mobilgene Classic 스택 규칙
 │   └── scripts/                        # 4단계 스캔 파이프라인
+├── can-bench-setup/
+│   ├── SKILL.md
+│   ├── assets/                         # 벤치 readme 템플릿
+│   ├── projects/                       # 차종별 벤치 설정·측정 trace
+│   ├── references/                     # Joule·CANoe 사용법, 트러블슈팅
+│   └── scripts/                        # python-can(pycan)·CANoe 호출, 프로젝트 정보 수집
 ├── confluence-cross-site-copy/
 │   ├── SKILL.md
 │   └── references/                     # 경로 판정, 클립보드 자동화·첨부 복원, storage→HTML 변환, 함정
@@ -40,12 +47,19 @@ skills-repo/
 ├── confluence-writing/
 │   ├── SKILL.md
 │   └── references/
+├── cvd-project/
+│   └── SKILL.md                        # 절차만 - 라이팅 도구·설정은 Joule 저장소 (joule-flash)
 ├── daily-standup/
 │   └── SKILL.md
 ├── ecody-ecm-monitor/
 │   ├── SKILL.md
 │   ├── references/                     # 원장·당일 기록 페이지 형식, 사내 Confluence 수정 절차
-│   └── scripts/                        # eCoDY 변경분 수집·본문 덤프 (크롬 연동)
+│   ├── scripts/                        # eCoDY 변경분 수집·본문 덤프 (크롬 연동)
+│   └── run.cmd · setup-task.ps1        # 작업 스케줄러 무인 실행 등록
+├── ecody-ims-patch-monitor/
+│   ├── SKILL.md
+│   ├── references/                     # 정리 페이지 규격(꼬리표)·수집 범위 가이드
+│   └── run.cmd · setup-task.ps1        # 작업 스케줄러 무인 실행 등록
 ├── ecody-search/
 │   ├── SKILL.md
 │   ├── references/                     # ECM CQL·IMS JQL 쿼리 설계 가이드
@@ -61,10 +75,14 @@ skills-repo/
 │   └── scripts/                        # 시험지 검증·인쇄용 PDF 빌드
 ├── hota/
 │   └── SKILL.md                        # 절차만 - 도구·프로필·문서는 Joule 저장소 (joule-hota)
+├── joule-repo-sync/
+│   ├── SKILL.md
+│   └── scripts/                        # 회사 Gitea → 개인 GitHub 미러링, 주간 작업 등록
 ├── redmine-daily-dashboard/
 │   ├── SKILL.md
 │   ├── references/                     # 대시보드 HTML 형식 정본
-│   └── scripts/                        # 수집·델타 산출·조각 렌더링
+│   ├── scripts/                        # 수집·델타 산출·조각 렌더링
+│   └── run.cmd · setup-task.ps1        # 작업 스케줄러 무인 실행 등록
 ├── redmine-issue/
 │   ├── SKILL.md
 │   └── scripts/                        # Redmine REST 조회 CLI (읽기 전용)
@@ -92,9 +110,11 @@ skills-repo/
 ├── tech-research-to-confluence/
 │   ├── SKILL.md
 │   └── references/
-└── travel-english-weekly/
-    ├── SKILL.md
-    └── references/                     # 표현 라이브러리
+├── travel-english-weekly/
+│   ├── SKILL.md
+│   └── references/                     # 표현 라이브러리
+├── watchdog/                           # 스킬 아님 - 예약 실행 점검 PowerShell (register_task.ps1 · check_runs.ps1)
+└── synced/                             # git 제외 - Claude Code 스킬 동기화가 쓰는 자리 (지우지 않는다)
 ```
 
 스킬 이름은 파일명이 아니라 **폴더명**으로 정해진다. 각 스킬은 자기 폴더 안에 `SKILL.md` 를 두고, 보조 자료가 있으면 같은 폴더에 함께 둔다.
@@ -180,18 +200,19 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `aspice-audit-mapping` | ASPICE 오디트 1단계 — 체크리스트 Target 시트와 산출물 폴더를 대조·매핑하고 HTML 대시보드로 시각화 |
 | `aspice-audit-report` | ASPICE 품질점검 체크리스트를 자동 1차 작성하고 사람 작성본과 대비해 일치율 측정·개선 |
 | `autosar-artifact-map` | AUTOSAR 프로젝트 폴더를 4단계 스캔해 BSWMD → ECUC → 코드 → 모듈 의존의 산출물 추적성 지도 생성 |
-| `canoe-project-setup` | CANoe 차종별 측정 컨피그를 통폴더에서 추출해 단독 폴더로 만들고, 저장소 현행 CAN DB·진단(CDD)·참조 무결성을 대조 (원본 무수정, 측정은 사람이) |
+| `can-bench-setup` | 실험대 ECU 가 CAN DB 대로 보내는지 Joule 로 확인 — 레스트버스 깨우기, 주기·길이·FD·카운터·CRC 대조, 슬립, 자극→응답 심화 TC, 새 빌드 전체 평가. `canoe` 모드는 차종 컨피그 추출·현행 DB 갱신·검증 |
 | `confluence-cross-site-copy` | 서로 다른 Confluence 사이트 간에 페이지·폴더 트리를 복사 (MCP/브라우저 경로 판정, 클립보드 자동화로 서식·SVG·PNG 첨부까지 복원) |
 | `confluence-project-page` | mobaseasec Confluence 에 신규 프로젝트 페이지 세트를 표준 템플릿으로 생성 |
 | `confluence-writing` | Confluence 글쓰기 톤·구조·서식과 MCP 발행 규약의 정본 |
 | `cvd-project` | CVD(CodeViser) 과제 단위로 빌드 결과를 CLI 로 MCU 에 기록하고 이미지와 대조 검증. 프로젝트 폴더를 조사해 모르는 것만 묻고, 스킬 동봉 기본 틀로 생성 (쓰기는 매번 확인 후, S32_Config 무참조) |
-| `cvd-project-setup` | CVD(CodeViser) 에 차종별 보드 라이팅 설정을 생성·등록하고 검증. 저장소에서 차종·MCU·바이너리를 읽어낸다 (생성 전용, 라이팅은 사람이) |
 | `daily-standup` | 슬랙 데일리 스탠드업을 대화로 작성해 본인 이름으로 게시 |
 | `ecody-ecm-monitor` | eCoDY-ECM 변경분을 매일 수집해 그룹별 누적 원장과 날짜별 기록으로 사내 Confluence 에 발행 |
+| `ecody-ims-patch-monitor` | eCoDY-IMS Delivery_Patch 티켓 하나에서 출발해 연결된 자료 전부(짝 패치, 수평전개 원본·사본, 중간 버전 릴리즈 노트와 하위작업, ECM 의 IM·IA/VC·SAG)를 긁어모아 사내 Confluence 정리 페이지(대표 1장 + 부록)로 갱신 (읽기 전용, 페이지는 지우지 않고 본문만 교체) |
 | `ecody-search` | eCoDY-ECM(가이드)·eCoDY-IMS(릴리즈 노트·수평전개·문의) 를 CQL/JQL 다중 검색·정독해 근거 링크와 함께 답변 (읽기 전용, 구 ecody-ecm-search) |
 | `gitea-jenkins-setup` | 사내 Gitea 저장소를 Fork해 공동작업자·작업 브랜치·표준 배치 파일·Jenkins Job(비활성)까지 자동 빌드 환경을 한 번에 구축 (생성 전용) |
 | `gwantongsa-mock-exam` | 관광통역안내사 필기 모의고사(국사 25 + 관광자원해설 25)를 이력 기반 중복 방지·사실 검증을 거쳐 생성하고 인쇄용 2단 PDF로 전달 |
 | `hota` | H-OTA A·B 그룹 리프로그래밍 평가(1세대 External·BG→Repro / 2세대 Wired·Wireless·Rule Units)를 Joule `joule-hota` 로 — 서명본 hash 판별(재빌드 감지), 보드 준비, Report Config·OEUK 준비, .log 정리·자동 판정, 이름 규칙 검사·수정, 보드평가레포트·Redmine zip·결과 표 (보드 쓰기·외부 등록은 승인 후) |
+| `joule-repo-sync` | 회사 Gitea 의 Joule(`asec_autotest_tool`) 커밋을 개인 GitHub 사본에 덧붙여 동기화 — 차종 표준 DB 를 떨어내고 force push 없이 작성자·날짜 보존 (회사 → 개인 단방향, 푸시는 확인 후) |
 | `redmine-daily-dashboard` | 매일 할당 일감을 수집해 어제 대비 변화·마감 임박·정체 건과 함께 Confluence 대시보드로 발행 |
 | `redmine-issue` | 사내 Redmine 이슈·프로젝트를 REST API로 조회해 정리. 새 일감 생성과 내가 등록한 일감의 수정·코멘트까지 (미리보기 승인 후 전송) |
 | `redmine-patch-issue` | eCoDY 패치 정리 페이지 하나를 읽어 SWP Delivery_Patch 적용용 Redmine **작업 지시서** 일감을 조립 — 작업 시간 순서의 목차, 단계마다 함정·완료 조건, 추측 대신 확인 방법 (미리보기 승인 후 전송, 사내망 전용) |
@@ -203,4 +224,6 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `tech-research-to-confluence` | 기술 자료를 조사·기획해 다중 페이지 Confluence 가이드로 발행 |
 | `travel-english-weekly` | 초중급 학습자용 해외여행 영어 회화 주간 학습 브리핑 |
 
-계정에는 있지만 이 저장소에 두지 않은 스킬도 있다 (`python-dev`, `mcu-c-dev`, `office-file-slimmer`, `portfolio-theme`, `sw-tech-doc`, `wanted-resume-tailoring`, `aspice-audit-process-check`, `aspice-audit-wp-check`, `aspice-audit-final-report`). 필요해지면 그때 추가한다.
+`watchdog/` 는 스킬이 아니다 — 예약 실행이 실제로 돌았는지 점검하는 PowerShell 도구이고, 그래서 위 표에 없다.
+
+계정에는 있지만 이 저장소에 두지 않은 스킬도 있다 (`python-dev`, `mcu-c-dev`, `office-file-slimmer`, `portfolio-theme`, `sw-tech-doc`, `wanted-resume-tailoring`, `ibu-diagspec`, `aspice-audit-process-check`, `aspice-audit-wp-check`, `aspice-audit-final-report`). 필요해지면 그때 추가한다.
