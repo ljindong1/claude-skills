@@ -68,6 +68,9 @@ skills-repo/
 ├── redmine-issue/
 │   ├── SKILL.md
 │   └── scripts/                        # Redmine REST 조회 CLI (읽기 전용)
+├── redmine-patch-issue/
+│   ├── SKILL.md
+│   └── references/                     # 일감 본문 골격·절별 규격, 완성 본문 예시 한 벌
 ├── skill-repo-sync/
 │   ├── SKILL.md
 │   └── scripts/                        # 계정 → 저장소 미러링
@@ -191,6 +194,7 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `hota` | H-OTA A·B 그룹 리프로그래밍 평가(1세대 External·BG→Repro / 2세대 Wired·Wireless·Rule Units)를 Joule `joule-hota` 로 — 서명본 hash 판별(재빌드 감지), 보드 준비, Report Config·OEUK 준비, .log 정리·자동 판정, 이름 규칙 검사·수정, 보드평가레포트·Redmine zip·결과 표 (보드 쓰기·외부 등록은 승인 후) |
 | `redmine-daily-dashboard` | 매일 할당 일감을 수집해 어제 대비 변화·마감 임박·정체 건과 함께 Confluence 대시보드로 발행 |
 | `redmine-issue` | 사내 Redmine 이슈·프로젝트를 REST API로 조회해 정리. 새 일감 생성과 내가 등록한 일감의 수정·코멘트까지 (미리보기 승인 후 전송) |
+| `redmine-patch-issue` | eCoDY 패치 정리 페이지 하나를 읽어 SWP Delivery_Patch 적용용 Redmine **작업 지시서** 일감을 조립 — 작업 시간 순서의 목차, 단계마다 함정·완료 조건, 추측 대신 확인 방법 (미리보기 승인 후 전송, 사내망 전용) |
 | `skill-repo-sync` | 계정 스킬을 이 저장소에 반영하고 커밋·푸시를 안내 |
 | `slack-morning-briefing` | 직전 브리핑 이후의 슬랙 메시지를 정리해 매일 아침 대상 DM으로 전송 |
 | `slack-to-calendar` | 슬랙 공지·일정 메시지를 파싱해 구글 캘린더에 등록 |
