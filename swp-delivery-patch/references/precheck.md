@@ -101,11 +101,22 @@ HAE 답변의 조건이 되는 값들이다. 이것이 정리돼 있으면 "당�
 
 직접 편집했을 때 툴 대신 지켜야 할 것: (1) ADMIN-DATA `SD GID` 기록값을 VALUE 와 같이 바꿈, (2) XML 파싱 확인, (3) S9 재대조로 사유 없는 차이 0, (4) 빌드의 생성기 Error 0 · Rte Validation 0 errors 로 툴 검증을 대신함, (5) 생성 코드 변화를 하나씩 설명(S10).
 
-#### HAE 배포 패키지의 patch_tool (AutomatePatch.bat) — 실행하지 않고 **반드시 읽는다**
+#### HAE 배포 패키지의 patch_tool (AutomatePatch.bat) — 돌리기 전에 **반드시 읽는다**
 
 배포본의 `patch_tool/` 은 HAE 가 이번 패치를 자기 기준 프로젝트에 적용할 때 쓴 자동 패치 툴이다(`AutomatePatch.bat` → `customer_patch.py` → mobilgene-cli). HAE 입장은 "팀 내 개발 툴, **필수 아님**"(MCP1001-193 [8]), ECM·IMS 사용 가이드 없음.
 
-**실행은 하지 않는다.** 판정표 없이 HAE 공통 보정이 한꺼번에 들어가고(FBL Com 제거, SCons 일괄 정리 등), 모듈 폴더를 지우고 통째로 복사하며, 당사 PC 에는 `D:\ts_mirr` 가 없어 GenerateXml 에서 멈춘다(memory·프로필).
+배포본 자체의 형태도 둘이다 — **VersionComparison 형**(Prev/Cur 폴더 제공)과 **AutomatePatch 형**(참고 설정 몇 개 + `patch_tool/` + `Static_Code/Modules/<모듈>`, Prev 없음). 형태별 Prev/Cur 확보는 `three-way-merge.md` §2.
+
+**기본은 실행하지 않는다.** 판정표 없이 HAE 공통 보정이 한꺼번에 들어가고(FBL Com 제거, SCons 일괄 정리 등), 모듈 폴더를 지우고 통째로 복사한다. 돌릴 수 있는지는 **프로젝트·회차마다 다르므로 전제를 먼저 확인한다** — 결론을 미리 정해 두지 않는다.
+
+| 전제 | 어디서 보나 | 예 |
+|---|---|---|
+| 요구 Python·toolset | 배포본 `AutomatePatch.bat`·`customer_patch.py` 머리말 | TPMS 2.1.10 은 **Python 3.12.10 이상**(toolset_scons 3.x 계열). HE1i 3.0.x 는 toolset 2.x(Python 2.7) |
+| 요구 mobilgene / C Studio | 배포본 `Doc/ReleaseNote/*.docx` 의 적용 mobilgene ↔ 프로필의 당사 버전 | TPMS 2.1.10 적용본 `2.0 2026-01-R12.2.0` |
+| 생성 도구 보유 | 프로필 "구성 전제"의 사용자 PC 도구 행 (`jenkins-flow.md` §3-1·§3-2) | 도구 세트(생성기 미러 폴더)가 없는 PC 에서는 툴의 GenerateXml 단계에서 멈춘다 |
+| 이미 수동으로 한 작업 | 이전 작업 기록·git 이력 | 수동으로 정한 값이 덮이거나 같은 자리를 두 번 고친다 |
+
+**실행 여부는 결정 사항이다** — 돌렸든 안 돌렸든 그 결정과 사유를 판정표(또는 일감의 해당 `Q` 항목)에 남긴다. 돌렸으면 바뀐 자리 목록을 뽑아 안내가 요구한 군데와 구별한다.
 
 **대신 P 단계 첫 작업으로 분석한다** — 스크립트 docstring 이 "HAE 가 이번에 자동으로 바꾸려는 것"의 가장 정확한 목록이다. 2026-10-12 리뷰어 지적 건(FBL PMem_Driver EcuM ListTwo)은 3.0.19 patch_tool `Dcm/patch_Dcm_common.py` 3번 항목과 3.0.18 의 `Mem_76_Pfls_Common/R44/patch_Mem_76_Pfls_Common_v2_1_0_0.py` [7] 에 이미 적혀 있었다 — 읽었다면 미리 잡았다.
 

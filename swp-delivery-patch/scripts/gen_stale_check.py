@@ -6,7 +6,9 @@
   python gen_stale_check.py --app <앱 루트>                    # 작업 폴더 기준
   python gen_stale_check.py --app <앱 루트> --rev <커밋>       # 그 커밋 기준(git)
 
-  대상 모듈 = Build/SCons.arxml 의 Generation/<모듈> Used=0 이거나 Compile ExcludeList 에 Static_Code/Modules/<모듈>_* 가 있는 모듈.
+  대상 모듈 = Build/SCons.arxml 의 Generation/<모듈> Used=0 이거나 Compile ExcludeList 에 모듈 폴더(Static_Code/Modules/<모듈>_R4x)가
+              통째로 들어 있는 모듈. ExcludeList 가 모듈 안의 개별 파일(예: CanIf_R44/delivery/src/CanIf_Version.c)만 가리키면
+              그 모듈은 쓰는 중이므로 대상이 아니다.
   찾는 파일 = Generated/ 아래 <모듈>_*.c/.h, SchM_<모듈>.h, SchM_<모듈>_Type.h, SchM_<모듈>Type.h, PduR_<모듈>.h, Rte_<모듈>*.h
   (Bswmd_*/Swcd_* arxml 은 생성기 입력으로만 쓰여 컴파일되지 않으므로 '참고'로만 보여 준다)
 """
@@ -32,9 +34,15 @@ def target_modules(scons_path):
                 mods.add(n); why.setdefault(n, []).append("Generation Used=0")
         if k.endswith("#ExcludeList"):
             for x in v:
-                mm = re.search(r"Static_Code[\\/]+Modules[\\/]+([A-Za-z0-9]+)_R4\d", x)
-                if mm:
-                    mods.add(mm.group(1)); why.setdefault(mm.group(1), []).append("ExcludeList " + x)
+                mm = re.search(r"Static_Code[\\/]+Modules[\\/]+([A-Za-z0-9]+)_R4\d(.*)$", x)
+                if not mm:
+                    continue
+                rest = mm.group(2).strip()
+                # 모듈 폴더를 통째로 뺀 것만 대상. 모듈 안의 개별 파일(예: CanIf_R44/delivery/src/CanIf_Version.c)
+                # 을 뺀 것은 그 모듈을 쓰고 있다는 뜻이므로 남은 생성물 대상이 아니다.
+                if rest and rest not in ("\\", "/"):
+                    continue
+                mods.add(mm.group(1)); why.setdefault(mm.group(1), []).append("ExcludeList " + x)
     return mods, why
 
 

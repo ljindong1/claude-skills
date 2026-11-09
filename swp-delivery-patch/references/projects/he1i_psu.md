@@ -71,6 +71,8 @@ HAE 의 조건부 답변("당사가 X 면 해당 없음")을 판정하는 기준
 - Crypto_76_HaeModule 1.0.4.0 (HAE 참고 프로젝트보다 낮을 수 있음)
 - FBL: Fota GPT 채널 TCPWM_0_18 / CLOCKS18 5000Hz (#38061), Attempt Counter 사용
 - 진단 Rx: 0x7A3 물리 / 0x7DF 기능
+- 진단 사양서(CDD)가 실제로는 SP3i 사양이다 — HE1i 사양 적합으로 단정하지 않고 cfg 의 CDD 연결부터 확인한다
+- APP SW 버전이 26810 으로 고정이라 버전 DID 로는 회차를 구별할 수 없다 — DID F1C1(APP SHA-256)을 aSIMS 해시와 대조한다
 
 ## 보호 설정 (당사가 일부러 정한 값 — 확인 2026-10-11)
 HAE 참고 설정·VC·Harmonize 결과와 **다른 것이 정상**인 값이다. Harmonize, CLI, 수동 편집, 이 스킬의 반영 중 무엇으로든 바뀌면 "동작 차이 없음"이어도 판정표에 사유를 쓰고 사용자 확인을 받는다(`references/protected-settings.md`). `scripts/protected_check.py` 가 이 표를 읽는다 — 키는 three_way.py 와 같은 `컨테이너 경로#파라미터` 형식, '(없음)' 은 파라미터가 없어야 함(생성기 기본값 사용). 이유를 모르는 값도 "이유 미상"으로 올려 둔다.
@@ -87,18 +89,6 @@ HAE 참고 설정·VC·Harmonize 결과와 **다른 것이 정상**인 값이다
 | FBL | Ecud_Mcu | `/Mcu/McuModuleConfiguration_0/McuClockSettingConfig_0/McuClockReferencePoint_TCPWM0_CLOCKS18#McuClockReferencePointFrequency` | 5000 | 위와 같음. VC 는 CLOCKS54 를 5000 으로 씀 |
 
 APP 보호 설정은 아직 정리하지 않았다 — 다음 APP 패치 S6 에서 VC/HAE Cur 대비 당사 고유값을 뽑아 채운다.
-
-## 실기 기준값
-| 항목 | 기준 |
-|---|---|
-| 라이팅 | cvd-project, 과제 `HE1I_PSU`, `--mode IMAGE --banks AB`, FBL 짝 자동(`_test` ↔ OEUK_HE1I_TEST). 검증 지점 16 + 다른 뱅크 4 |
-| CAN 벤치 | VN1640A, CH3 B-CAN / CH4 Local. 기준(V3.0.27~28): B-CAN 실패 0 / 주의 0 / 정보 12 / 통과 3, Local 정보 8 / 통과 21, 에러 프레임 0 |
-| 진단 | CDD 가 실제로는 SP3i 사양서 — HE1i 사양 적합으로 단정 금지, cfg 의 CDD 연결부터 확인 |
-| 보드 이미지 확인 | DID F1C1(APP SHA-256)을 aSIMS 해시와 대조 (SW 버전 26810 고정이라 버전 DID 로는 회차 구별 불가) |
-| 서명 | rom zip 4개 → 플랫폼설계팀(aSIMS) → `aSIMS_enc_signed_{he1i|test}_psu_app_v3_0_xx_<버전>` |
-| H-OTA | A1~A4(OEUK_HE1I) / B1~B4(OEUK_TEST), TC_004~009 매핑. 체크리스트 Confluence 348160048(V3.0.28) 복사 사용 |
-| 결과 폴더 | `References/Doc_MB/04_Reprogramming/v<x>/<YYMMDD>/` |
-| 첨부 이름 | `HE1i_PSU_v<x>_<YYMMDD>_{HOTA_asc|HOTA_log|HOTA_png|aSIMS_bin|CAN_bench|<고유>|report_xlsx}.zip` |
 
 ## 프로젝트 고유 판단 이력
 | 규칙 | 근거 |

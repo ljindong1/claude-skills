@@ -20,9 +20,18 @@ HAE 배포본의 설정 파일은 HAE **참고 프로젝트**(대표 차종) 기
 
 | 형상 | 1순위 | 2순위 | 없을 때 |
 |---|---|---|---|
-| Prev | 배포본 `VersionComparison/PreviousVersion` | 직전 회차 IMS 티켓 배포본의 참고 설정 | 2-way 로 하고 "Prev 없음" 표시, git 이력으로 당사 수정 여부 보완 |
+| Prev | 배포본 `VersionComparison/PreviousVersion` | 직전 회차 IMS 티켓 배포본의 참고 설정 | manifest `project_name`(HAE 기준 형상)이 당사 직전 SWP 와 같으면 **당사 직전 커밋**을 Prev 로 쓰고 그 사실 표시. 그것도 아니면 2-way 로 하고 "Prev 없음" 표시, git 이력으로 당사 수정 여부 보완 |
 | Cur | 배포본 `VersionComparison/CurrentVersion` | 배포본 `Configuration`, `Build` | — |
 | Ours | 작업 브랜치 현재 파일 | — | — |
+
+배포본 형태가 둘이다. 어느 쪽인지 폴더를 먼저 본다.
+
+| 형태 | 특징 | Prev / Cur | 모듈 본체 | Doc |
+|---|---|---|---|---|
+| **VersionComparison 형** (HE1i PSU 3.0.x) | `VersionComparison/PreviousVersion`·`CurrentVersion` 제공 | 그대로 | `CurrentVersion/Static_Code/Modules/<모듈>` | 배포본 `Doc` |
+| **AutomatePatch 형** (TPMS 2.1.x) | `AutomatePatch.bat` + `patch_tool/` 중심. VersionComparison 없음 | Cur = `Configuration/Ecu/*.arxml` + `Build/SCons.arxml` (안내가 건드리는 파일만 몇 개). Prev 는 위 표의 "없을 때" | `Static_Code/Modules/<모듈>` 과 `patch_tool/Static_Code/Modules/<모듈>` **두 곳 — 내용이 같은지 `diff -rq` 로 확인하고 한쪽만 쓴다** (2.1.10 FBL 실측: 동일) | `Doc/ReleaseNote`, `Doc/ModuleChangeList` |
+
+AutomatePatch 형은 참고 설정이 몇 개뿐이라 **"배포본에 없으니 변경 없음"이 성립하지 않는다** — 안내·IM·patch_tool 계획서가 요구한 자리를 판정표의 기준으로 삼는다(참고 설정은 그중 일부만 보여 준다).
 
 Prev 를 "직전 회차 배포본 + 그 회차 보정본"으로 구성했으면, Prev→Cur 차이 중 **보정본이 바꾼 위치는 HAE 의 새 변경이 아니라 되돌림 의심**이다(4.8). 보정본만 따로 한 번 더 대조한다.
 

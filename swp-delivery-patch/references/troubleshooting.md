@@ -26,6 +26,7 @@
 | S10 | #47967 | Jenkins 후처리가 건너뛰어 rom/차종 산출물 없음 | Hook 이 Post-build 미실행 | 과제 Hook·PostPackage 분리 (jenkins-flow §1) |
 | S10 | — | 증분 빌드와 비교해 경고 수가 의미 없음 | 비교 대상 빌드에 Generate 없음 | 직전 회차 전체 재생성 빌드와 비교 (SKILL S10) |
 | S10 | #48891 Jenkins #18, 10-12 | **설정에서 모듈을 뺐는데 이전 생성물이 남아 컴파일 실패.** FBL Com 제거 후 `Com_Cfg.c: cannot open source file "Com.h"`. 남은 생성물 5개 삭제(`3e94476b`) 후 #19 성공 | SCons 가 `Generated/Bsw_Output` 의 추가 파일도 컴파일. Com 생성기가 돌지 않아 10-08 생성물이 남음 | 모듈을 빼면 생성물도 삭제, 빌드 후 작업 폴더 생성물 날짜 확인 (SKILL S8, jenkins-flow §5, review_all) |
+| S10 | #49949, 2026-11-03 (LT2 TPMS FBL) | **Com 을 쓰지 않는 FBL 인데 BswM 생성물이 `Com.h` 를 include 해 컴파일 실패.** `BswM_Cfg.c`(line 64)·`BswM_ActionList.c`·`BswM_Rule.c` 에서 `fatal error #2330: cannot open source file "Com.h"` → `scons: *** [BswM_Cfg.o] Error 1` (로컬 빌드 로그에서 확인) | **원인 미확정** — 조치 근거 티켓 MCP0858-296 은 권한 없음(2026-11-07). 위 HE1i 사례와 증상은 같지만 경로가 다를 수 있다 | 세 자리를 함께 본다 — SCons ExcludeList 의 `Com_R44`(삭제가 아니라 제외) · BswM `AC_UserCallout_Com_DeInit` · BswM `BswMUserIncludeFiles` 의 `Com.h`. Harmonize 가 되살렸는지도 확인 (protected-settings, 일감 #49949 `Q8`) |
 | S10 | — | javascript_tool 결과가 잘리거나 "Cookie/query string data" 로 차단 | 반환값 길이·필터 | DOM 에 펼쳐 get_page_text (ecody-search) |
 | S11 | — | 요약만 보여 주고 등록 원문으로 착각하게 함 | 미리보기 대신 설명 제시 | 등록될 원문 전체를 보여 줌 (SKILL S11) |
 | S11 | #48891 note-21, 10-12 | **리뷰어가 "False 로 변경 후 테스트"를 요청했는데 "유지"로 회신할 뻔함.** 바꾸면 리프로그래밍이 실패할 거라는 분석만으로 정함. "기존에도 False 였나"도 어느 시점인지 확인 없이 답함 | 원문 요청과 회신을 대조하지 않음, 분석을 시험 결과처럼 다룸, 이력 기준 시점 모호 | 회신 전 원문 요청 대조, 하지 않은 일은 그대로 적기, 두 시점 값 병기 (communication §4·§5, templates §2-1) |

@@ -58,11 +58,29 @@ S12 실기                  ALL → 라이팅 → CAN → 고유 시험 → 서�
 S13 마무리                PR, IMS·Redmine 상태
 ```
 
+**일감의 `S1`~`S13` 과 이 표의 S1~S13 은 뜻이 다르다.** Redmine 일감(redmine-patch-issue 양식)은 그 패치의 작업 순서를 자기 번호로 매긴다 — 예: 일감 S3 = 패치 도구 실행, 일감 S8 = harmonize, 일감 S9 = Generate·Validation, 일감 S10 = 빌드, 일감 S13 = 실기. 이 스킬의 S3 = 선행 작업 조회, S9 = 정적 검수, S13 = 마무리다. 말할 때는 **"일감 S3"** / **"스킬 S9"** 로 구분해 부르고, 사용자가 번호만 말하면 어느 쪽인지 되묻는다.
+
 사용자는 대개 중간 단계에서 부른다("배포본 비교해줘", "검수해줘", "지적 사항 반영해줘"). 앞 단계 산출물(요청 항목 목록, 판정표)이 있는지 보고, 없으면 필요한 만큼만 빠르게 만든다.
 
 ## S0. 프로젝트 프로필
 
-`references/projects/<차종>_<제어기>.md` 를 연다(예: `he1i_psu.md`). 없으면 `_template.md` 를 복사해 저장소를 조사하며 채우고, 조사로 알 수 없는 것만 한 번에 묻는다. 새 프로필·갱신은 사용자 확인 후 저장한다. 보호 설정 표의 이번 대상(FBL/APP) 행이 비어 있으면 S6 에서 채울 항목으로 표시한다.
+`references/projects/<프로젝트>.md` 를 연다(예: `he1i_psu.md`, `tpms_rf_receiver.md`). **파일 단위는 저장소(SWP 계열) 하나**다 — 같은 저장소·같은 `PJ_Define.h` 를 쓰는 차종(BJ1·LT2 등)은 한 파일 안의 행으로, FBL·APP 은 같은 파일의 두 열로 둔다. 없으면 `_template.md` 를 복사해 저장소를 조사하며 채우고, 조사로 알 수 없는 것만 한 번에 묻는다(채우지 못한 칸은 `[확인 필요]` 로 남긴다). 새 프로필·갱신은 사용자 확인 후 저장한다. 보호 설정 표의 이번 대상(FBL/APP) 행이 비어 있으면 S6 에서 채울 항목으로 표시한다.
+
+### 빈 칸은 어디서 채우고 어디에 반영하나
+
+프로필의 `[확인 필요]` 와 일감 본문의 `[기입]` 은 **같은 값을 가리키는 두 자리**다. 값이 정해지는 곳은 다른 스킬이지만, **프로필과 일감에 적는 일은 이 스킬이 한다** — 다른 스킬은 일감을 모른다. 칸은 두 종류이고, 둘을 섞지 않는다.
+
+**(1) 작업을 시작하기 전에 닫아야 하는 칸** — 없으면 S8 에 들어가지 않는다.
+
+| 칸 | 값이 정해지는 곳 | 이 스킬이 하는 일 |
+|---|---|---|
+| 저장소 · 작업 브랜치 · Jenkins Job | **gitea-jenkins-setup** 모드 A(신설)·B(브랜치 추가)·C(공유 Fork) | 끝난 뒤 프로필 "저장소" 표 + 일감 `[기입]` 반영 |
+| 빌드 대상 (CURRENT/ALL, OEUK 변형) | 저장소 조사 + 사용자 확인 (`jenkins-flow.md` §2) | 같음 |
+| 일정 | 사용자 | 같음 |
+
+브랜치·Job 이 없으면 gitea-jenkins-setup 을 먼저 부르고, 결과(저장소 URL·브랜치·기준 커밋·Job 이름)를 받아 적은 뒤 돌아온다.
+
+**(2) 그 단계에 가서 채워지는 칸** — 여기서 다루지 않는다. PR 대상·방식은 S13(gitea-jenkins-setup 모드 D), APP 버전 위치는 첫 APP 패치의 S8, 실기 기준값은 S12 가 끝난 뒤다. **비어 있어도 작업을 막지 않고, 비었다고 그 스킬을 미리 부르지 않는다.**
 
 ## P. 사전 점검
 
@@ -91,12 +109,24 @@ S13 마무리                PR, IMS·Redmine 상태
 
 ## S4. 일감·문서
 
-Redmine 일감 본문은 `references/templates.md` §1 구성으로, redmine-issue 스킬의 미리보기 → 승인 규칙으로 등록·갱신한다. 상태 전이 규칙은 프로필. 일감 본문의 "검토 항목"은 S11 결과 코멘트에서 하나씩 결론을 적는다(결론 없이 남기면 누락이 된다). 분석이 길면 Confluence 페이지(confluence-writing, 위치는 프로필).
+**일감 본문 양식의 정본은 `redmine-patch-issue` 스킬이다** — 이 스킬은 일감을 새로 쓰지 않고 **읽어서 작업 지시로 쓴다**. 현행 양식(#49949 등)의 구성: §0 한눈에 / §1 목적·결함별 해당 여부 / §2 작업 전 준비 `P1`~ / §3 변경 지도(군데 수) / §4 작업 단계 `S1`~ / §5 멈춰서 확인할 것 `Q1`~ / §6 Generate 후 Validation / §7 검증 `V1`~·`X1` / §8 완료 기준 / §9 범위가 아닌 것 / §10 참고·10.5 못 본 자료. 읽을 때 이 스킬의 판정표로 옮길 것은 **§3 의 군데 목록 · §5 의 `Q` 항목(그대로 C·B 경로 후보) · §9 의 제외 결론**이다. 본문 수정·갱신이 필요하면 redmine-issue 스킬의 미리보기 → 승인 규칙으로 한다. 상태 전이 규칙은 프로필. **S11 결과 코멘트에서 닫을 것**: §4 단계 체크박스, §5 의 `Q` 번호마다 결론, §8 완료 기준(결론 없이 남기면 누락이 된다). 구 양식(목적/업무 내용 2.1~2.6/검증 계획)으로 쓰인 이전 일감은 `templates.md` §1 참고.
+
+**일감 본문의 `[기입]` 은 이 스킬이 닫는다.** redmine-patch-issue 는 저장소·브랜치·Job·PR 대상·빌드 대상·일정을 모르는 상태로 일감을 만들기 때문에 그 자리를 `[기입]` 으로 남긴다(#49949 는 §0 마지막 줄·`P9`·`S10`). 값이 정해지는 곳은 S0 의 "빈 칸" 표에 있다. 절차:
+
+1. gitea-jenkins-setup(또는 사용자 확인)으로 값을 받는다 — 저장소 URL, 작업 브랜치와 기준 커밋, Jenkins Job, PR 대상·방식, 빌드 대상, 일정.
+2. **프로필을 먼저 갱신**한다(확인 날짜 포함). 프로필이 정본이고 일감은 사본이다.
+3. 일감 본문에서 `[기입]` 이 있는 줄만 그 값으로 바꾼다 — 다른 절은 건드리지 않는다. `git grep` 대신 본문에서 `[기입]` 을 모두 찾아 **남은 개수 0** 을 확인한다.
+4. redmine-issue 스킬로 **갱신될 본문 전체를 미리보기 → 승인 → 수정**. 내가 등록한 일감만 수정한다(남의 일감이면 값만 정리해 사용자에게 준다).
+5. S13 에서 PR 을 만들면 PR 링크를, 실기가 끝나면 §7 결과를 같은 방법으로 한 번 더 반영한다. 분석이 길면 Confluence 페이지(confluence-writing, 위치는 프로필).
 
 ## S5. 배포본 판별
 
 1. **유효 배포본** — 재배포가 있으면 `zip_crc_compare.py` 로 비교한다. 비밀번호가 걸린 zip 도 목록의 CRC 로 비교된다(내용 비교에는 압축 해제가 필요하니 사용자에게 요청). CRC 는 "어느 파일이 개정됐나"까지만 알려 준다. CRC 가 다른 ARXML 은 `three_way.py --prev <이전본> --cur <새본> --ours <당사>` 로 내용까지 비교하고, 이전본에만 있는 설정은 철회 확인 항목으로 판정표에 올린다. "이전본은 필요 없다"는 이 결과를 보인 뒤에만 말한다(decision-rules 공통).
-2. **Prev / Cur 확보** — `VersionComparison/PreviousVersion`·`CurrentVersion` 이 있으면 쓴다(모듈 본체도 `CurrentVersion/Static_Code/Modules/` 아래 — 판정표 첫 행은 모듈 교체). 없으면 Cur = 배포본 참고 설정, Prev = 직전 회차 배포본 + 그 회차 보정본. 둘 다 없으면 2-way 로 하고 "Prev 없음" 표시, git 이력으로 보완. 상세 `three-way-merge.md` §2.
+2. **Prev / Cur 확보** — 배포본 형태가 둘이다(`three-way-merge.md` §2).
+   - **VersionComparison 형** — `VersionComparison/PreviousVersion`·`CurrentVersion` 을 그대로 Prev/Cur 로 쓴다(모듈 본체도 `CurrentVersion/Static_Code/Modules/` 아래).
+   - **AutomatePatch 형** (TPMS 2.1.x 등) — VersionComparison 이 없다. Cur = `Configuration/Ecu/*.arxml` + `Build/SCons.arxml`(안내가 건드리는 파일만 몇 개 들어 있다), 모듈 본체 = `Static_Code/Modules/<모듈>` 과 `patch_tool/Static_Code/Modules/<모듈>` **두 곳(내용 동일 — `diff -rq` 로 확인하고 한쪽만 쓴다)**, Doc = `Doc/ReleaseNote`·`Doc/ModuleChangeList`. Prev 는 직전 회차 배포본 + 그 회차 보정본, 그것도 없으면 manifest `project_name`(= HAE 기준 형상)이 당사 직전 SWP 와 같은지 확인한 뒤 **당사 직전 커밋을 Prev 로** 쓰고 그 사실을 표시한다.
+   - 어느 쪽도 못 구하면 2-way 로 하고 "Prev 없음" 표시, git 이력으로 보완.
+   판정표 첫 행은 모듈 교체다.
 3. **완결성** — 안내가 언급한 파일 ↔ 실제 파일, 이후 보정본·정정(precheck ②). 빠진 것은 C 후보.
 4. **patch_tool Action Report 는 요청의 일부일 뿐이다** — SCons 항목은 각 생성기에 자기 모듈 PDF 를 자동으로 넣은 기록뿐이다. 참고 설정 대조는 S6 에서 따로 한다.
 5. Doc(ReleaseNote, ModuleList, Module Change List)을 본다. patch_tool 은 P 단계 계획서로 이미 읽었다 — 배포본 참고 설정의 차이가 계획서의 어느 스크립트 항목에서 왔는지 이어 본다("왜 바뀌는지").
@@ -149,7 +179,7 @@ C 경로 항목만, 한 패치의 질문은 한 댓글에 번호를 매겨 모�
 
 빌드는 6~50분 + push 가 필요하므로 여기서 잡을 수 있는 것은 잡는다(C Studio Generate Code 는 BSW·Os·Rte 만, MCAL 은 Jenkins 에서만 — jenkins-flow §3-1).
 
-`review_all.py --prev … --cur … --app … --old-token … --new-token … --expect … --out 검수보고서.md` 를 먼저 돌린다. 설정 재대조(`three_way.py --check`), 모듈 바이트 일치, 심볼·매크로(`symbol_crosscheck.py`), 버전 잔존, 의존 .ver 목록, 뺀 모듈의 남은 생성물(`gen_stale_check.py`)을 한 보고서로 낸다. 이어서:
+`review_all.py --prev … --cur … --app … --old-token … --new-token … --expect … --out 검수보고서.md` 를 먼저 돌린다. **Prev 를 구하지 못했으면 `--prev` 를 생략한다** — 설정 재대조는 2-way(Cur ↔ Ours)로, 심볼 대조는 생략으로 돌고 보고서에 "Prev 없음"이 찍힌다. 2-way 결과는 HAE 델타와 당사 고유 차이를 가르지 못한다 — 전체를 2-way 로 돌리면 차이가 수백~천 건이 된다(2.1.10 FBL 실측 1516건). 안내·IM·patch_tool 계획서가 지목한 파일만 `three_way.py --files` 로 좁혀 보고, 판정표 사유와 1:1 로 대조한다. 설정 재대조(`three_way.py --check`), 모듈 바이트 일치, 심볼·매크로(`symbol_crosscheck.py`), 버전 잔존, 의존 .ver 목록, 뺀 모듈의 남은 생성물(`gen_stale_check.py`)을 한 보고서로 낸다. 이어서:
 
 1. `--check` 남은 항목이 **전부 판정표의 제외·보류·당사 구성 사유와 1:1**인지 — 사유 없는 항목은 누락.
 2. IM 신규 Validation 규칙을 당사 Ecud 에 미리 적용(예시 three-way §7).
@@ -176,7 +206,7 @@ C 경로 항목만, 한 패치의 질문은 한 댓글에 번호를 매겨 모�
 
 ## S12. 실기 검증
 
-판정 기준 → `references/verification.md`, 실행 → 각 스킬과 프로필 체크리스트.
+판정 기준 → `references/verification.md`, 실행 → 각 스킬(cvd-project·can-bench-setup·canoe-project-setup·hota). 그 과제의 설정·체크리스트는 각 스킬이 들고 있고, 비교 대상은 **직전 회차의 실기 결과 기록(일감·결과 폴더)**이다.
 
 ```
 ALL 빌드 전환(지시 시 커밋) → 산출물 4벌 확인
@@ -186,7 +216,9 @@ ALL 빌드 전환(지시 시 커밋) → 산출물 4벌 확인
 → 결과 정리 → CURRENT 복귀 (지시 시 커밋)
 ```
 
-정상 흐름 H-OTA 만으로는 패치 효과가 확인되지 않는다 — 수평전개 결함의 재현 조건을 케이스로 만든다. 서명 요청 뒤에는 실기가 끝날 때까지 APP 재빌드 push 를 하지 않는다. 진단 결과는 프로필의 CDD 주의사항을 먼저 본다.
+그 회차 측정값은 일감 §7 검증 결과와 결과 폴더에 남긴다 — 다음 회차의 비교 대상이 그것이다. 직전 기록이 없으면 그 과제의 첫 회차이므로 비교 대상이 없다는 사실을 보고에 그대로 적는다(없는 기준을 만들어 쓰지 않는다).
+
+정상 흐름 H-OTA 만으로는 패치 효과가 확인되지 않는다 — 수평전개 결함의 재현 조건을 케이스로 만든다. 서명 요청 뒤에는 실기가 끝날 때까지 APP 재빌드 push 를 하지 않는다. 진단 결과는 프로필 "프로젝트 사실" 의 CDD 주의사항을 먼저 본다.
 
 ## S13. 마무리
 
@@ -206,7 +238,7 @@ PR 방식·대상·머지 순서는 프로필, 브랜치 구성·검증·push·P
 | `references/three-way-merge.md` | S5·S6·S9 — 형상 확보, 판정 규칙·사례, 과거 회차 이력(§4.8), 판정표 형식(§6), 재대조·Validation |
 | `references/protected-settings.md` | 보호 설정 — 덮어쓰기 세 경로, 변경 분류 (a)~(d), 단계별 할 일, Harmonize 절차 |
 | `references/ims-workflow.md` | S1·S7 — IMS 에서 뽑을 것, 첨부 받기, 질문 등록, ECM IM 페이지 대응표, MCP 연결 시 |
-| `references/templates.md` | 양식만 — Redmine 본문·결과 코멘트·리뷰 회신, IMS 질문, 수평전개 회신, 커밋 메시지, Confluence 골격 |
+| `references/templates.md` | 양식만 — Redmine 일감 본문(정본은 redmine-patch-issue, 여기엔 절↔단계 대응표·구 양식), 결과 코멘트·리뷰 회신, IMS 질문, 수평전개 회신, 커밋 메시지, Confluence 골격 |
 | `references/jenkins-flow.md` | S10·S12 — Hook, ALL/CURRENT, 산출물 구조, 생성 경로, 남은 생성물, 커밋 주의 |
 | `references/verification.md` | 빌드 검수·실기 판정 기준, 결과 파일 규칙 |
 | `references/version-up.md` | 버전 세 종류, 산출물명·버전 문자 위치 |
@@ -218,7 +250,7 @@ PR 방식·대상·머지 순서는 프로필, 브랜치 구성·검증·push·P
 
 ## 범위 밖
 
-- 작업 브랜치·Jenkins Job 신설 → gitea-jenkins-setup
+- 작업 브랜치·Jenkins Job 신설, PR 구성 → gitea-jenkins-setup (**그 결과를 프로필·일감 `[기입]` 에 적는 일은 이 스킬** — S0 "빈 칸" 표, S4)
 - eCoDY-ECM·IMS 읽기·검색 → ecody-search (이 스킬은 IMS 댓글 쓰기만)
 - 라이팅·CAN 측정 → cvd-project, can-bench-setup, canoe-project-setup
 - H-OTA A·B 그룹 평가·산출물 → hota

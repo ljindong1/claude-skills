@@ -6,6 +6,8 @@
 
 정적 검수 (빌드 전에도 가능)
   1. 설정 재대조      three_way.py --check  — HAE 변경 중 아직 Cur 와 다른 항목 (판정표 사유와 1:1 이어야 함)
+                      --prev 가 없으면 2-way(Cur ↔ Ours)로 돌고 보고서에 'Prev 없음' 을 적는다
+                      (AutomatePatch 형 배포본처럼 HAE 이전 형상을 구할 수 없을 때)
   2. 모듈 일치        교체한 모듈 폴더 vs HAE Cur 바이트 비교 — 다른 파일 = 병합한 당사 수정(의도) 또는 누락
   3. 당사 코드 영향   symbol_crosscheck.py — 심볼 삭제·선언 변화, 구조체 멤버 변화, 새 #if 매크로
   4. 버전 잔존        version_bump_check.py
@@ -94,7 +96,7 @@ def map_path(spec, repo, tmpdir):
 
 def main():
     ap = argparse.ArgumentParser(description="패치 검수 일괄 실행·보고서 생성")
-    ap.add_argument("--prev", required=True, help="HAE 이전 형상 루트 (VersionComparison/PreviousVersion)")
+    ap.add_argument("--prev", help="HAE 이전 형상 루트 (VersionComparison/PreviousVersion). 없으면 2-way 로 돌고 심볼 대조를 생략한다")
     ap.add_argument("--cur", required=True, help="HAE 현재 형상 루트 (VersionComparison/CurrentVersion)")
     ap.add_argument("--app", required=True, help="당사 앱(또는 FBL) 루트 — Build/, Configuration/ 이 있는 폴더")
     ap.add_argument("--repo", help="git 루트 (기본: --app 에서 찾음)")
@@ -123,7 +125,10 @@ def main():
         print(f"[{verdict}] {no}. {name} — {summary}")
 
     # 1. 설정 재대조
-    _, out = run("three_way.py", "--prev", a.prev, "--cur", a.cur, "--ours", a.app, "--check", "--max", "40")
+    tw = ["--cur", a.cur, "--ours", a.app, "--check", "--max", "40"]
+    if a.prev:
+        tw = ["--prev", a.prev] + tw
+    _, out = run("three_way.py", *tw)
     m = re.search(r"== 요약: (.*)", out)
     s = m.group(1) if m else "?"
     seq_warn = out.count("⚠")
@@ -137,7 +142,7 @@ def main():
     for name, pre, mac in mods:
         c = os.path.join(a.cur, "Static_Code", "Modules", name)
         o = os.path.join(a.app, "Static_Code", "Modules", name)
-        p = os.path.join(a.prev, "Static_Code", "Modules", name)
+        p = os.path.join(a.prev, "Static_Code", "Modules", name) if a.prev else ""
         if not os.path.isdir(o):
             mod_lines.append(f"{name}: 당사 저장소에 폴더 없음")
             mod_bad += 1
@@ -150,14 +155,14 @@ def main():
             mod_lines.append(f"    {k}")
         if diff or only_c or only_o:
             mod_bad += 1
-        if os.path.isdir(p):
+        if p and os.path.isdir(p):
             _, so = run("symbol_crosscheck.py", "--prev", p, "--cur", c, "--app", a.app, "--prefix", pre, "--macro", mac)
             sym_lines.append(f"===== {name} ({pre}, {mac})\n{so}")
             g = re.search(r"삭제 (\d+) / 선언 줄 변화 (\d+)", so)
             if (g and int(g.group(1))) or "★정의 안 됨" in so or "중간 변경" in so:
                 sym_flags += 1
         else:
-            sym_lines.append(f"===== {name}: Prev 모듈 없음 — 신규 모듈, 심볼 대조 생략")
+            sym_lines.append(f"===== {name}: Prev 모듈 없음 — {'신규 모듈' if a.prev else 'Prev 미확보'}, 심볼 대조 생략")
     add(2, "모듈 폴더 vs HAE Cur 바이트 일치", "확인" if mod_bad else "통과",
         f"대상 {len(mods)}개 모듈, 차이 있는 모듈 {mod_bad} — 다른 파일은 병합한 당사 수정인지 누락인지 확인" if mod_bad else f"대상 {len(mods)}개 모듈 모두 일치",
         "\n".join(mod_lines) or "대상 모듈 없음")
@@ -220,11 +225,14 @@ def main():
         unchecked.insert(0, "빌드 결과 (Generate·Rte Validation·SAFERTE) — --job/--build 로 다시 실행")
     if not (a.gen_old and a.gen_new):
         unchecked.insert(1, "생성물 diff — 빌드 후 --gen-old/--gen-new 로 다시 실행")
+    if not a.prev:
+        unchecked.insert(0, "HAE 이전 형상(Prev) 대비 판정 — Prev 미확보로 2-way 검수. 설정 재대조의 남은 항목은 판정표 사유와 하나씩 대 봐야 한다")
 
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     head = [f"# 패치 검수 보고서 ({now})", "",
             f"- 당사: `{a.app}` (git `{git(repo, 'rev-parse', '--short', 'HEAD')}`)",
-            f"- HAE Prev: `{a.prev}`", f"- HAE Cur: `{a.cur}`", "",
+            f"- HAE Prev: `{a.prev}`" if a.prev else "- HAE Prev: **없음 (2-way 로 검수 — HAE 델타와 당사 고유 차이가 구분되지 않는다)**",
+            f"- HAE Cur: `{a.cur}`", "",
             "## 요약", "", "| # | 검수 항목 | 판정 | 내용 |", "|---|---|---|---|"]
     head += [f"| {n} | {name} | {v} | {s.replace('|', '/')} |" for n, name, v, s in rows]
     head += ["", "판정: 통과 = 기준 충족 / 확인 = 사람이 사유를 확인해야 함(오류라는 뜻은 아님) / 수동 = 자료만 모음", "",

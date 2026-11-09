@@ -20,10 +20,13 @@
 
 ## FBL
 
-1. **버전 문자**: `PJ_Define.h` 의 `SOFTWARE_VERSION_5` 한 글자를 다음 문자로(예: 'I'→'J'). 결과 문자열 HE130J02 / TEST DEV30J02, 내부 버전(02)은 유지 — 프로필에 규칙 확인.
-2. **산출물명**: `.project` `<name>` (`he1i_psu_fbl_v3_0_19`).
-3. **확인**: 빌드된 `.sre` 의 MainSW_Version_Info 주소(HE1i: 0x10029000)를 판독해 문자열 확인.
-4. **APP 저장소 반영**: 검증을 통과한 FBL 바이너리를 APP 의 `References/02_Fbl_Binary/<변형>/` 에 교체(elf/hex/map/sre, readme). FBL 검증 전에 넣지 않는다 — APP 라이팅이 이 바이너리를 짝으로 쓴다.
+**버전을 어디에 적는지는 프로젝트마다 다르다 — 프로필의 "버전 위치" 표가 정본이다.** 아래는 두 형태다.
+
+1. **버전 문자가 있는 프로젝트** (HE1i PSU): `PJ_Define.h` 의 `SOFTWARE_VERSION_5` 한 글자를 다음 문자로(예: 'I'→'J'). 결과 문자열 HE130J02 / TEST DEV30J02, 내부 버전(02)은 유지.
+2. **버전 문자가 없는 프로젝트** (BJ/TPMS RF Receiver): `PJ_Define.h` 에 `SOFTWARE_VERSION_*` 정의가 아예 없고(OEUK 선택 줄만 있다) 버전은 `.project` `<name>` 한 곳에만 있다 — `e_bj_tpms_asr_swp_fbl_v219` → `..._v2110`. 산출물명도 그 이름이고 PostPackage 가 `.sre` 이름으로 폴더·접두를 정한다. **HE1i 의 문자 규칙을 여기에 적용하지 않는다.**
+3. **산출물명**: `.project` `<name>` (예: `he1i_psu_fbl_v3_0_19`, `e_bj_tpms_asr_swp_fbl_v2110`).
+4. **확인**: 버전 문자열을 코드에 두는 프로젝트는 빌드된 `.sre` 의 MainSW_Version_Info 주소(HE1i: 0x10029000)를 판독한다. 그 영역이 없는 프로젝트는 산출물 이름·`.project` 로만 확인하고, 판독 방법은 프로필에 적는다.
+5. **APP 저장소 반영**: 검증을 통과한 FBL 바이너리를 APP 의 `References/02_Fbl_Binary/<변형>/` 에 교체(elf/hex/map/sre, readme). FBL 검증 전에 넣지 않는다 — APP 라이팅이 이 바이너리를 짝으로 쓴다.
 
 ## 버전 문자열 잔존 확인
 

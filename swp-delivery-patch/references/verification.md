@@ -19,7 +19,7 @@
 
 ## 2. 실기 (S12)
 
-순서와 판정 기준만 둔다. 실행은 각 스킬과 프로젝트 체크리스트(프로필 링크)를 따른다.
+순서와 판정 기준만 둔다. 실행과 과제별 설정·체크리스트는 각 스킬(cvd-project·can-bench-setup·canoe-project-setup·hota)이 들고 있다. 비교 대상은 직전 회차의 실기 결과 기록이다.
 
 | 순서 | 내용 | 판정 기준 | 담당 |
 |---|---|---|---|
@@ -28,20 +28,20 @@
 | 3 | CAN 출력 | 실패 0, 에러 프레임 0, 주의·정보 건수가 직전 회차와 같음(정보 항목은 사양상 정상인 것만) | can-bench-setup |
 | 4 | 진단 회귀 | 세션, 보안접근, 읽기/쓰기, Routine, DTC, Reset, 다운로드 계열이 직전과 같은 응답 | canoe-project-setup / CANoe |
 | 5 | 패치 고유 시험 | 수평전개 결함의 **재현 조건**을 그대로 케이스로 (예: TransferData Repeat Block → 긍정 응답, HF 이전엔 NRC 0x71). 기능 추가면 그 기능 동작(예: DataLog DID 64B) | CANoe CAPL |
-| 6 | 서명 | rom zip 4개 → 서명 요청 → 서명 bin 4개. **요청한 빌드 번호·커밋을 기록**하고, 이후 실기가 끝날 때까지 APP 재빌드(push) 금지 — 재생성 때 Os 스택 배치가 바뀌어 이미지가 달라짐 | 프로필 담당 |
-| 7 | H-OTA | 그룹 A(양산 키): 업 성공 / 다운 차단(NRC 0xF4). 그룹 B(TEST): 업 성공 / OEUK 강제 다운 성공. External·BG→Repro 각각. **대칭성**이 판정 | 프로필 체크리스트 |
+| 6 | 서명 | rom zip 4개 → 서명 요청(플랫폼설계팀 aSIMS) → 서명 bin 4개. **요청한 빌드 번호·커밋을 기록**하고, 이후 실기가 끝날 때까지 APP 재빌드(push) 금지 — 재생성 때 Os 스택 배치가 바뀌어 이미지가 달라짐 | 프로필 담당 |
+| 7 | H-OTA | 그룹 A(양산 키): 업 성공 / 다운 차단(NRC 0xF4). 그룹 B(TEST): 업 성공 / OEUK 강제 다운 성공. External·BG→Repro 각각. **대칭성**이 판정 | hota |
 | 8 | 결과 정리 | 결과 폴더, 보고서 첨부·화면 이번 회차로 교체, 분류별 압축 첨부 | — |
 | 9 | CURRENT 복귀 | 지시 시 커밋 | — |
 
 주의:
-- 진단 사양서(CDD)가 실제 제어기와 다른 경우가 있다(프로필 확인). 진단 결과를 사양 적합으로 단정하지 않는다.
+- 진단 사양서(CDD)가 실제 제어기와 다른 경우가 있다(프로필 "프로젝트 사실" 확인). 진단 결과를 사양 적합으로 단정하지 않는다.
 - 한쪽 뱅크만 쓰면 다른 뱅크로 부팅해 E_NOTMATCHED_DESTINATION 이 난다.
 - 실험대에 다른 노드가 없으면 리셋 중 레스트버스 송신이 ACK 없이 막힐 수 있다(리셋 동안 1초 멈춤으로 해결). 실차에는 없는 현상이므로 결과에 실험대 특이사항으로 적는다.
 - 보드에 들어간 이미지가 이번 회차인지는 SW 버전 DID 로는 구별되지 않을 수 있다(버전 고정). 해시 DID(예: F1C1 SHA-256)를 서명 해시와 대조한다.
 
 ## 3. 결과 파일 규칙
 
-- 결과 폴더: `References/Doc_MB/04_Reprogramming/v<SWP>/<YYMMDD>/` (프로필).
+- 결과 폴더: 저장소의 Reprogramming 폴더 아래 `v<SWP>/<YYMMDD>/` (HE1i `References/Doc_MB/04_Reprogramming/`, BJ/TPMS `References/Doc_MobaseElec/08_Reprogramming/` — 직전 회차와 같은 자리).
 - H-OTA 로그 이름: `{양산|Test}_<제어기>_{Upgrade|DGPrevent|OEUK_DG}(v시작_v목표)_{ExternalRules|BGRules|ReproRules}.asc` — 평가 담당 부서가 파일명만 보고 케이스를 판단한다. 확장자 중복(`.asc.asc`)을 확인한다.
 - `.asc` / `.log` / `.png` 는 같은 이름으로 짝을 맞춘다.
 - 보고서(보드평가레포트)는 이전 회차 첨부·화면이 남지 않게 이번 회차 파일로 교체한다.
