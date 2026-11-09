@@ -126,6 +126,34 @@ C Studio 버전에 따라 **동작과 필요한 순서가 다르다**(근거: EC
 
 **결과를 그대로 받지 않는다** — 옵션·되돌림 점검·공식 변경점 확인 절차는 `protected-settings.md` §6.
 
+### 5.1 CLI 로 HAE 절차를 그대로 재현하기
+
+`ts_mirr` 없이도 돌아간다(§1). HAE `src/patch_manager` 와 같은 순서·같은 옵션으로 돌리려면 배포본 `patch_tool/module_patch/_harmonize/` 의 스크립트를 쓴다.
+
+```
+pre_harmonize.py  -> References/MIA/json/PREHarmonize.json -> -harmonize        (PRE: EcuM 등)
+rte_pre_harmonize.py (+ bswm_pre_harmonize.py)                                  스냅샷
+gen_harmonize.py  -> GENHarmonize.json -> -harmonize + -script 후처리           (GEN: Rte/BswM/EthSM)
+```
+
+- 대상 모듈은 `References/MIA/json/harmonize_registry.json` 에 `{"modules": ["EcuM","BswM"]}` 로 적는다. GEN 단계는 그중 `Rte`·`BswM`·`EthSM` 만 맡고 나머지는 PRE 단계가 맡는다.
+- **ODIN 스크립트를 CLI 에 직접 넘기지 않는다.** 배포본 `patch_tool/src/patch_manager/cli_runner.py` 를 **유일한 `-script`** 로 주고, 환경변수 `CP44_RUNNER_CONFIG` 에 JSON(`{"inject_scripts": [], "scripts": [{"path": …, "script_dir": …, "fn": "apply_patch"}]}`)을 담는다. 스크립트가 쓰는 `SCRIPT_DIR` 은 CLI 가 아니라 이 runner 가 넣어 준다 — 직접 넘기면 `NameError: SCRIPT_DIR` 로 죽는다.
+- `-harmonize <json>` 과 `-script cli_runner.py` 를 **한 번의 호출에 같이** 준다. 그래야 후처리가 저장 전에 돈다.
+- CLI 는 함수를 끝낼 때마다 프로젝트를 저장한다 — 읽기만 하는 함수도 그렇다. 그래서 본 형상에 시험 삼아 돌리지 않고 **복사본에서 먼저** 돌린다.
+- 생기는 부산물은 본 형상에 넣지 않는다 — `PREHarmonize.json`·`GENHarmonize.json`·`harmonize_registry.json`·스냅샷 json·`Static_Code/modulesVersion.json`. 대조표 `Automation-Results/*.xls` 는 작업 폴더 밖에 보관한다(`protected-settings.md` §6).
+
+### 5.2 ★ `bswm_post_harmonize.py` 는 직접 돌려야 한다
+
+배포본에 `bswm_pre_harmonize.py`·`bswm_post_harmonize.py` 가 있어도 **HAE 도구는 호출하지 않는다** — `harmonize()` 의 docstring 에만 적혀 있다(`grep -rn bswm_post_harmonize src/` 로 확인된다). BswM harmonize 는 `Com.h` 와 `Com_DeInit` 콜아웃을 **되살리므로**, `Com` 을 쓰지 않는 FBL 에서는 이 후처리를 직접 돌리지 않으면 빌드가 깨진다(troubleshooting 빌드 행).
+
+후처리는 컨테이너는 지우지만 **`DEF-ITEM` 장부 항목은 남긴다** — 끊긴 항목이 되므로 손으로 지운다.
+
+### 5.3 되살아나는 것은 당사에 남은 흔적에서 나온다
+
+harmonize 는 한쪽 설정의 **존재**를 보고 다른 쪽 짝을 만든다. 그래서 "지웠는데 되살아난다"는 대개 **덜 지운 것**이다. 되살림이 보이면 재삭제를 반복하기 전에 **무엇이 그것의 근거로 남아 있는지** 찾는다.
+
+#49949 사례 — EcuM `EcuMDriverInitListThree` 를 빈 컨테이너로 남겨 둔 상태에서는 BswM harmonize 가 `AC/AI_EcuMDriverInitListThree` 짝을 만들고 `BswMActionListItemIndex` 를 밀었다. 컨테이너째 지운 뒤 같은 절차를 다시 돌리니 **되살아나지 않았고 설정값 변화가 0** 이 됐다. 빈 컨테이너 하나가 Validation 오류(§3)와 harmonize 되돌림을 동시에 만든 것이다.
+
 ## 6. 버전업
 
 패치마다 바꾸는 "버전"은 세 종류다. 섞어 쓰면 안 된다.
