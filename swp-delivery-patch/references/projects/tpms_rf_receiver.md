@@ -1,5 +1,7 @@
 # 프로젝트 프로필: BJ/TPMS RF Receiver (BJ1·LT2 공용, 확인 2026-11-09)
 
+작업 브랜치 기준 커밋: FBL `3512d80e`(2026-11-09). 그 위에 Jenkins Auto commit #6(`7c1dfa75`)이 올라가 있으니 작업 전 `git pull` 이 필요하다.
+
 파일 단위는 **저장소(SWP 계열)**다. BJ1·LT2 는 같은 저장소·같은 `PJ_Define.h` 를 쓰므로 차종 차이는 아래 표의 행으로 둔다.
 `[확인 필요]` 는 저장소 조사로 알 수 없어 비워 둔 칸이다. 칸마다 값이 오는 곳이 정해져 있다(SKILL S0 "빈 칸은 어디서 채우고 어디에 반영하나") — **시작 전에 닫을 칸**은 저장소·브랜치·Jenkins Job(gitea-jenkins-setup)과 빌드 대상·일정뿐이다. PR 은 S13, APP 버전 위치는 첫 APP 패치 S8, 실기 기준값은 S12 를 수행한 뒤 그 회차 실측으로 채운다 — 비어 있어도 작업을 막지 않는다. 채우면 **같은 값을 일감 본문의 `[기입]` 에도 반영**한다(SKILL S4).
 
@@ -23,8 +25,9 @@
 | 작업 브랜치 | `devel_LT2_jdlee_p1_R44_DeliveryPatch` | `devel_LT2_jdlee_p2_R44_DeliveryPatch` |
 | 기본·PR 대상 | `03_P1` (origin/HEAD). 다른 단계 브랜치: 01_Proto, 02_MCAR, 05_M | 같음 |
 | PR 방식 | [확인 필요 — gitea-jenkins-setup 모드 D] | [확인 필요 — gitea-jenkins-setup 모드 D] |
-| Jenkins Job | [확인 필요 — gitea-jenkins-setup 모드 A~C 결과] | [확인 필요 — gitea-jenkins-setup 모드 A~C 결과] |
-| 빌드 Hook | `Build/Build_Hook_LT2.bat`(과제 Hook) + `BuildVariants.bat`·`PJ_Variant.ps1`·`PostPackage.bat`·`GitPush.bat`. 표준 `Build_Hook_GIT_ASEC.bat` 은 그대로 둔다 | [확인 필요] |
+| Jenkins Job | `LT2_TPMS_FBL_jdlee` | `LT2_TPMS_AUTOSAR_jdlee` |
+| Job 설정 (확인 2026-11-09) | 브랜치 스펙 `*/devel_LT2_jdlee_*`(패턴이라 같은 접두의 새 브랜치도 이 Job 이 받는다), 파라미터 `BuildType`, 빌드 명령 `Build\Build_Hook_LT2.bat %BuildType% -j8`(없으면 `Build_Hook_GIT_ASEC.bat`), 활성. 최근 빌드 #6 SUCCESS | 같은 설정. 최근 빌드 #2 SUCCESS |
+| 빌드 Hook | `Build/Build_Hook_LT2.bat`(과제 Hook) + `BuildVariants.bat`·`PJ_Variant.ps1`·`PostPackage.bat`·`GitPush.bat`. 표준 `Build_Hook_GIT_ASEC.bat` 은 그대로 둔다 | 같은 구성(`Build_Hook_LT2.bat`·`BuildVariants.bat`·`PJ_Variant.ps1`·`PostPackage.bat`). APP 쪽 `PJ_Define.h` 는 `Application/` 아래에서 찾지 못했다 — 위치 [확인 필요] |
 
 ## 버전 위치
 | 대상 | 파일 | 규칙 |
