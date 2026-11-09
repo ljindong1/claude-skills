@@ -90,6 +90,7 @@ git worktree remove ../_before
 - 판정표 "복사 가능"만, **그 요소만** 바꾼다. 통째 복사 금지(기본 원칙).
 - `arxml_block.py` 로 블록 이식·삭제·이름 변경·값 변경(SD 기록값 동기화·CRLF 보존).
 - **모듈·인스턴스를 빼는 변경**(예: Com 제거)은 설정 참조를 모두 끊고(`git grep`), 그 모듈의 **기존 생성물**도 지운다(`jenkins-flow.md` §5). 참조가 끊긴 채 남으면 Validation 의 미해결 참조로, 빌드에서는 헤더 미발견으로 드러난다(`verification.md` §1).
+- **항목을 옮기거나 지웠으면 빈 컨테이너를 남기지 않는다.** ECUC 정의는 컨테이너와 그 하위 항목의 다중도가 따로다 — 컨테이너가 `LOWER=0`(선택)이어도 하위 항목이 `LOWER=1` 이면 **컨테이너가 있는 한 항목이 최소 1개** 있어야 한다. 마지막 항목을 빼면 컨테이너째 지운다. 다중도는 `Configuration/Definition/ECUConfigurationParameters.arxml` 의 그 컨테이너 정의에서 `LOWER-MULTIPLICITY` 로 확인하고, 지울지 채울지는 **배포본 참고 설정에 그 컨테이너가 있는지**로 가른다. 빈 컨테이너는 Validation 에서 `ERR000012 Expected min 1 subcontainers ... Found 0` 으로 드러나며, 생성 단계에서 멈추므로 그 빌드의 생성 코드 확인까지 함께 밀린다(troubleshooting 적용 행).
 - 바꾼 직후 `protected_check.py --profile <프로필> --root <앱> --part FBL|APP --before-rev HEAD`.
 - 단계마다 `git diff --stat` 으로 줄 수를 확인한다. zip 을 풀 때는 `unzip -l` 로 최상위 폴더를 먼저 보고, 적용 후 `git diff --cached -M --summary` 에 의도하지 않은 rename 이 없는지 본다.
 

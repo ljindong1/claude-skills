@@ -23,6 +23,7 @@
 | 적용 | v3.0.28 `434a0c2c0`, 10-12 지적 | 보정 zip 을 풀다가 `Build\bat_package\bat_package\` 로 한 단계 더 생김 | zip 최상위 폴더 미확인, diff 의 `{ => bat_package}/` rename 을 못 봄 | `unzip -l` 확인, `git diff --cached -M --summary` (apply §3) |
 | 적용 | — | 산출물명이 다른 차종 이름(sx3e_)으로 나옴 / UTIP Writing·aSIMs ini 누락으로 재빌드 | `.project` 미변경, 위치 목록 일부만 변경 | 위치 목록 전부, `version_bump_check.py` (apply §6, 프로필) |
 | 적용 | — | sed 로 고친 파일 줄바꿈 경고 / 경로 문자열의 `\v` 가 제어문자로 바뀜 | LF·CRLF 혼재, 파이썬 이스케이프 | `git diff --stat` 줄 수 확인, raw 문자열·`os.sep`, 쓰기 후 제어문자 검사 (apply §3) |
+| 적용 | #49949 Jenkins #7, 11-09 (LT2 TPMS FBL) | **항목을 다른 컨테이너로 옮기고 빈 컨테이너를 남겨 생성이 멈춤.** KeyM 초기화를 EcuM `ListThree` → `ListTwo` 로 옮긴 뒤 빈 `EcuMDriverInitListThree` 를 남겨 `ERR000012 Expected min 1 subcontainers ... Found 0` → `ERR000029 [EcuM] Validation FAILED`. 빌드가 38초에 멈춰 `Generated` 가 갱신되지 않아 그 회차의 생성 코드 확인도 함께 밀렸다 | 컨테이너는 `LOWER=0`(선택)인데 그 안의 항목은 `LOWER=1`. "컨테이너째 지우거나 항목을 채우거나" 둘 중 하나인데 빈 채로 둠 | 마지막 항목을 빼면 **컨테이너도 함께 지운다**. 정의의 다중도를 먼저 읽고, 배포본 참고 설정에 그 컨테이너가 있는지로 가른다 (apply §3) |
 | 빌드 | #47967 | Jenkins 후처리가 건너뛰어 rom/차종 산출물 없음 | Hook 이 Post-build 미실행 | 과제 Hook·PostPackage 분리 (jenkins-flow §1) |
 | 빌드 | — | 증분 빌드와 비교해 경고 수가 의미 없음 | 비교 대상 빌드에 Generate 없음 | 직전 회차 전체 재생성 빌드와 비교 (verification §2) |
 | 빌드 | #48891 Jenkins #18, 10-12 | **설정에서 모듈을 뺐는데 이전 생성물이 남아 컴파일 실패.** FBL Com 제거 후 `Com_Cfg.c: cannot open source file "Com.h"`. 남은 생성물 5개 삭제(`3e94476b`) 후 #19 성공 | SCons 가 `Generated/Bsw_Output` 의 추가 파일도 컴파일. Com 생성기가 돌지 않아 10-08 생성물이 남음 | 모듈을 빼면 생성물도 삭제, 빌드 후 작업 폴더 생성물 날짜 확인 (apply §3, jenkins-flow §5, review_all) |
