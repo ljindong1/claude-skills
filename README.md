@@ -88,7 +88,9 @@ skills-repo/
 │   └── scripts/                        # Redmine REST 조회 CLI (읽기 전용)
 ├── redmine-patch-issue/
 │   ├── SKILL.md
-│   └── references/                     # 일감 본문 골격·절별 규격, 완성 본문 예시 한 벌
+│   ├── references/                     # 본문 골격·절별 규격, 완성 본문 예시, 사내 등록 양식 근거
+│   │   └── projects/                   # 제어기별 확정 필드값·상시 시험
+│   └── scripts/                        # 등록 폼 HTML 에서 필수 필드·허용값 추출
 ├── skill-repo-sync/
 │   ├── SKILL.md
 │   └── scripts/                        # 계정 → 저장소 미러링
