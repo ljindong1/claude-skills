@@ -1,4 +1,4 @@
-# PR 브랜치 구성 (S13)
+# PR 브랜치 구성
 
 PR 브랜치 구성·검증·push·PR 생성의 정본은 **gitea-jenkins-setup 스킬 모드 D** (`gitea-jenkins-setup/references/pr_assembly.md`) 다. 이 문서에는 패치 작업에만 해당하는 것만 둔다.
 
@@ -6,6 +6,6 @@ PR 브랜치 구성·검증·push·PR 생성의 정본은 **gitea-jenkins-setup 
 
 - PR 방식·대상·머지 순서는 프로젝트 프로필(`projects/*.md` 의 PR 행)을 먼저 본다.
 - APP 커밋 1번(패치·소스 변경)은 작업 브랜치의 **패치 커밋**을 옮긴다. 기준 브랜치에 같은 회차 패치가 이미 적용돼 있으면(NQ6e APP V3.0.29, 2026-10-20) 1번은 없고 FBL Binary Commit 부터 시작한다.
-- 넣을 산출물은 **서명·H-OTA 평가한 빌드**의 것이다(S12). 서명 요청 뒤 APP 재빌드 push 를 하지 않는다는 원칙과 같은 이유다.
-- PR 본문의 "평가" 절은 S12 결과(H-OTA TC, joule, 보드평가레포트 경로)를 쓴다. 결과 폴더는 `References/Doc_MB/04_Reprogramming/v<x>/<YYMMDD>/`.
+- 넣을 산출물은 **서명·H-OTA 평가한 빌드**의 것이다(실기). 서명 요청 뒤 APP 재빌드 push 를 하지 않는다는 원칙과 같은 이유다.
+- PR 본문의 "평가" 절은 실기 결과(H-OTA TC, joule, 보드평가레포트 경로)를 쓴다. 결과 폴더 규칙은 `verification.md` §4 와 프로필.
 - 커밋·PR 제목의 일감 번호는 이 패치의 이 차종·제어기 일감이어야 한다. 기준 브랜치 커밋의 `end #N` 이 다른 제어기 일감일 수 있다(#48548 NQ6e/APSU 사례 — 새 일감 #49479 를 만들고 PR 제목·본문을 고쳤다).

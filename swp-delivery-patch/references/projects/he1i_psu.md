@@ -88,7 +88,7 @@ HAE 참고 설정·VC·Harmonize 결과와 **다른 것이 정상**인 값이다
 | FBL | Ecud_Gpt | `/Gpt/GptDriverConfiguration/GptClockReferencePoint_Fota#GptClockReference` | /Mcu/Mcu/McuModuleConfiguration_0/McuClockSettingConfig_0/McuClockReferencePoint_TCPWM0_CLOCKS18 | 위와 같음 |
 | FBL | Ecud_Mcu | `/Mcu/McuModuleConfiguration_0/McuClockSettingConfig_0/McuClockReferencePoint_TCPWM0_CLOCKS18#McuClockReferencePointFrequency` | 5000 | 위와 같음. VC 는 CLOCKS54 를 5000 으로 씀 |
 
-APP 보호 설정은 아직 정리하지 않았다 — 다음 APP 패치 S6 에서 VC/HAE Cur 대비 당사 고유값을 뽑아 채운다.
+APP 보호 설정은 아직 정리하지 않았다 — 다음 APP 패치의 판정 단계에서 VC/HAE Cur 대비 당사 고유값을 뽑아 채운다.
 
 ## 프로젝트 고유 판단 이력
 | 규칙 | 근거 |

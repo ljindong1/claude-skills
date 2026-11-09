@@ -33,7 +33,7 @@ Debug/OEUK_HE1I/
 ```
 - `_Writing.s19`: CVD/T32 라이팅용. `rom_<버전>.zip`: aSIMS 서명 입력.
 - CURRENT 빌드는 26810 폴더만 갱신한다. ALL 빌드 후 네 폴더 모두 새 SWP 버전 파일만 있는지 확인한다(이전 버전 파일 잔존 여부).
-- **같은 소스라도 재빌드하면 이미지가 달라질 수 있다.** Os 생성기가 재생성 때 태스크 스택 배치 순서를 바꿔 `Os_GaaStack`·`MAINSW_CRC` 가 변한다. 서명 요청 후에는 실기가 끝날 때까지 APP 빌드를 일으키는 push 를 하지 않는다(troubleshooting S12).
+- **같은 소스라도 재빌드하면 이미지가 달라질 수 있다.** Os 생성기가 재생성 때 태스크 스택 배치 순서를 바꿔 `Os_GaaStack`·`MAINSW_CRC` 가 변한다. 서명 요청 후에는 실기가 끝날 때까지 APP 빌드를 일으키는 push 를 하지 않는다(troubleshooting 실기 행).
 - FBL 은 버전 폴더 없이 `OEUK_HE1I`, `OEUK_HE1I_TEST` 바로 아래. 활성 `OEUK_*` 가 하나뿐이면 그 폴더 하나다. 폴더 구조를 바꾼 과제에서는 이전 구조의 잔존 폴더(`…/UNKNOWN/` 등)가 남아 있을 수 있다 — 산출물 확인 때 그 폴더를 보지 않는다.
 
 ## 3-1. 생성 경로 — 어디서 무엇이 생성되나
@@ -46,6 +46,7 @@ Debug/OEUK_HE1I/
 
 - 도구 경로는 `Build.bat`·`bat_package/*.bat`·`SCons.arxml` 에 `D:\ts_mirr\...` 로 고정돼 있다. 이 폴더가 없는 PC 에서 Generate Code 를 누르면 "Failed to create input files" / `Cannot run program ...python.exe` 로 멈춘다(파일 변경 없음).
 - 그래서 **MCAL 설정을 바꾼 패치의 생성 결과는 Jenkins 에서만** 볼 수 있다. BSW·Rte 만 바꿨으면 도구를 갖춘 PC 의 C Studio 로 push 전에 미리 볼 수 있다. 어느 경우든 로컬 생성은 시험 브랜치에서 하고 되돌린다(`Generated/` 는 git 추적).
+- **Harmonize·Validation·Script 는 생성 도구가 없어도 된다** — `mobilgene-cli` 는 C Studio 번들 JRE 만 쓰고 `ts_mirr` 를 보지 않는다(`apply.md` §1). 생성·컴파일만 이 폴더가 필요하다.
 - 프로젝트의 PC 별 도구 보유 상황은 프로필 "구성 전제"에 적는다.
 
 ### 3-2. 로컬 빌드 도구 확보 (필요할 때만)

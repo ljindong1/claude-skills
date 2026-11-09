@@ -1,11 +1,14 @@
 # 보호 설정과 덮어쓰기 점검 — Harmonize·도구·수동 반영 공통
 
+**들어가기 전** — 프로필의 '보호 설정' 표(이번 대상 FBL/APP 행)가 있어야 한다. 없으면 판정 단계에서 채울 항목으로 표시하고 시작한다.
+**끝났다고 말하려면** — `protected_check.py` 의 '확인 필요'가 0 이거나 남은 항목이 모두 판정표 결정과 1:1 이고, 되돌린 값마다 사유·사용자 확인 날짜가 적혀 있어야 한다.
+
 ## 목차
 1. 왜 따로 점검하나
 2. 덮어써지는 세 경로
 3. 변경 분류 (a)~(d)
 4. 규칙
-5. 단계별로 하는 일
+5. 시점별로 하는 일
 6. Harmonize 를 돌릴 때
 7. 기록 형식
 
@@ -49,19 +52,21 @@
    - HAE 값 채택: 보호 설정 표에서 그 행을 고치거나 지우고, 이유를 적는다.
 2. **이유를 모르는 당사 값도 보호 대상이다.** "이유 미상"으로 표에 두고, 바꿀지는 사용자가 정한다. 모른다고 HAE 값으로 맞추지 않는다.
 3. **VC·Harmonize 결과와 맞추자는 제안은 보호 설정 표와 먼저 대조한다.** 겹치면 "VC 와 다름 = 당사 의도일 수 있음"으로 표시하고 1 을 따른다.
-4. **(d) 는 설정이 아니라 생성 코드로 확인한다.** S10 의 Generated diff 에서 그 파라미터가 쓰이는 값(예: `PaddingValue 255u → 0u`)을 찾아 판정표 행과 잇는다.
+4. **(d) 는 설정이 아니라 생성 코드로 확인한다.** 빌드 결과 검수의 Generated diff 에서 그 파라미터가 쓰이는 값(예: `PaddingValue 255u → 0u`)을 찾아 판정표 행과 잇는다.
 5. 새로 확정한 보호 설정은 작업이 끝날 때 프로필 표에 추가한다.
 
-## 5. 단계별로 하는 일
+## 5. 시점별로 하는 일
 
-| 단계 | 할 일 |
+일감의 단계 번호와 따로, 아래 **시점**마다 한다.
+
+| 시점 | 할 일 |
 |---|---|
-| S0 | 프로필 '보호 설정' 표가 있는지 본다. 없으면 S6 에서 채울 항목으로 표시 |
-| S6 | three_way.py 결과의 "충돌"과 VC/Cur 대비 당사 고유값을 보호 설정 표와 대조. 판정표의 해당 행에 "보호" 표시 |
-| S8 (적용·Harmonize 직후) | `protected_check.py --profile … --root <앱> --part FBL|APP --before-rev HEAD` — 커밋 전 작업 폴더를 HEAD 와 비교한다. Harmonize 를 썼으면 6장 절차를 함께 한다 |
-| S9 | 위 명령을 다시 돌려 확인 필요 0건이거나, 남은 항목이 모두 판정표 사유와 1:1 인지 본다 |
-| S10 | Jenkins 생성 커밋에서 (b)·(d) 에 해당하는 생성 코드 변화를 찾아 설명한다. 설정을 바꾸지 않았는데 생성 코드가 바뀌었으면 기본값 변화(모듈 버전업)를 의심한다 |
-| S11 | Redmine 코멘트의 "적용 제외·당사 값 유지" 절에 (b)·(d) 결정을 적는다 |
+| 프로필 확보 | '보호 설정' 표가 있는지 본다. 없으면 판정 단계에서 채울 항목으로 표시 |
+| 판정 | `three_way.py` 결과의 "충돌"과 VC/Cur 대비 당사 고유값을 보호 설정 표와 대조. 판정표의 해당 행에 "보호" 표시 |
+| 적용·Harmonize 직후 | `protected_check.py --profile … --root <앱> --part FBL|APP --before-rev HEAD` — 커밋 전 작업 폴더를 HEAD 와 비교한다. Harmonize 를 썼으면 6장 절차를 함께 한다 |
+| 정적 검수 | 위 명령을 다시 돌려 확인 필요 0건이거나, 남은 항목이 모두 판정표 사유와 1:1 인지 본다 |
+| 빌드 결과 검수 | 생성 커밋에서 (b)·(d) 에 해당하는 생성 코드 변화를 찾아 설명한다. 설정을 바꾸지 않았는데 생성 코드가 바뀌었으면 기본값 변화(모듈 버전업)를 의심한다 |
+| 기록 | 결과 코멘트의 "적용 제외·당사 값 유지" 절에 (b)·(d) 결정을 적는다 |
 
 ## 6. Harmonize 를 돌릴 때
 
@@ -79,9 +84,29 @@
    | CanIf: split routing tx … same Basic CAN | 끔 | — |
 
    Overwrite 를 끄면 덮어쓰기는 줄지만 HAE 가 의도한 변경도 빠질 수 있다. 미리 보기는 기본값으로 돌려 전체 영향을 보고, 실제 반영 방식은 그 결과를 보고 정한다.
-4. 끝나면 바로 `Automation-Results/Automation_<시각>.xls`(git 무시)와 `.log/ODX_<시각>` 을 작업 폴더 밖에 보관하고 읽는다. "value Change from A to B", "Removed Container", "Created Container" 줄이 덮어쓰기 목록이다.
-5. `git status`·`git diff --stat`, 의미 비교, `protected_check.py --before-rev HEAD` 로 (a)~(d) 를 나눈다. `.settings/com.autron.odin.auto.config.prefs` 에 선택 모듈·옵션이 기록된다(이전에 누가 무엇을 Harmonize 했는지도 보인다).
-6. 채택할 변경만 작업 브랜치에 항목 단위로 옮긴다(decision-rules: Harmonize 부산물 이식 금지). 시험 브랜치는 C Studio 를 **완전히 닫은 뒤** 되돌리고 지운다 — 열린 채로 되돌리면 메모리의 결과를 다시 저장할 수 있다. 다시 열면 F5, 저장 묻으면 "No".
+4. CLI 로 돌리면 같은 옵션을 **파일에 명시**할 수 있다 — 화면 캡처 대신 입력 파일이 기록이 된다. `-harmonize <json>` 의 `ecucGenOptions` 키가 위 GUI 옵션과 1:1 이다.
+
+   | GUI 옵션 | JSON 키 |
+   |---|---|
+   | Auto-Regeneration of Handle Id | `autoRegenerationOfHandleId` |
+   | Remove Invalid Configurations | `removeUnnecessaryContainers` |
+   | Overwrite User-Configured Parameters and References | `overwriteUserConfiguredParametersAndReferences` |
+   | Can: Enable Basic TX CAN greater than | `canEnableBasicTxCanGreaterThan` |
+   | BswM: App Mode in ECU State | `bswmAppModeInECUState` |
+
+   배포본 patch_tool 의 `PREHarmonize.json`·`GENHarmonize.json` 이 이 입력 파일이다 — HAE 가 어떤 옵션으로 돌렸는지 그 파일로 알 수 있다. 실행 방법·전제는 `apply.md` §1·§5.
+5. **변경점 전수 대조는 ECUC Compare 가 정본이다**(C Studio 내장, HAE 공식 하모나이즈 후 검토 절차). 절차: 대상 Ecud 파일을 백업 → 그 파일을 지우고 다시 Harmonize 해서 **순수 Harmonize 결과**를 따로 만든다 → 백업을 원복 → 두 파일을 ECUC Compare 로 비교 → 임시 파일 삭제.
+6. 끝나면 바로 `Automation-Results/Automation_<시각>.xls`(git 무시)와 `.log/ODX_<시각>` 을 작업 폴더 밖에 보관하고 읽는다. "value Change from A to B", "Removed Container", "Created Container" 줄이 덮어쓰기 목록이다.
+7. `git status`·`git diff --stat`, 의미 비교, `protected_check.py --before-rev HEAD` 로 (a)~(d) 를 나눈다. `.settings/com.autron.odin.auto.config.prefs` 에 선택 모듈·옵션이 기록된다(이전에 누가 무엇을 Harmonize 했는지도 보인다).
+8. 채택할 변경만 작업 브랜치에 항목 단위로 옮긴다(decision-rules: Harmonize 부산물 이식 금지). 시험 브랜치는 C Studio 를 **완전히 닫은 뒤** 되돌리고 지운다 — 열린 채로 되돌리면 메모리의 결과를 다시 저장할 수 있다. 다시 열면 F5, 저장 묻으면 "No".
+
+### HAE 권고와 충돌하는 지점
+
+HAE 는 "하모나이즈로 생성된 설정은 임의로 바꾸지 말 것"을 권고한다(BswM 등). 당사는 보호 설정이 덮인 경우 되돌린다 — 방향이 반대다. 그래서 되돌릴 때는 다음을 함께 남긴다.
+
+- 되돌린 값, 사유(그 값이 왜 당사에 필요한지), 사용자 확인 날짜
+- **다시 Harmonize 하면 같은 값이 또 덮인다**는 사실 한 줄
+- 같은 되돌림이 회차마다 반복되면 그 항목은 C 경로로 "이 값을 유지해도 되는지" HAE 에 확인해 근거를 받아 둔다 — 반복 되돌림은 언젠가 빠진다
 
 ## 7. 기록 형식
 

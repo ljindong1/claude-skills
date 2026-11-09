@@ -6,11 +6,11 @@ eCoDY-IMS 는 HAE 의 Jira(`https://ecody-ims.autoever.com`)다. 패치 티켓�
 - **읽기·검색 → `ecody-search` 스킬(IMS 범위)**. 토큰 확인(`ims_api.py check`), JQL 검색(`ims_api.py search`), 정독(`ims_api.py read` — 본문·댓글·첨부·연결·하위작업·변경 이력), 읽기 전용 가드(GET 전용)가 그 스킬에 있다. 토큰이 없으면 그 스킬이 크롬 폴백(`ims_search.js`/`ims_read.js`)으로 돈다. 이 스킬은 IMS 를 직접 읽는 스크립트를 따로 두지 않는다.
 - **쓰기(질문 댓글) → 이 스킬**. `ecody-search` 는 읽기 전용이고 IMS 댓글을 이 스킬로 넘긴다.
 
-## 1. 패치 티켓 읽기 (S1)
+## 1. 패치 티켓 읽기
 
 `ecody-search` 스킬을 IMS 범위로 쓴다(`/ecody-search IMS …` 또는 대화로 "IMS 만"). 패치 티켓에 맞춘 사용법:
 - 정독: `python <ecody-search>\scripts\ims_api.py read <패치 키> <연결 수평전개 키> --max 60000 --out <파일>` — `--max` 는 **60000 정도**로 준다. 설정변경 안내 댓글 하나가 1만 자를 넘는다(MCP0806-279 실측 약 1.7만 자). 기본값 8000 이면 안내 표가 잘린다. (크롬 폴백이면 `ims_read.js` 의 `__KEYS__`·`__MAX__` 에 같은 값)
-- 검색(S3·선행 작업): 같은 모듈·버전의 다른 과제 Delivery_Patch, 수평전개 원본(CPINFO), 과거 문의·답변을 JQL 로 찾는다(그 스킬의 `references/ims-query-guide.md`).
+- 검색(선행 작업 조회): 같은 모듈·버전의 다른 과제 Delivery_Patch, 수평전개 원본(CPINFO), 과거 문의·답변을 JQL 로 찾는다(그 스킬의 `references/ims-query-guide.md`).
 - 화면 텍스트(`navigate` → `get_page_text`)만으로 읽으면 오래된 댓글이 "더 많은 이전 댓글 로드" 뒤에 숨어 빠진다. 반드시 `ims_api.py read`(또는 폴백 `ims_read.js`)로 읽는다.
 
 ### 읽을 것 (요청 항목 목록을 만들기 위한 기준)
@@ -25,12 +25,12 @@ eCoDY-IMS 는 HAE 의 Jira(`https://ecody-ims.autoever.com`)다. 패치 티켓�
 
 브라우저 다운로드는 사용자가 한다(파일 다운로드는 승인 대상이고 비밀번호가 필요하다). 받을 위치는 프로젝트 프로필의 "패치 자료 폴더"(예: `D:\Mobase\패치업무\<라인>\v<버전>\<IMS키>\`)를 안내한다. 같은 이름 파일은 브라우저가 `.1`·`(1)` 등을 붙이므로 날짜로 구분해 둔다.
 
-## 2. 질문 댓글 (S7)
+## 2. 질문 댓글
 
 ### 양식
 
 양식과 작성 원칙은 `templates.md` §3, 문장 점검은 `communication.md` §5 에만 둔다. 이 절은 등록 전후에 할 일만:
-- 묻기 전에 `ecody-search` 로 같은 질문의 답이 다른 과제 티켓·ECM 에 이미 있는지 찾는다(HAE 의 "기술지원 문의 전 FAQ 사전 확인" 안내). 판단 경로 C 항목만 묻는다(`precheck.md`).
+- 묻기 전에 `ecody-search` 로 같은 질문의 답이 다른 과제 티켓·ECM 에 이미 있는지 찾는다(HAE 의 "기술지원 문의 전 FAQ 사전 확인" 안내). 판단 경로 C 항목만 묻는다(`decision-rules.md` §0).
 - 화면 캡처가 필요하면 사용자가 붙인다.
 
 ### 등록
@@ -42,6 +42,15 @@ eCoDY-IMS 는 HAE 의 Jira(`https://ecody-ims.autoever.com`)다. 패치 티켓�
 - 등록 후 `ims_api.py read` 로 다시 읽어 댓글이 올라갔는지 확인하고, 댓글 시각을 Redmine 일감에 기록한다. 크롬 탭을 썼으면 닫는다.
 
 상태 변경·담당자 변경·첨부 삭제 같은 다른 쓰기는 이 스킬에서 하지 않는다. 필요하면 사용자에게 화면에서 직접 하도록 안내한다.
+
+## 2-1. 기술지원 절차 (ToU)
+
+질문을 올리기 전에 알아 둘 것 — 근거: ECM `[ToU] mobilgene Classic 기술지원 범위·절차`.
+
+- **공식 루트는 eCoDY 일감이다.** 메일·전화·구두 요청은 접수 기록이 남지 않는다. 답변의 근거로 쓰려면 티켓 댓글로 받아야 한다.
+- **기술지원 건수는 차감된다.** 다만 SWP Delivery(패치 배포 자체), SWP 버그 신고, 단순 질의, 진행 상태 확인, Information 성 문의는 차감 대상이 아니다. 패치 적용 중의 "이 값이 맞는지" 확인은 대개 단순 질의로 처리되지만, 분석을 요구하는 문의는 차감된다 — 한 댓글에 번호를 매겨 모으는 이유 중 하나다.
+- **패치 제공 일정은 Delivery Type 1/2/3 에 따라 2 / 5 / 10 영업일**이다. 재배포·보정본을 기다릴 때 이 기준으로 예상 시점을 잡는다.
+- HAE 는 문의 전 FAQ·IM 사전 확인을 요구한다 → B 경로 조사(`decision-rules.md` §0)를 먼저 한다.
 
 ## 3. MCP 연결 시 (향후)
 

@@ -33,8 +33,10 @@
 | 산출물 폴더 구조 | (`Debug/OEUK_*/<버전>/` 인지 평면인지, 활성 OEUK 변형) | |
 | Doc 위치·파일명 | | |
 
-## 구성 전제 (사전 점검 P ①)
-HAE 답변의 조건이 되는 값. `precheck.md` §2-① 표의 항목을 FBL/APP 따로 채운다.
+## 구성 전제 (패치 시작 시 확인)
+
+이 값들이 HAE 조건부 답변("당사가 X 면 해당 없음")의 조건이 된다 — 정리돼 있으면 그런 항목을 스스로 판정할 수 있다. 패치 때마다 바뀐 것이 없는지만 확인하고 확인 날짜를 갱신한다.
+FBL / APP 을 따로 채운다.
 
 | 전제 | FBL | APP | 확인 위치 |
 |---|---|---|---|
@@ -43,7 +45,10 @@ HAE 답변의 조건이 되는 값. `precheck.md` §2-① 표의 항목을 FBL/A
 | UseRamCode | | | Ecud_Mem_76_Pfls MemGeneral |
 | 컴파일러 (SRS 고정) | | | SCons.arxml |
 | toolset / 요구 Python | | | Build.bat·site_scons, 배포본 `AutomatePatch.bat` |
-| mobilgene C Studio | | | |
+| mobilgene C Studio (당사 설치 버전) | | | 설치 폴더·About |
+| C Studio **하모나이즈 동작 구간** | | | 12.5.0 미만 / 12.5.0↑(Bswmd 선행 필수) / 13.1.0↑(순서 무관) — `apply.md` §5 |
+| 배포본이 적은 **적용 C Studio 버전** | | | 배포본 `Doc/ReleaseNote` (당사와 다른 구간이면 전제가 다름) |
+| 진단 구성 (프로토콜 수, 물리/기능 ID, DemIntegrated) | | | Ecud_Dcm·Ecud_Dem |
 | MCU | | | |
 | 같은 계열 차종별 양산 단계 | | | |
 | 대표 차종 (HAE 참고 설정 기준) | | | |
