@@ -287,7 +287,7 @@ python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name
 | --- | --- | --- |
 | `Build_Hook_GIT_ASEC.bat` | `assets` 바이트 그대로 | 랩 표준 훅. **수정하지 않는다.** 전용 훅이 없는 브랜치를 위한 fallback |
 | `GitPush.bat` | `assets` + `[USER]` 2줄 치환 | 빌드 결과물 자동 커밋·push |
-| `Build_Hook_<차종>.bat` | 표준 훅에서 생성 | ⭐ **Job이 실제로 부르는 훅.** 표준 훅 + `PostPackage` 호출 블록 + `ALL` 분기·push 블록 |
+| `Build_Hook_<차종>.bat` | 표준 훅에서 생성 | ⭐ **Job이 실제로 부르는 훅.** 표준 훅 + **서브모듈 체크아웃 블록(0단계)** + `PostPackage` 호출 블록 + `ALL` 분기·push 블록 |
 | `PostPackage.bat` | `assets` 바이트 그대로 | `Build_all.bat`의 `[Post-build] Archiving` 블록 기반. APP는 **버전별 폴더** `Debug\OEUK_xxxx\<버전>\`에 차종명 산출물(`_Writing.s19` 등)과 `rom_<버전>\`(aSIMS 서명 입력) 생성. `OEUK_TEST` 빌드는 기준 OEUK 폴더의 `<기준 버전>_test\`(같은 레벨)로, rom 패키지도 `rom_<기준 버전>_test\`·`.zip`으로 만든다. FBL은 **평면 폴더** `Debug\OEUK_HE1I\`·`Debug\OEUK_HE1I_TEST\`(APP 저장소 `02_Fbl_Binary\`와 같은 이름). `.s19`가 없으면(FBL) `rom` 패키징 생략 |
 | `BuildVariants.bat` | `assets` 바이트 그대로 | `JENKINS_BUILD_TARGET ALL`일 때 빌드 1회 안에서 가능한 조합(APP 4개, FBL 2개)을 차례로 빌드·패키징 |
 | `PJ_Variant.ps1` | `assets` 바이트 그대로 | `PJ_Define.h` 읽기·임시 전환(설정값, 빌드 목록, OEUK 전환·버전 기록, 산출물 폴더 이름). 바이트·줄바꿈 보존 |
@@ -357,6 +357,27 @@ APP·FBL이 **같은 파일 한 벌**을 쓴다. 차이는 `PJ_Define.h`의 버�
 >
 > - CVD 등 디버거 다운로드 경로가 `Debug\OEUK_xxxx\<버전>\<차종>_psu_app_vX_Y_Z_Writing.s19`가 되므로 버전을 올리면 디버거 설정 경로도 바꿔야 한다.
 > - 로컬 `Build_all.bat`은 수정하지 않으므로 여전히 `OEUK_xxxx\` 전체를 지우고 평면 구조로 만든다. Jenkins 결과는 `git pull`로 받도록 안내한다.
+
+> 🧩 **서브모듈 — Job 이 받아 주지 않으므로 전용 훅이 받는다**
+>
+> Job 템플릿은 서브모듈을 체크아웃하지 않는다(`SubmoduleOption` 을 넣지 않는다). 그래서 서브모듈을 쓰는 프로젝트는 **그 안의 헤더를 못 찾아 컴파일이 깨진다** — 실측 2026-11-09 `tpms_rf_receiver_bj`(APP) 빌드 #1: `CanInOut.c:8: cannot open source file "PDCReset.h"` (서브모듈 `git/common_pdc_reset`). FBL 은 서브모듈이 없어 겪지 않는다.
+>
+> 그래서 전용 훅 `Build_Hook_<차종>.bat` 의 **0) 단계**가 빌드 전에 받아 온다. `.gitmodules` 가 있을 때만 돌고, 이미 받아져 있으면 아무것도 하지 않는다.
+>
+> ```bat
+> if exist "%PROJ_DIR%\.gitmodules" (
+>     git submodule sync --recursive
+>     git submodule update --init --recursive
+> )
+> ```
+>
+> 실패해도 **빌드를 멈추지 않고 경고만 남긴다.** 권한 문제인지 다른 문제인지 콘솔만 보고 가릴 수 있어야 하기 때문이다.
+>
+> ⚠️ **개발자 계정의 404 를 근거로 "권한이 없어 불가능"이라고 결론내지 말 것.** `build` 계정은 개발자와 다른 계정이고, 사내 조직(`git`) 저장소를 읽을 수 있다. 실측 — 같은 서브모듈 저장소가 `jdlee` 토큰으로는 `Repository not found`(404)였는데 `build` 계정은 clone 에 성공해 빌드가 통과했다(APP 빌드 #2, SUCCESS). 읽을 수 없다고 미리 단정하지 말고 **훅을 넣고 한 번 돌려서 확인한다.**
+>
+> Job 설정으로 켜는 방법(SCM → Additional Behaviours → `Advanced sub-modules behaviours` → recursive + parent credentials)도 있지만, **이 스킬은 기존 Job 을 수정하지 않는다.** 덧붙여 `config.xml` POST 는 수정하지 않은 원본을 그대로 올려도 HTTP 500 이 난다(2026-11-09 실측) — 일반 계정은 Job 설정 쓰기가 막혀 있다. 사용자가 직접 화면에서 켜야 한다.
+>
+> 결과물 커밋에는 서브모듈 소스가 들어가지 않는다(저장소에는 포인터만 기록된다). `Debug\` 아래에 생기는 서브모듈 오브젝트 파일(`.o`·`.dbo`)은 중간 산출물이라 모드 D 가 PR 에서 걸러낸다.
 
 > 💡 **왜 표준 훅을 고치지 않고 전용 훅을 따로 두는가**
 >

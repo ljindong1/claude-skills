@@ -509,6 +509,31 @@ def hook_name(model):
     return "Build_Hook_%s.bat" % model.upper()
 
 
+_SUB_BLOCK = (
+    b"\r\n"
+    b"rem ---- 0) submodules -------------------------------------------------------\r\n"
+    b"rem  The Jenkins job does not check out git submodules (the job template adds no\r\n"
+    b"rem  SubmoduleOption), so a project that uses one fails to compile with\r\n"
+    b"rem  'cannot open source file' for a header that lives inside the submodule.\r\n"
+    b"rem  Runs on every build and is a no-op once the submodule is present.\r\n"
+    b"rem  It needs the BUILD account to be able to read the submodule repository.\r\n"
+    b"rem  That is a different account from the developer's - do not conclude this\r\n"
+    b"rem  cannot work just because your own token gets 404 on that repository.\r\n"
+    rb'if exist "%PROJ_DIR%\.gitmodules" (' b"\r\n"
+    b"    echo [HOOK] Updating git submodules ...\r\n"
+    b'    pushd "%PROJ_DIR%"\r\n'
+    b"    git submodule sync --recursive\r\n"
+    b"    git submodule update --init --recursive\r\n"
+    b"    if errorlevel 1 (\r\n"
+    b"        echo [HOOK] [WARNING] git submodule update failed - the build may fail on\r\n"
+    b"        echo [HOOK] [WARNING] missing submodule headers. Check that the build\r\n"
+    b"        echo [HOOK] [WARNING] account can read the submodule repository.\r\n"
+    b"    )\r\n"
+    b"    popd\r\n"
+    b")\r\n"
+)
+
+
 def _render_project_hook(model):
     """표준 훅을 읽어 차종 전용 훅을 만든다. 표준 훅 자체는 건드리지 않는다.
 
@@ -535,6 +560,10 @@ def _render_project_hook(model):
          b"rem             Build_Hook_GIT_ASEC.bat is kept untouched as a fallback.\r\n"
          b"rem  Base     : copy of Build_Hook_GIT_ASEC.bat + step 3-1 packaging call\r\n"
          b"rem             + step 1-1 / 4-1 ALL variant build"),
+        (b'set "PUSH_RC=0"\r\n', b'set "PUSH_RC=0"\r\n' + _SUB_BLOCK),
+        (b"rem  Steps    : 1) decide action  2) run Build.bat  3) check new .elf",
+         b"rem  Steps    : 0) update git submodules  1) decide action  2) run Build.bat\r\n"
+         b"rem             3) check new .elf"),
         (b"\r\n:skip_check\r\n", b"\r\n:skip_check\r\n" + _PACK_BLOCK),
         (b"\r\nrem ---- 2) build ----", b"\r\n" + _ALL_BLOCK + b"rem ---- 2) build ----"),
         (b"\r\nrem ---- 4) push outputs ----", b"\r\n" + _ALL_PUSH_BLOCK + b"rem ---- 4) push outputs ----"),
