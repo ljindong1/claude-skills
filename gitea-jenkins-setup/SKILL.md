@@ -18,6 +18,9 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
    - 예외: skill이 이번 실행에서 **방금 만든 것**의 초기값 조정(Chrome 모드에서 방금 추가한 공동작업자 권한을 쓰기로)은 허용
    - 예외: **사용자가 명시적으로 요청한 이전 절차**(`references/migrate_to_shared_fork.md` — 개인 Fork → 공유 Fork, 기존 Job 전환·이름 변경, 개인 Fork 삭제). 계획을 보여 주고 승인받은 뒤에만 하고, Fork 삭제는 실행 직전에 한 번 더 묻는다
    - 예외: 모드 D 에서 **이 스킬이 만든 PR** 의 제목·본문 수정(예: 일감 번호 교체). PR 브랜치 강제 push 는 따로 묻는다
+   - 예외: 4단계의 **Jenkins 전용 bat 6개**. 이것은 공유 소스가 아니라 **이 스킬 자신의 산출물**이고 모드 D 가 PR 에서 걸러내므로 원본에 들어가지도 않는다. `devel_*` 작업 브랜치에서 내용이 다르면 **표준본으로 교체**한다(`status: created`, `replaced` 필드). git 이 추적하는 파일일 때만 교체한다 — 원본을 되돌릴 수 있어야 하기 때문이다. 공유 소스(`Build.bat`·`Build_all.bat`·`Build_Hook.bat`·`PJ_Define.h`)는 여전히 손대지 않는다. 사용자가 교체를 원치 않으면 `--no-replace` 로 옛 동작(멈춤)을 쓴다
+   - **멈출 때는 원자적으로 멈춘다.** `conflict` 로 끝나면 같은 실행에서 먼저 쓴 파일을 전부 지워 디스크를 원래대로 되돌린다(`rolled_back` 필드). 반쪽 상태를 남기지 않는다
+   - **멈출 때는 판단 재료를 함께 낸다.** `details` 에 파일별 `diff`(기존 vs 표준본), `risk`(기존 파일을 두면 실제로 무슨 일이 생기는지), `reason`(왜 교체하지 않았는지)이 들어온다. 이것을 **사용자에게 그대로 보여주고** 한 줄로 답할 수 있게 물어라 — "내용이 다름"만 전하고 멈추지 말 것
 3. **생성 단계마다 확인을 받지 않는다.** 입력을 모두 받은 뒤 **요약 1회 확인** 후 끝까지 진행한다. 단, Job **활성화**는 첫 빌드가 바로 시작되므로 마지막에 따로 묻는다. 모드 D 는 PR 브랜치를 로컬에 만들고 검증한 뒤 **push·PR 생성 전에** 한 번 확인받는다.
 4. **토큰은 출력하지 않는다.** 환경변수 값을 echo·print하지 않고, 존재 여부만 확인한다.
 5. **남의 자원은 읽기만.** 원본 저장소, 다른 사람의 Job(인증정보 ID를 읽는 참고 Job 포함)은 GET만 한다.
@@ -321,6 +324,25 @@ APP·FBL이 **같은 파일 한 벌**을 쓴다. 차이는 `PJ_Define.h`의 버�
 > - 평소에는 `CURRENT`로 두고, 필요할 때만 `ALL`로 바꿔 커밋한 뒤 결과를 받고 되돌리도록 안내한다(매 push마다 여러 번 빌드하지 않도록).
 > - 실측(HE1I): APP ALL 4개 약 21~23분, FBL ALL 2개 약 0.5분.
 
+> 📐 **규정 — `PJ_Define.h` 위치와 FBL 산출물 폴더 이름 (저장소가 이 규정을 따른다)**
+>
+> | 항목 | 규정 |
+> | --- | --- |
+> | `PJ_Define.h` 위치 | `<프로젝트 폴더>\Application\app_code\a_app_service\src\PJ_Define.h` — APP·FBL 공통 |
+> | FBL 산출물 폴더 | `<프로젝트 폴더>\Debug\OEUK_<차종>\` 과 `\Debug\OEUK_<차종>_TEST\` |
+>
+> 확인된 기준 저장소: `psu_master`(PSU APP) `psu_app/Application/app_code/a_app_service/src/PJ_Define.h`, `psu_fbl_master`(NQ6E FBL) `psu_fbl/Application/app_code/a_app_service/src/PJ_Define.h` + `psu_fbl/Debug/OEUK_NQ6E/`·`OEUK_NQ6E_TEST/`. `assets\PostPackage.bat` 의 `VEHICLE_OPTION_FILE` 이 이 규정 경로다.
+>
+> **저장소가 규정과 다르면 저장소를 규정에 맞춘다. 스크립트를 저장소에 맞추지 않는다** — 경로 후보를 늘리거나 예외를 넣으면 과제마다 갈라져 규정이 사라진다. 어긋난 것을 발견하면 **고치지 말고 사용자에게 보고**한다(공유 소스 이동은 `#include` 에 영향이 있어 저장소 소유자 판단이다).
+>
+> ⚠️ **첫 빌드 뒤 산출물 폴더를 반드시 눈으로 확인한다.** `PJ_Define.h` 를 못 찾으면 `PostPackage` 가 콘솔에 한 줄만 남기고 건너뛰는데, **빌드는 `SUCCESS` 로 끝나므로 로그 결과만 보면 알 수 없다.**
+>
+> ```
+> [PostPackage] No enabled OEUK option found. Skipping.
+> ```
+>
+> 이 줄이 있거나 산출물이 `Debug\OEUK_<차종>\` 이 아니라 `Debug\` 바로 아래 평면으로 생겼으면 패키징이 빠진 것이다. 실제 사례 — `Kahuz/tpms_rf_receiver_bj_fbl`(TPMS FBL)은 `PJ_Define.h` 가 규정에서 벗어난 `Application\app_code\type\` 에 있어 2026-11-09 Jenkins #1(SUCCESS, 163초)에서 패키징이 건너뛰어지고 산출물이 `Debug\e_bj_tpms_asr_swp_fbl_v219.*` 로 평면 생성됐다. 같은 저장소의 다른 차이(OEUK 선언에 `1u` 값이 붙음, `SOFTWARE_VERSION_*` 없음, TEST 폴더가 차종별이 아닌 `OEUK_TEST` 공용)는 그 자체로는 막지 않는다 — `PJ_Variant.ps1` 의 정규식이 값 붙은 `#define` 을 읽고, FBL 평면 구조는 폴더명에 버전을 쓰지 않는다.
+>
 > 📁 **산출물 폴더 — APP는 버전별로 쌓이고, FBL은 OEUK별 평면 폴더**
 >
 > 어느 쪽인지는 `PJ_Variant.ps1 -Action folder`가 정한다(출력 `<폴더> <버전폴더> <버전>`). 다음 버전(올림)이 불가능한 프로젝트(FBL)는 버전폴더 자리에 `.`을 내고 평면 구조가 된다.
@@ -342,9 +364,13 @@ APP·FBL이 **같은 파일 한 벌**을 쓴다. 차이는 `PJ_Define.h`의 버�
 >
 > 표준 훅을 함께 남기는 이유는 Branch Specifier가 `*/devel_<차종>_<ID>_*` **와일드카드**이기 때문이다. 전용 훅이 없는 브랜치가 같은 Job에 걸려도 빌드 명령의 `if exist` 분기가 표준 훅으로 넘겨 **빌드가 깨지지 않는다**(패키징만 빠진다).
 
-- 기존 `Build.bat`, `Build_Hook.bat`, `Build_all.bat` 등은 건드리지 않는다. 다른 개발자와 공유하는 파일이라 PR로 원본에 들어가면 남의 빌드가 바뀌기 때문이다.
-- `conflict`(같은 이름, 다른 내용) → 덮어쓰지 않고 보고 후 중단.
-- bat 파일을 직접 편집하지 않는다. `sed` 등은 CRLF를 LF로 바꿔 bat 동작이 깨질 수 있다.
+- 기존 `Build.bat`, `Build_Hook.bat`, `Build_all.bat`, `PJ_Define.h`는 건드리지 않는다. 다른 개발자와 공유하는 파일이라 PR로 원본에 들어가면 남의 빌드가 바뀌기 때문이다.
+- **위 6개는 공유 소스가 아니다.** 이 스킬이 만들어 넣는 Jenkins 전용 파일이고 모드 D 가 PR 에서 걸러낸다. `devel_*` 작업 브랜치에서 같은 이름의 파일이 있고 내용이 다르면 **표준본으로 교체**하고 `replaced` 에 담아 보고한다. 단 git 이 추적하는 파일일 때만 — 추적되지 않으면 원본을 되돌릴 수 없으므로 `conflict` 로 멈춘다.
+- `conflict` 가 나면 **디스크를 원래대로 되돌린 뒤** 멈춘다(`rolled_back`). 그리고 `details` 의 `diff`·`risk`·`reason` 을 **사용자에게 그대로 보여주고** 교체 여부를 한 줄로 묻는다.
+
+  > 실제 사례 — `tpms_rf_receiver_bj_fbl` 의 기존 `GitPush.bat` 은 `git push ... HEAD:devel_jslim_GT` 로 **남의 브랜치에 결과물을 밀어넣고**, 커밋 메시지가 `Main Build Server Build Result` 라서 Job 의 제외 필터(`Auto commit from Jenkins`)에 걸리지 않아 **연속 빌드**를 일으킨다. `risk` 가 이 두 가지를 자동으로 찾아 낸다. 2026-11 이전 버전은 "내용이 다름" 한 줄만 내고 멈춰서, 5개를 디스크에 풀어놓은 채 커밋 없이 방치되고 **Job 은 만들어졌는데 부를 훅이 없는** 반쪽 환경이 남았다.
+
+- bat 파일을 직접 편집하지 않는다. `sed` 등은 CRLF를 LF로 바꿔 bat 동작이 깨질 수 있다. 교체도 스크립트가 바이트 단위로 한다.
 
 ## 5. Jenkins Job — 먼저 확인하고, 없을 때만 생성
 
@@ -419,6 +445,7 @@ Jenkins: <JENKINS_URL>/job/<Job>/
 - 예 → `python gjsetup.py job-enable --name <Job>` 후, 첫 빌드 확인 방법만 안내한다(이 skill은 빌드 결과 판정을 하지 않는다):
   - Console Output에서 `[HOOK] Build/Git Push/Final ERROR LEVEL : 0` → `Finished: SUCCESS`
   - 빌드 종료 후 2~3분 동안 결과물 커밋에 반응한 추가 빌드가 **생기지 않는지**
+  - **산출물이 규정 폴더에 생겼는지** — FBL은 `Debug\OEUK_<차종>\`. `Debug\` 바로 아래 평면으로 생겼거나 콘솔에 `[PostPackage] ... Skipping.` 이 있으면 패키징이 빠진 것이다(빌드는 `SUCCESS` 로 뜨므로 결과만 보면 모른다). 위 📐 규정 항목으로 돌아가 `PJ_Define.h` 위치를 확인하고 **사용자에게 보고**한다
   - 결과물 받기: 로컬에서 `git pull`
 - 아니오 → Job 화면의 `프로젝트 활성화` 버튼으로 나중에 켤 수 있다고 안내한다.
 

@@ -7,6 +7,16 @@ Rules enforced in code:
   * CREATE ONLY. Never modify or delete anything that already exists.
     Existing resource that matches      -> reuse (status "exists")
     Existing resource that differs      -> leave untouched (status "conflict")
+  * EXCEPTION (add-bat): the 6 Jenkins-only scripts are this skill's OWN output,
+    not shared project source - mode D strips them from the PR anyway. On a
+    devel_* working branch a differing one is REPLACED (status "created",
+    field "replaced"), as long as git tracks it so the original is recoverable.
+    Shared source (Build.bat, Build_all.bat, Build_Hook.bat, PJ_Define.h) is
+    never touched. --no-replace restores the old stop-on-difference behaviour.
+  * ATOMIC. A command that stops with "conflict" leaves the disk as it was:
+    files written earlier in the same run are rolled back.
+  * A "conflict" carries the decision material: unified diff per file plus
+    "risk" notes saying what the existing file would actually do.
   * Tokens are read from environment variables and never printed.
   * Standard library only.
 
@@ -22,7 +32,7 @@ Commands
   clone       --repo O/R [--dest DIR]   DIR = parent or repo folder (default: current dir)
   detect-project --path DIR         find <project>/Build/Build.bat
   branch      --path DIR --base B --name N
-  add-bat     --path DIR --project P --name N --email E
+  add-bat     --path DIR --project P --name N --email E [--pj-define REL] [--no-replace]
   job-info    --name J [--view V]   exists? view list, credential id candidates
   render-job  --name J --repo-url URL --branch-spec S --project P --user U
               --cred-id ID [--description D] --out FILE
@@ -42,6 +52,7 @@ These are the only commands that modify or delete existing resources.
 """
 import argparse
 import base64
+import difflib
 import fnmatch
 import json
 import os
@@ -554,18 +565,92 @@ def build_command(project, model):
             'exit /b %ERRORLEVEL%').format(h=hk, s=std)
 
 
-def _build_target(build_dir):
+PJ_DEFINE_DEFAULT = "Application/app_code/a_app_service/src/PJ_Define.h".replace("/", chr(92))
+PJ_DEFINE_TOKEN = PJ_DEFINE_DEFAULT.encode("latin-1")
+
+
+def _pj_rel(val):
+    """PJ_Define.h 의 프로젝트 폴더 기준 상대경로를 검증해 돌려준다.
+
+    규정 경로(PJ_DEFINE_DEFAULT)가 기본값이다. 저장소 구조가 다를 때만 --pj-define
+    으로 명시한다 - 스크립트가 여러 후보를 뒤지게 하지 않는다(추측 금지).
+    """
+    rel = (val or PJ_DEFINE_DEFAULT).strip().strip('"').replace("/", "\\").lstrip("\\")
+    if os.path.isabs(rel) or ":" in rel or ".." in rel.split("\\"):
+        out(False, "invalid", "--pj-define 은 프로젝트 폴더 기준 상대경로여야 함: " + rel)
+    if os.path.basename(rel).lower() != "pj_define.h":
+        out(False, "invalid", "--pj-define 의 끝은 PJ_Define.h 여야 함: " + rel)
+    return rel
+
+
+def _apply_pj(data, rel):
+    """자산·훅 바이트에 박힌 규정 경로를 이 저장소의 경로로 바꾼다.
+
+    바이트 단위 치환이라 CRLF 가 보존된다. 규정 경로면 아무것도 바꾸지 않는다.
+    """
+    if rel == PJ_DEFINE_DEFAULT:
+        return data, 0
+    new = rel.encode("latin-1")
+    cnt = data.count(PJ_DEFINE_TOKEN)
+    return (data.replace(PJ_DEFINE_TOKEN, new), cnt) if cnt else (data, 0)
+
+
+def _build_target(build_dir, pj_rel=None):
     """PJ_Define.h 의 JENKINS_BUILD_TARGET 상태. 공유 소스라 읽기만 하고 넣지 않는다.
 
-    없으면 훅은 CURRENT(켜진 OEUK 하나만 빌드)로 동작한다.
+    없으면 훅은 CURRENT(켜진 OEUK 하나만 빌드)로 동작한다. 경로는 add-bat 에 넘긴
+    --pj-define 과 같은 값을 써야 한다 - 안 그러면 bat 은 찾는데 여기선 못 찾는다.
     """
-    pj = os.path.join(build_dir, "..", "Application", "app_code", "a_app_service", "src", "PJ_Define.h")
+    pj = os.path.join(build_dir, "..", *(pj_rel or PJ_DEFINE_DEFAULT).split("\\"))
     if not os.path.isfile(pj):
         return {"pj_define": False, "define": None}
     t = open(pj, "rb").read().decode("latin-1")
     m = re.search(r"(?m)^[ \t]*#define[ \t]+JENKINS_BUILD_TARGET[ \t]+(\w+)", t)
     return {"pj_define": True, "define": m.group(1).upper() if m else None,
             "has_oeuk_test": bool(re.search(r"(?m)^[ \t]*(?://[ \t]*)?#define[ \t]+OEUK_TEST\b", t))}
+
+
+JENKINS_OWNED = (
+    "Build_Hook_GIT_ASEC.bat", "GitPush.bat", "PostPackage.bat",
+    "BuildVariants.bat", "PJ_Variant.ps1",
+)
+# 교체 대상이 절대 아닌 공유 소스 (다른 개발자와 함께 쓰는 파일)
+SHARED_SOURCE = ("Build.bat", "Build_all.bat", "Build_Hook.bat", "PJ_Define.h")
+
+
+def _jenkins_owned(fn, model):
+    """이 스킬이 만들어 넣는 Jenkins 전용 파일인가. 모드 D가 PR에서 걸러내는 것들."""
+    return fn in JENKINS_OWNED or fn == hook_name(model)
+
+
+def _risk_notes(fn, old):
+    """기존 파일을 그대로 두면 무슨 일이 생기는가 - 멈출 때 판단 재료로 함께 낸다."""
+    notes = []
+    try:
+        t = old.decode("latin-1")
+    except Exception:
+        return notes
+    if fn.lower() != "gitpush.bat":
+        return notes
+    m = re.search(r"(?mi)^[ \t]*git[ \t]+push\b[^\r\n]*?HEAD:([^\s\r\n]+)", t)
+    if m:
+        notes.append("push 대상이 '%s' 로 고정되어 있음 - 작업 브랜치가 아닌 곳으로 "
+                     "빌드 결과물이 올라간다" % m.group(1))
+    if "Auto commit from Jenkins" not in t:
+        cm = re.search(r'(?mi)^[ \t]*git[ \t]+commit\b[^\r\n]*?-m[ \t]+"([^"]*)"', t)
+        notes.append("커밋 메시지%s가 Jenkins 제외 필터 '%s' 와 불일치 - 결과물 커밋이 "
+                     "다시 빌드를 띄워 연속 빌드가 된다"
+                     % ((" '%s'" % cm.group(1)) if cm else "", "Auto commit from Jenkins"))
+    return notes
+
+
+def _unified(fn, old, new, limit=40):
+    dec = lambda b: b.decode("latin-1").replace("\r\n", "\n").splitlines()
+    d = list(difflib.unified_diff(dec(old), dec(new), fromfile=fn + " (기존)",
+                                  tofile=fn + " (표준본)", lineterm="", n=1))
+    if len(d) > limit:
+        return d[:limit] + ["... (%d줄 더)" % (len(d) - limit)]
+    return d
 
 
 def c_add_bat(a):
@@ -584,32 +669,105 @@ def c_add_bat(a):
         "BuildVariants.bat": open(os.path.join(ASSETS, "BuildVariants.bat"), "rb").read(),
         "PJ_Variant.ps1": open(os.path.join(ASSETS, "PJ_Variant.ps1"), "rb").read(),
     }
-    added, same, conflict = [], [], []
+    # 저장소 구조가 규정과 다르면 bat 안에 박힌 PJ_Define.h 경로를 이 저장소 것으로 바꾼다.
+    pj_rel = _pj_rel(getattr(a, "pj_define", None))
+    pj_hits = {}
+    for fn in list(files):
+        files[fn], c = _apply_pj(files[fn], pj_rel)
+        if c:
+            pj_hits[fn] = c
+    rel_of = lambda f: os.path.relpath(os.path.join(build_dir, f), root).replace("\\", "/")
+    rel_all = [rel_of(f) for f in files]
+    tracked_set = set(l.strip() for l in git(["ls-files", "--"] + rel_all, cwd=root).stdout.splitlines() if l.strip())
+
+    # devel_* 작업 브랜치에서만 Jenkins 전용 파일 교체를 허용한다.
+    on_devel = cur.startswith("devel_")
+    allow_replace = on_devel and not getattr(a, "no_replace", False)
+
+    added, same, replaced, conflict = [], [], [], []
+    details, wrote_new = {}, []
     norm = lambda b: b.replace(b"\r\n", b"\n")
-    for fn, data in files.items():
+
+    def rollback():
+        """원자성: 이번 실행에서 새로 만든 파일만 지워 디스크를 원래대로 돌린다."""
+        done = []
+        for p in wrote_new:
+            try:
+                os.remove(p)
+                done.append(os.path.basename(p))
+            except OSError:
+                pass
+        return done
+
+    for fn in sorted(files):
+        data = files[fn]
         dst = os.path.join(build_dir, fn)
-        if os.path.exists(dst):
-            (same if norm(open(dst, "rb").read()) == norm(data) else conflict).append(fn)
+        if not os.path.exists(dst):
+            with open(dst, "wb") as f:
+                f.write(data)
+            wrote_new.append(dst)
+            added.append(fn)
             continue
-        with open(dst, "wb") as f:
-            f.write(data)
-        added.append(fn)
+        old = open(dst, "rb").read()
+        if norm(old) == norm(data):
+            same.append(fn)
+            continue
+        owned, is_tracked = _jenkins_owned(fn, a.model), rel_of(fn) in tracked_set
+        info = {"diff": _unified(fn, old, data), "risk": _risk_notes(fn, old),
+                "tracked": is_tracked, "jenkins_owned": owned}
+        if allow_replace and owned and is_tracked:
+            with open(dst, "wb") as f:
+                f.write(data)
+            replaced.append(fn)
+            details[fn] = info
+            continue
+        if not owned:
+            info["reason"] = "공유 소스라 교체 대상이 아님"
+        elif not on_devel:
+            info["reason"] = "현재 브랜치 '%s' 가 devel_* 작업 브랜치가 아니라 교체하지 않음" % cur
+        elif getattr(a, "no_replace", False):
+            info["reason"] = "--no-replace 지정됨"
+        else:
+            info["reason"] = "git이 추적하지 않는 파일이라 교체하면 원본을 되돌릴 수 없음"
+        conflict.append(fn)
+        details[fn] = info
+
     if conflict:
-        out(False, "conflict", "같은 이름의 bat이 이미 있고 내용이 다름 - 덮어쓰지 않음", conflict=conflict,
-            added=added, same=same, build_dir=build_dir)
-    rel_all = [os.path.relpath(os.path.join(build_dir, f), root).replace("\\", "/") for f in files]
-    tracked = [l for l in git(["ls-files", "--"] + rel_all, cwd=root).stdout.splitlines() if l.strip()]
+        rolled = rollback()
+        out(False, "conflict",
+            "교체할 수 없는 파일이 있어 중단 - 디스크는 원래 상태로 되돌렸다. "
+            "details 의 diff·risk·reason 을 사용자에게 보여주고 결정을 받으라",
+            conflict=conflict, details=details, same=same, rolled_back=rolled,
+            build_dir=build_dir, shared_source=list(SHARED_SOURCE))
+
     dirty = git(["status", "--porcelain", "--"] + rel_all, cwd=root).stdout.strip()
-    bt = _build_target(build_dir)
-    if not added and len(tracked) == len(rel_all) and not dirty:
-        out(True, "exists", "표준 bat이 이미 커밋되어 있음", same=same, build_target=bt)
-    rel = rel_all
-    git(["add", "--"] + rel, cwd=root)
+    bt = _build_target(build_dir, pj_rel)
+    # PJ_Define.h 를 실제로 찾을 수 있는지. 못 찾으면 PostPackage 가 조용히 건너뛰고
+    # 빌드는 SUCCESS 로 끝나 산출물이 OEUK 폴더에 담기지 않는다 - 반드시 드러낸다.
+    pj_info = {"path": pj_rel, "is_default": pj_rel == PJ_DEFINE_DEFAULT,
+               "found": bool(bt.get("pj_define")), "patched": pj_hits}
+    if not pj_info["found"]:
+        pj_info["warning"] = (
+            "PJ_Define.h 를 '%s' 에서 찾지 못했다. 이대로 빌드하면 PostPackage 가 "
+            "OEUK 를 읽지 못해 패키징을 건너뛰고(빌드는 SUCCESS) 산출물이 "
+            "Debug" + chr(92) + "OEUK_<차종>" + chr(92) + " 가 아니라 Debug" + chr(92)
+            + " 에 평면으로 생긴다. --pj-define 으로 실제 경로를 지정하라") % pj_rel
+    if not added and not replaced and len(tracked_set) == len(rel_all) and not dirty:
+        out(True, "exists", "표준 bat이 이미 커밋되어 있음", same=same,
+            build_target=bt, pj_define=pj_info)
+    msg = "[Build] Add Jenkins build scripts (%s)" % ", ".join(sorted(files))
+    if replaced:
+        msg += "\n\nReplaced with the standard version: %s" % ", ".join(sorted(replaced))
+    if not pj_info["is_default"]:
+        msg += 2 * chr(10) + "PJ_Define.h path for this repository: " + pj_rel
+    git(["add", "--"] + rel_all, cwd=root)
     git(["-c", "user.name=" + a.commit_name, "-c", "user.email=" + a.email,
-         "commit", "-m", "[Build] Add Jenkins build scripts (%s)" % ", ".join(sorted(files))], cwd=root)
+         "commit", "-m", msg], cwd=root)
     git(["push", "origin", a.name], cwd=root, auth=True)
     head = git(["rev-parse", "--short", "HEAD"], cwd=root).stdout.strip()
-    out(True, "created", "표준 bat 추가·커밋·push", added=added, same=same, head=head, build_target=bt)
+    out(True, "created", "표준 bat 추가·커밋·push", added=added, same=same,
+        replaced=replaced, details={k: details[k] for k in replaced},
+        head=head, build_target=bt, pj_define=pj_info)
 
 
 def c_job_info(a):
@@ -855,6 +1013,10 @@ def main():
     p = sp.add_parser("branch"); p.add_argument("--path", required=True); p.add_argument("--base", required=True)
     p.add_argument("--name", required=True)
     p = sp.add_parser("add-bat"); p.add_argument("--path", required=True); p.add_argument("--project", required=True)
+    p.add_argument("--pj-define", dest="pj_define", default=None,
+                   help="PJ_Define.h 의 프로젝트 폴더 기준 상대경로. 저장소 구조가 규정과 다를 때만 지정한다")
+    p.add_argument("--no-replace", action="store_true",
+                   help="devel_* 브랜치에서도 Jenkins 전용 파일을 교체하지 않고 conflict로 멈춘다")
     p.add_argument("--name", required=True); p.add_argument("--commit-name", required=True)
     p.add_argument("--email", required=True)
     p.add_argument("--model", required=True, help="차종 코드 (예: HE1i). 전용 훅 이름에 쓰인다")
