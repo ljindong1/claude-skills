@@ -10,7 +10,7 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 
 | 자료 | 역할 | 이 스킬의 관계 |
 |---|---|---|
-| **Redmine 작업 지시서 일감** | 이번 회차에 무엇을·어떤 순서로·어디까지 하는지. 단계 번호·요청 항목·질문 목록·완료 기준이 여기 있다 | **읽는다.** 본문 작성·갱신은 `redmine-patch-issue` 스킬이 한다. 이 스킬은 결과를 코멘트로 적는다 |
+| **Redmine 작업 지시서 일감** | 이번 회차에 무엇을·어떤 순서로·어디까지 하는지. 단계 번호·요청 항목·질문 목록·완료 기준이 여기 있다 | **읽고, 결과를 되돌려 적는다** — 단계 체크·결과 한 줄·완료 기준·진행률(`issue-report.md`). 본문의 구조와 지시 내용을 쓰고 고치는 것은 `redmine-patch-issue` 스킬이다 |
 | **당사 저장소 / 작업 브랜치** | 바꿀 대상 | 판정·적용·검수의 현장 |
 | **배포본 + 패치 자료 폴더** | HAE 가 보낸 것 (참고 설정, 모듈, patch_tool, Doc) | 판정의 입력. 정답이 아니라 참고 |
 
@@ -77,12 +77,15 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 | 검증·완료 기준 | 항목마다 결과·판정, 미수행은 미수행으로 | `verification.md` | `review_all.py` |
 | 참고 문서 | 근거 읽기 | — | ecody-search |
 | 마무리 | PR, 상태 변경 | `pr-assembly.md` | gitea-jenkins-setup 모드 D |
+| **모든 단계** | 단계가 끝나면 **일감 본문 체크**, 막히면 **코멘트** | `issue-report.md` | redmine-issue |
 
 작업 문서 네 개(three-way-merge · apply · protected-settings · verification)는 머리에 **들어가기 전 / 끝났다고 말하려면** 두 줄을 갖는다. 그 단계를 시작할 때와 끝났다고 말하기 전에 그 두 줄을 본다.
 
 ## 보고
 
 단계를 마칠 때마다 짧게 보고한다. 형식과 이력 표기 → `communication.md` §6. 확인하지 못한 것(권한 없는 링크, 열지 못한 파일, 실기 미수행, 이력 미확인)은 따로 한 줄.
+
+**일감에도 남긴다** — 단계가 끝나면 일감 본문의 그 단계 체크(`☐` → `☑`)와 근거가 담긴 결과 한 줄, 완료 기준 체크, 진행률. **오류와 사람의 확인이 필요한 것만 코멘트**로 올리고 그 자리에서 멈춘다. 성공으로 코멘트를 늘리지 않는다 — 코멘트에 있는 것은 전부 사람이 볼 일이어야 한다. 판단 기준·양식·승인 규칙 → `issue-report.md`.
 
 ## 참고 문서 — 주제마다 한 곳
 
@@ -97,6 +100,7 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 | `references/communication.md` | 사람에게 보내는 모든 글 — 확인한 것만, 이름 고정표, 비교 문장, 두 종류의 이력, 보내기 전 점검, 단계 보고 형식 |
 | `references/templates.md` | 양식만 — 결과 코멘트·리뷰 회신, IMS 질문, 수평전개 회신, 커밋 메시지, Confluence 골격 |
 | `references/ims-workflow.md` | IMS 에서 뽑을 것, 첨부 받기, 질문 등록, **기술지원 절차(ToU)**, ECM IM 페이지 대응표 |
+| `references/issue-report.md` | 일감 반영 — 단계 완료 체크와 결과 한 줄, 오류 코멘트, 확인 필요 코멘트, 승인·금지 |
 | `references/pr-assembly.md` | 패치 PR 에서 덧붙일 것 (PR 구성 정본은 gitea-jenkins-setup 모드 D) |
 | `references/troubleshooting.md` | 실제 재작업 사례만 (주제순). 그 주제를 시작하기 전에 해당 행을 훑는다 |
 | `references/projects/*.md` | 프로젝트 프로필 — 저장소·Job·버전 위치·구성 전제·보호 설정·고유 판단 이력 |
@@ -105,7 +109,7 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 
 ## 범위 밖
 
-- 일감 본문 작성·갱신 → redmine-patch-issue
+- 일감 본문의 **구조·지시 내용** 작성·갱신 → redmine-patch-issue (이 스킬은 단계 체크와 결과 한 줄만 고친다)
 - 작업 브랜치·Jenkins Job 신설, PR 구성 → gitea-jenkins-setup
 - eCoDY-ECM·IMS 읽기·검색 → ecody-search (이 스킬은 IMS 댓글 쓰기만)
 - 라이팅·CAN 측정 → cvd-project, can-bench-setup, canoe-project-setup
