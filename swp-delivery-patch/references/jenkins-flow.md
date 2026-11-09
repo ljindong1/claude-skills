@@ -45,6 +45,10 @@ Debug/OEUK_HE1I/
 | C Studio **Generate ECU Configuration**(Harmonize) | 코드가 아니라 **Ecud 설정(arxml)** | C Studio 만 |
 
 - 도구 경로는 `Build.bat`·`bat_package/*.bat`·`SCons.arxml` 에 `D:\ts_mirr\...` 로 고정돼 있다. 이 폴더가 없는 PC 에서 Generate Code 를 누르면 "Failed to create input files" / `Cannot run program ...python.exe` 로 멈춘다(파일 변경 없음).
+- **생성의 기본 경로는 Jenkins 다.** 작업 브랜치에 push 하면 Jenkins 빌드가 BSW·Os·Rte 생성 + MCAL 생성 + 컴파일을 모두 돌리고, 그 산출물을 `Auto commit from Jenkins #N` 으로 같은 브랜치에 되돌려 커밋한다. 로컬에 `ts_mirr` 가 없어도 생성 결과를 받을 수 있다 — **받는 방법이 pull 이다.** 로컬 Generate 는 push 전에 미리 보려는 선택지일 뿐 필수가 아니다.
+  - 실측(2026-11-09, LT2 TPMS FBL Auto commit `#6`): `Generated/Bsw_Output/bswmd/Bswmd_<모듈>.arxml`·`swcd/Swcd_Bsw_<모듈>.arxml`·`src/<모듈>_*.c`·`log/module/<모듈>.log`·`Generated/Mcal_Output/` 가 갱신됐다. **Harmonize 입력이 되는 `bswmd`·`swcd` 가 여기 들어 있다.**
+- **로컬에 생성 도구가 없으면 Harmonize 는 Jenkins 빌드 뒤에 온다.** Harmonize 입력인 `bswmd`·`swcd_bsw` 를 Jenkins 가 만들어 주기 때문이다(`apply.md` §5). 그래서 모듈을 교체한 회차는 **push 가 두 번**이다 — ① 설정 변경 커밋·push → ② Auto commit pull(생성 결과 확보) → ③ Harmonize + 되돌아온 설정 재삭제 → ④ 다시 push.
+- **모듈 구조가 바뀐 회차는 증분 `Build` 로 부족하다.** 생성 코드의 구조체에 멤버가 늘어도 순서 기반 초기화는 조용히 그 자리를 비운 채 컴파일을 통과한다 — 전체 재생성을 받아야 한다. 커밋 제목을 `Rebuild` 로 한다(§1).
 - 그래서 **MCAL 설정을 바꾼 패치의 생성 결과는 Jenkins 에서만** 볼 수 있다. BSW·Rte 만 바꿨으면 도구를 갖춘 PC 의 C Studio 로 push 전에 미리 볼 수 있다. 어느 경우든 로컬 생성은 시험 브랜치에서 하고 되돌린다(`Generated/` 는 git 추적).
 - **Harmonize·Validation·Script 는 생성 도구가 없어도 된다** — `mobilgene-cli` 는 C Studio 번들 JRE 만 쓰고 `ts_mirr` 를 보지 않는다(`apply.md` §1). 생성·컴파일만 이 폴더가 필요하다.
 - 프로젝트의 PC 별 도구 보유 상황은 프로필 "구성 전제"에 적는다.

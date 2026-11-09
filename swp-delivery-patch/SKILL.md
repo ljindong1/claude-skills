@@ -45,7 +45,7 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 - eCoDY-IMS·ECM 은 **읽기·검색은 `ecody-search` 스킬**, **IMS 질문 댓글 쓰기만 이 스킬** → `ims-workflow.md`.
 - 환경변수: `JENKINS_URL`·`JENKINS_USER`·`JENKINS_TOKEN`, `GITEA_TOKEN`. Redmine 은 redmine-issue 스킬.
 - 스크립트는 `scripts/`, 파이썬 표준 라이브러리만(`-h` 로 사용법). 출력 UTF-8. 한글 경로 인자는 PowerShell 에서 안전하다. 긴 출력은 파일로 받는다.
-- 생성·컴파일 도구(`ts_mirr` 류 미러 폴더)는 Jenkins 쪽에만 있는 경우가 많다. Harmonize·Validation·Script 는 그것 없이도 된다 → `apply.md` §1, `jenkins-flow.md` §3-1.
+- 생성·컴파일 도구(`ts_mirr` 류 미러 폴더)는 Jenkins 쪽에만 있는 경우가 많다. **그래도 생성은 막히지 않는다 — Generate 는 Jenkins 가 기본으로 한다**(push → `Auto commit from Jenkins` pull). Harmonize·Validation·Script 는 그 도구 없이도 된다 → `apply.md` §1, `jenkins-flow.md` §3-1.
 
 ## 시작 절차
 
@@ -67,8 +67,8 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 | 패치 도구 | 계획서로 읽기(필수), 실행 여부 결정, 돌렸으면 전후 비교 | `apply.md` §2 | `patch_tool_plan.py`, `three_way.py` |
 | 설정 변경 (arxml) | 3-way 판정 → 수단 선택 → 적용 | `three-way-merge.md` §3·§4, `apply.md` §1·§3 | `three_way.py`, `arxml_block.py`, `history_trace.py`, `protected_check.py` |
 | 모듈 교체 · usercode | 당사 수정 탐지 → 교체 → 병합 | `three-way-merge.md` §5, `apply.md` §4 | `owner_edits.py` |
-| Harmonize | 버전 구간 확인 → 실행 → 결과 전수 대조 | `apply.md` §5, `protected-settings.md` §6 | ECUC Compare, `protected_check.py` |
-| Generate · Validation | 정적 검수 (재대조·참조 끊김·ERR 대조) | `verification.md` §1 | `review_all.py`, `mobilgene-cli -validation` |
+| Harmonize | 버전 구간 확인 → 실행 → 결과 전수 대조. 입력(`bswmd`)을 Jenkins 가 만들므로 생성 도구가 없으면 **빌드 뒤에** 온다(jenkins-flow §3-1) | `apply.md` §5, `protected-settings.md` §6 | ECUC Compare, `protected_check.py` |
+| Generate · Validation | **Generate 는 Jenkins 가 기본**(jenkins-flow §3-1) → 정적 검수 (재대조·참조 끊김·ERR 대조) | `verification.md` §1 | `review_all.py`, `mobilgene-cli -validation` |
 | 빌드 | 빌드 검수 (생성물 diff·남은 생성물·RAM/ROM) | `verification.md` §2 | `jenkins_wait.py`, `gen_diff_review.py`, `gen_stale_check.py`, `map_mem.py` |
 | 코드 영향 (수평전개·API 변경) | 코드 영향 판정 | `three-way-merge.md` §5.4 | `git grep`, `symbol_crosscheck.py` |
 | 버전업 | 버전 세 종류·위치·잔존 확인 | `apply.md` §6 | `version_bump_check.py` |

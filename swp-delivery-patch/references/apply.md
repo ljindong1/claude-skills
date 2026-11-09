@@ -121,6 +121,8 @@ C Studio 버전에 따라 **동작과 필요한 순서가 다르다**(근거: EC
 
 ⚠ 거꾸로 하면 실패한다 — Harmonize 는 `bswmd`·`swcd_bsw` 산출물을 입력으로 쓴다. 파일명에 `" - 복사본"` 이 들어간 arxml 이 있으면 `Cannot Find File` 로 죽는다(patch_tool 은 `.arxml_` 로 바꿔 피한다). patch_tool 을 돌렸다면 `PREHarmonize.json`·`GENHarmonize.json` 은 이미 지워져 있다.
 
+**로컬에 생성 도구(`ts_mirr` 류)가 없으면 1~3 을 Jenkins 가 대신한다** — 설정 변경을 push 하고 `Auto commit from Jenkins #N` 을 pull 하면 `bswmd`·`swcd_bsw` 가 갱신된 상태로 들어온다. 그 뒤에 Harmonize 를 돌리고 다시 push 한다(push 두 번, `jenkins-flow.md` §3-1).
+
 **결과를 그대로 받지 않는다** — 옵션·되돌림 점검·공식 변경점 확인 절차는 `protected-settings.md` §6.
 
 ## 6. 버전업
