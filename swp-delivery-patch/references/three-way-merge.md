@@ -28,8 +28,8 @@ HAE 배포본의 설정 파일은 HAE **참고 프로젝트**(대표 차종) 기
 
 | 형태 | 특징 | Prev / Cur | 모듈 본체 | Doc |
 |---|---|---|---|---|
-| **VersionComparison 형** (HE1i PSU 3.0.x) | `VersionComparison/PreviousVersion`·`CurrentVersion` 제공 | 그대로 | `CurrentVersion/Static_Code/Modules/<모듈>` | 배포본 `Doc` |
-| **AutomatePatch 형** (TPMS 2.1.x) | `AutomatePatch.bat` + `patch_tool/` 중심. VersionComparison 없음 | Cur = `Configuration/Ecu/*.arxml` + `Build/SCons.arxml` (안내가 건드리는 파일만 몇 개). Prev 는 위 표의 "없을 때" | `Static_Code/Modules/<모듈>` 과 `patch_tool/Static_Code/Modules/<모듈>` **두 곳 — 내용이 같은지 `diff -rq` 로 확인하고 한쪽만 쓴다** (2.1.10 FBL 실측: 동일) | `Doc/ReleaseNote`, `Doc/ModuleChangeList` |
+| **VersionComparison 형** | `VersionComparison/PreviousVersion`·`CurrentVersion` 제공 | 그대로 | `CurrentVersion/Static_Code/Modules/<모듈>` | 배포본 `Doc` |
+| **AutomatePatch 형** | `AutomatePatch.bat` + `patch_tool/` 중심. VersionComparison 없음 | Cur = `Configuration/Ecu/*.arxml` + `Build/SCons.arxml` (안내가 건드리는 파일만 몇 개). Prev 는 위 표의 "없을 때" | `Static_Code/Modules/<모듈>` 과 `patch_tool/Static_Code/Modules/<모듈>` **두 곳 — 내용이 같은지 `diff -rq` 로 확인하고 한쪽만 쓴다** | `Doc/ReleaseNote`, `Doc/ModuleChangeList` |
 
 AutomatePatch 형은 참고 설정이 몇 개뿐이라 **"배포본에 없으니 변경 없음"이 성립하지 않는다** — 안내·IM·patch_tool 계획서가 요구한 자리를 판정표의 기준으로 삼는다(참고 설정은 그중 일부만 보여 준다).
 

@@ -112,7 +112,7 @@ S13 마무리                PR, IMS·Redmine 상태
 1. **유효 배포본** — 재배포가 있으면 `zip_crc_compare.py` 로 비교한다. 비밀번호가 걸린 zip 도 목록의 CRC 로 비교된다(내용 비교에는 압축 해제가 필요하니 사용자에게 요청). CRC 는 "어느 파일이 개정됐나"까지만 알려 준다. CRC 가 다른 ARXML 은 `three_way.py --prev <이전본> --cur <새본> --ours <당사>` 로 내용까지 비교하고, 이전본에만 있는 설정은 철회 확인 항목으로 판정표에 올린다. "이전본은 필요 없다"는 이 결과를 보인 뒤에만 말한다(decision-rules 공통).
 2. **Prev / Cur 확보** — 배포본 형태가 둘이다(`three-way-merge.md` §2).
    - **VersionComparison 형** — `VersionComparison/PreviousVersion`·`CurrentVersion` 을 그대로 Prev/Cur 로 쓴다(모듈 본체도 `CurrentVersion/Static_Code/Modules/` 아래).
-   - **AutomatePatch 형** (TPMS 2.1.x 등) — VersionComparison 이 없다. Cur = `Configuration/Ecu/*.arxml` + `Build/SCons.arxml`(안내가 건드리는 파일만 몇 개 들어 있다), 모듈 본체 = `Static_Code/Modules/<모듈>` 과 `patch_tool/Static_Code/Modules/<모듈>` **두 곳(내용 동일 — `diff -rq` 로 확인하고 한쪽만 쓴다)**, Doc = `Doc/ReleaseNote`·`Doc/ModuleChangeList`. Prev 는 직전 회차 배포본 + 그 회차 보정본, 그것도 없으면 manifest `project_name`(= HAE 기준 형상)이 당사 직전 SWP 와 같은지 확인한 뒤 **당사 직전 커밋을 Prev 로** 쓰고 그 사실을 표시한다.
+   - **AutomatePatch 형** (`AutomatePatch.bat`·`patch_tool/` 중심) — VersionComparison 이 없다. Cur = `Configuration/Ecu/*.arxml` + `Build/SCons.arxml`(안내가 건드리는 파일만 몇 개 들어 있다), 모듈 본체 = `Static_Code/Modules/<모듈>` 과 `patch_tool/Static_Code/Modules/<모듈>` **두 곳(내용 동일 — `diff -rq` 로 확인하고 한쪽만 쓴다)**, Doc = `Doc/ReleaseNote`·`Doc/ModuleChangeList`. Prev 는 직전 회차 배포본 + 그 회차 보정본, 그것도 없으면 manifest `project_name`(= HAE 기준 형상)이 당사 직전 SWP 와 같은지 확인한 뒤 **당사 직전 커밋을 Prev 로** 쓰고 그 사실을 표시한다.
    - 어느 쪽도 못 구하면 2-way 로 하고 "Prev 없음" 표시, git 이력으로 보완.
    판정표 첫 행은 모듈 교체다.
 3. **완결성** — 안내가 언급한 파일 ↔ 실제 파일, 이후 보정본·정정(precheck ②). 빠진 것은 C 후보.
@@ -167,7 +167,7 @@ C 경로 항목만, 한 패치의 질문은 한 댓글에 번호를 매겨 모�
 
 빌드는 6~50분 + push 가 필요하므로 여기서 잡을 수 있는 것은 잡는다(C Studio Generate Code 는 BSW·Os·Rte 만, MCAL 은 Jenkins 에서만 — jenkins-flow §3-1).
 
-`review_all.py --prev … --cur … --app … --old-token … --new-token … --expect … --out 검수보고서.md` 를 먼저 돌린다. **Prev 를 구하지 못했으면 `--prev` 를 생략한다** — 설정 재대조는 2-way(Cur ↔ Ours)로, 심볼 대조는 생략으로 돌고 보고서에 "Prev 없음"이 찍힌다. 2-way 결과는 HAE 델타와 당사 고유 차이를 가르지 못한다 — 전체를 2-way 로 돌리면 차이가 수백~천 건이 된다(2.1.10 FBL 실측 1516건). 안내·IM·patch_tool 계획서가 지목한 파일만 `three_way.py --files` 로 좁혀 보고, 판정표 사유와 1:1 로 대조한다. 설정 재대조(`three_way.py --check`), 모듈 바이트 일치, 심볼·매크로(`symbol_crosscheck.py`), 버전 잔존, 의존 .ver 목록, 뺀 모듈의 남은 생성물(`gen_stale_check.py`)을 한 보고서로 낸다. 이어서:
+`review_all.py --prev … --cur … --app … --old-token … --new-token … --expect … --out 검수보고서.md` 를 먼저 돌린다. **Prev 를 구하지 못했으면 `--prev` 를 생략한다** — 설정 재대조는 2-way(Cur ↔ Ours)로, 심볼 대조는 생략으로 돌고 보고서에 "Prev 없음"이 찍힌다. 2-way 결과는 HAE 델타와 당사 고유 차이를 가르지 못한다 — 전체를 2-way 로 돌리면 차이가 수백~천 건이 된다. 안내·IM·patch_tool 계획서가 지목한 파일만 `three_way.py --files` 로 좁혀 보고, 판정표 사유와 1:1 로 대조한다. 설정 재대조(`three_way.py --check`), 모듈 바이트 일치, 심볼·매크로(`symbol_crosscheck.py`), 버전 잔존, 의존 .ver 목록, 뺀 모듈의 남은 생성물(`gen_stale_check.py`)을 한 보고서로 낸다. 이어서:
 
 1. `--check` 남은 항목이 **전부 판정표의 제외·보류·당사 구성 사유와 1:1**인지 — 사유 없는 항목은 누락.
 2. IM 신규 Validation 규칙을 당사 Ecud 에 미리 적용(예시 three-way §7).

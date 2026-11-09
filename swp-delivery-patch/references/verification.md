@@ -41,7 +41,7 @@
 
 ## 3. 결과 파일 규칙
 
-- 결과 폴더: 저장소의 Reprogramming 폴더 아래 `v<SWP>/<YYMMDD>/` (HE1i `References/Doc_MB/04_Reprogramming/`, BJ/TPMS `References/Doc_MobaseElec/08_Reprogramming/` — 직전 회차와 같은 자리).
+- 결과 폴더: 저장소의 Reprogramming 폴더 아래 `v<SWP>/<YYMMDD>/`. 폴더 이름은 과제마다 다르므로 프로필에 적고, 직전 회차와 같은 자리에 둔다.
 - H-OTA 로그 이름: `{양산|Test}_<제어기>_{Upgrade|DGPrevent|OEUK_DG}(v시작_v목표)_{ExternalRules|BGRules|ReproRules}.asc` — 평가 담당 부서가 파일명만 보고 케이스를 판단한다. 확장자 중복(`.asc.asc`)을 확인한다.
 - `.asc` / `.log` / `.png` 는 같은 이름으로 짝을 맞춘다.
 - 보고서(보드평가레포트)는 이전 회차 첨부·화면이 남지 않게 이번 회차 파일로 교체한다.

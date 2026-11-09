@@ -6,7 +6,7 @@
 
 - 작업 브랜치(`devel_*`)에 push 하면 Jenkins Job 이 폴링으로 빌드를 시작한다. **push = 빌드**이므로 커밋·push 는 사용자 지시가 있을 때만.
 - `Build_Hook_GIT_ASEC.bat`(표준, 수정 금지)은 인자가 Hook 이면 **마지막 커밋 제목**을 빌드 동작으로 쓴다: `Build`, `Compile`, `GenerateAll`, `Rebuild`, `Clean`. 제목이 이 단어 하나인 빈 커밋이 그 동작의 트리거다. 일반 커밋 제목은 기본 동작(Build: 변경분 생성+컴파일).
-- 과제 Hook(예: `Build_Hook_HE1I.bat`, `Build_Hook_LT2.bat`)은 `PJ_Define.h` 의 `JENKINS_BUILD_TARGET` 을 읽어 `ALL` 이면 변형 빌드(`BuildVariants.bat`), 아니면 단일 빌드 + `PostPackage.bat`. **`PJ_Define.h` 경로가 과제마다 다르다**(HE1i `Application/app_code/a_app_service/src/`, BJ/TPMS `Application/app_code/type/`) — Hook 안에 그 경로가 박혀 있으니 거기서 확인한다.
+- 과제 Hook(예: `Build_Hook_HE1I.bat`, `Build_Hook_LT2.bat`)은 `PJ_Define.h` 의 `JENKINS_BUILD_TARGET` 을 읽어 `ALL` 이면 변형 빌드(`BuildVariants.bat`), 아니면 단일 빌드 + `PostPackage.bat`. **`PJ_Define.h` 경로가 과제마다 다르다** — Hook 안에 그 경로가 박혀 있으니 거기서 확인한다.
 - 빌드 성공 시 `GitPush.bat` 이 `git add -f .` 후 `Auto commit from Jenkins #N` 으로 커밋해 같은 브랜치에 push 한다(의도된 동작 — 지적하지 않는다). 그래서 사람 커밋 뒤에는 항상 pull 이 필요하다.
 
 ## 2. ALL / CURRENT
@@ -16,7 +16,7 @@
 | CURRENT | 현재 버전 한 벌 | 패치 적용·검수 빌드 |
 | ALL | 현재 / 현재_test / 상위(+10) / 상위_test 네 벌 | H-OTA 업·다운그레이드 평가 |
 
-**ALL 을 지원하지 않는 프로젝트가 있다.** `PJ_Define.h` 에 `JENKINS_BUILD_TARGET` 정의가 아예 없으면 `PJ_Variant.ps1` 이 기본값 CURRENT 를 돌려줘 Hook 이 **항상 단일 빌드**를 한다(BJ/TPMS RF Receiver FBL, 2026-11 확인). 활성 `OEUK_*` 가 하나뿐이면 4벌이 나올 수 없다 — H-OTA 평가용 4벌이 필요하면 정의·변형을 먼저 넣어야 하고, 그 자체가 별건 작업이다.
+**ALL 을 지원하지 않는 프로젝트가 있다.** `PJ_Define.h` 에 `JENKINS_BUILD_TARGET` 정의가 아예 없으면 `PJ_Variant.ps1` 이 기본값 CURRENT 를 돌려줘 Hook 이 **항상 단일 빌드**를 한다. 활성 `OEUK_*` 가 하나뿐이면 4벌이 나올 수 없다 — H-OTA 평가용 4벌이 필요하면 정의·변형을 먼저 넣어야 하고, 그 자체가 별건 작업이다.
 
 - 전환은 `PJ_Define.h` 한 줄 변경 커밋. 제목 예: `[<제어기>][<차종>][V3.0.xx] JENKINS_BUILD_TARGET ALL 로 전환 (H-OTA 평가용 4벌 빌드)`.
 - 평가가 끝나면 **반드시 CURRENT 로 되돌리는 커밋**을 한다. 잊으면 이후 빌드가 계속 4벌로 오래 걸리고, PR 에 ALL 이 섞인다.
@@ -34,7 +34,7 @@ Debug/OEUK_HE1I/
 - `_Writing.s19`: CVD/T32 라이팅용. `rom_<버전>.zip`: aSIMS 서명 입력.
 - CURRENT 빌드는 26810 폴더만 갱신한다. ALL 빌드 후 네 폴더 모두 새 SWP 버전 파일만 있는지 확인한다(이전 버전 파일 잔존 여부).
 - **같은 소스라도 재빌드하면 이미지가 달라질 수 있다.** Os 생성기가 재생성 때 태스크 스택 배치 순서를 바꿔 `Os_GaaStack`·`MAINSW_CRC` 가 변한다. 서명 요청 후에는 실기가 끝날 때까지 APP 빌드를 일으키는 push 를 하지 않는다(troubleshooting S12).
-- FBL 은 버전 폴더 없이 `OEUK_HE1I`, `OEUK_HE1I_TEST` 바로 아래. BJ/TPMS FBL 도 평면이고 활성 변형이 하나라 `Debug/OEUK_LT2/` 한 폴더다(커밋 3512d80e). 평면 전환 전의 `Debug/OEUK_LT2/UNKNOWN/` 같은 잔존 폴더가 보이면 지난 구조의 흔적이다 — 산출물 확인 때 그 폴더를 보지 않는다.
+- FBL 은 버전 폴더 없이 `OEUK_HE1I`, `OEUK_HE1I_TEST` 바로 아래. 활성 `OEUK_*` 가 하나뿐이면 그 폴더 하나다. 폴더 구조를 바꾼 과제에서는 이전 구조의 잔존 폴더(`…/UNKNOWN/` 등)가 남아 있을 수 있다 — 산출물 확인 때 그 폴더를 보지 않는다.
 
 ## 3-1. 생성 경로 — 어디서 무엇이 생성되나
 
