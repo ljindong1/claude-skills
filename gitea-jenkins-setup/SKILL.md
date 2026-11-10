@@ -335,30 +335,32 @@ APP·FBL이 **같은 파일 한 벌**을 쓴다. 차이는 `PJ_Define.h`의 버�
 >
 > **스크립트를 저장소에 맞추지 않는다** — 경로 후보를 늘리거나 과제별 분기를 넣으면 과제마다 갈라져 규정이 사라진다. 어긋난 것을 발견하면 **고치지 말고 사용자에게 보고**한다(공유 소스 이동은 `#include` 에 영향이 있어 저장소 소유자 판단이다).
 >
-> 🕰️ **다만 "저장소를 규정에 맞춘다" 가 늘 가능한 것은 아니다 — 구조에 세대가 있다.** 최근 과제는 거의 같은 구조로 설계되지만, 과거 과제는 그때 구조를 그대로 쓰고 있다. 규정은 최근 세대만 전제하므로, 과거 세대 과제에서는 **맞출 수 없는 어긋남**이 나온다. 2026-11-10 실측 세 세대:
+> ⚠️ **다만 "저장소를 규정에 맞춘다" 가 늘 가능한 것은 아니다 — `OEUK_TEST` 의 유무는 뱅크 구조가 가른다.** `OEUK_TEST` 는 **서명검증 공개키(`Dcm_GaaPublicKeyData`)를 품은 빌드에만** 있다. 듀얼뱅크는 돌고 있는 APP 이 반대 뱅크 이미지를 검증하므로 APP 도 키를 갖고, 그래서 test 키 변종이 필요하다. 싱글뱅크는 FBL 만 검증하므로 **APP 에는 키도 변종도 없는 것이 설계**다 — 메울 공백이 아니다. 2026-11-10 네 저장소 실측:
 >
-> | 세대 | 과제 | 변종 선택 | 버전 define | 위치 |
-> | --- | --- | --- | --- | --- |
-> | 최근 (규정) | PSU APP·FBL (HE1i, NQ6e) | `PJ_Define.h` 의 `OEUK_*` 하나만 주석 해제 | OEUK 블록 안 `SOFTWARE_VERSION_0~n`, `(u8)'2'` 한 글자씩 | 규정 경로 |
-> | 중간 | TPMS **FBL** | `OEUK_*` 있음 (`//OEUK_TEST 0u` / `//OEUK_BJ1 1u` / `OEUK_LT2 2u`) | **없음** | `Applicationpp_code	ype\PJ_Define.h` (규정 밖) |
-> | 과거 | TPMS **APP** | **없음** — 두 차종을 한 바이너리에 담고 런타임에 고름(`CONFIG_TABLE[e_VEHICLE_MODEL_MAX]`) | 없음. `configuration.h` 에 문자열·문자로 흩어짐 | `Application\Implementation_TPMS\DataTypes\configuration.h` |
+> | 뱅크 | 과제 | 공개키 | 변종 선택 | 버전 define | 위치 |
+> | --- | --- | --- | --- | --- | --- |
+> | 듀얼 (규정) | PSU APP·FBL (HE1i, NQ6e) | **APP·FBL 둘 다** | `PJ_Define.h` 의 `OEUK_*` 하나만 주석 해제 | OEUK 블록 안 `SOFTWARE_VERSION_0~n`, `(u8)'2'` 한 글자씩 | 규정 경로 |
+> | 싱글 | TPMS **FBL** | 있음 (`Static_Code/Reference_Code/src/App_DiagnosticService.c`) | `OEUK_*` 있음 (`//OEUK_TEST 0u` / `//OEUK_BJ1 1u` / `OEUK_LT2 2u`) | **없음** | `Application\app_code\type\PJ_Define.h` (규정 밖) |
+> | 싱글 | TPMS **APP** | **없음** | **없음** (정상) — 두 차종을 한 바이너리에 담고 런타임에 고름(`CONFIG_TABLE[e_VEHICLE_MODEL_MAX]`) | 없음. `configuration.h` 에 문자열·문자로 흩어짐 | `Application\Implementation_TPMS\DataTypes\configuration.h` |
 >
-> 같은 제품군 안에서도 FBL 은 OEUK 가 있고 APP 은 없다. 그래서 **세대를 먼저 가린다.**
+> 같은 제품군 안에서도 FBL 은 OEUK 가 있고 APP 은 없다. 그래서 **뱅크 구조를 먼저 가린다.**
 >
-> | 세대 | 할 일 |
+> ⚠️ **FBL 은 원래 업 버전이 없다.** 현재 버전과 `OEUK_TEST` 둘만 둔다 — 2벌이 정상이고 모자란 것이 아니다.
+>
+> | 어떤 저장소인가 | 할 일 |
 > | --- | --- |
 > | 규정과 같다 | 그대로 진행 |
-> | 변종·버전 체계는 있는데 **위치·이름만** 다르다 (중간 세대) | 파일 경로는 이미 매개변수다 — `PJ_Variant.ps1` 은 `-File`, 전용 훅 `Build_Hook_<차종>.bat` 은 `PJ_FILE` 을 set 한다. **전용 훅에서 `PJ_FILE` 을 그 저장소의 실제 파일로 돌린다**(수정 허용 파일). 저장소를 옮기지 않는다 |
-> | 변종 체계 자체가 **없다** (과거 세대) | 저장소를 규정에 맞추려면 변종 축을 새로 들여야 하고, 그것이 **런타임 설계와 충돌할 수 있다**(TPMS APP 은 두 차종을 한 바이너리에 담는다 — 차종을 컴파일 변종으로 바꾸면 진단 응답이 바뀐다). **고치지 말고 설계안을 만들어 사용자 판단을 받는다.** 판단 없이 `PJ_Define.h` 를 새로 넣지 않는다 |
+> | 변종 체계는 있는데 **위치·이름만** 다르다 (TPMS FBL) | 파일 경로는 이미 매개변수다 — `PJ_Variant.ps1` 은 `-File`, 전용 훅 `Build_Hook_<차종>.bat` 은 `PJ_FILE` 을 set 한다. **전용 훅에서 `PJ_FILE` 을 그 저장소의 실제 파일로 돌린다**(수정 허용 파일). 저장소를 옮기지 않는다 |
+> | 변종 체계 자체가 **없다** (TPMS APP, 싱글뱅크) | **맞출 것이 없다 — 변종 빌드 대상이 아니다.** 싱글뱅크 APP 은 공개키를 품지 않으므로 `OEUK_TEST` 가 필요 없다. 전용 훅이 `PJ_FILE` 부재를 보고 **단일 빌드로 내려가는 것이 정상 동작**이다(`Build_Hook_<차종>.bat` 의 `if not exist "%PJ_FILE%" goto :single_build`). `PJ_Define.h` 를 새로 넣지 않는다 |
 >
 > ⚠️ **asset 에 과제 고정값이 박혀 있는 곳이 있다 (스킬 결함, 2026-11-10 확인).** 이것은 저장소 탓이 아니므로 저장소를 고쳐도 해결되지 않는다.
 >
 > | asset | 하드코딩 | 영향 |
 > | --- | --- | --- |
-> | `PostPackage.bat:35` | `VEHICLE_OPTION_FILE` = 규정 경로의 `PJ_Define.h` | 중간·과거 세대에서 1단계 OEUK 탐색부터 못 간다 |
-> | `PostPackage.bat:36` | `SECUREFLASH_INI` = `References\Doc_MB\02_Signed_Firmware_CFG\Autron_CYT2BLXX_SecureFlash2_psu_v300.ini` | **PSU 전용 경로·파일명.** 다른 과제는 rom 패키지가 안 만들어진다 |
+> | `PostPackage.bat:35` | `VEHICLE_OPTION_FILE` = 규정 경로의 `PJ_Define.h` | 규정 밖에 둔 저장소(TPMS FBL)에서 1단계 OEUK 탐색부터 못 간다. 싱글뱅크 APP 은 애초에 대상이 아니라 무해하다 |
+> | `PostPackage.bat:36` | `SECUREFLASH_INI` = `References\Doc_MB\02_Signed_Firmware_CFG\Autron_CYT2BLXX_SecureFlash2_psu_v300.ini` | **PSU 전용 경로·파일명.** 2026-11-10 실측 — 이 경로가 **TPMS APP·FBL 양쪽 모두 없다.** FBL 도 해당이다 |
 > | `BuildVariants.bat:29` | `PJ_FILE` = 규정 경로 | 훅이 돌려도 여기서 되돌아간다 |
-> | `PJ_Variant.ps1` `Get-NextVersion` | `[long]$v + 10` — **전부 숫자여야 한다** | 문자가 섞인 버전(TPMS APP `26B100`)은 예외 → plan 이 KEEP 2줄만 내고 **필요한 업 버전 2개가 조용히 빠진다.** ⚠ 그런데 **이 제약이 FBL 을 2개로 묶어 두는 장치이기도 하다** — 단순히 일반화하면 FBL(`HE130I02`·`DEV30I02`)이 갑자기 4개를 빌드한다. 고칠 때는 증가 규칙만 일반화하지 말고 **"업 버전을 만들 것인가"를 선언으로 분리**한다(예: 기준 블록에 `JENKINS_BUILD_NEXT_VERSION` 같은 명시 define). 의도를 버전 문자열의 생김새에 기대지 않는다 |
+> | `PJ_Variant.ps1` `Get-NextVersion` | `[long]$v + 10` — **전부 숫자여야 한다** | 문자가 섞인 버전은 예외 → plan 이 KEEP 2줄만 내고 **필요한 업 버전 2개가 조용히 빠진다.** ⚠ 2026-11-10 실측 — **현재 TPMS APP 에는 해당하지 않는다**(`PJ_FILE` 이 없어 변종 경로에 진입조차 하지 않는다). OEUK 를 쓰면서 버전에 문자가 섞인 과제가 생길 때의 잠재 위험이다. ⚠ 그런데 **이 제약이 FBL 을 2개로 묶어 두는 장치이기도 하다** — 단순히 일반화하면 FBL(`HE130I02`·`DEV30I02`)이 갑자기 4개를 빌드한다. 고칠 때는 증가 규칙만 일반화하지 말고 **"업 버전을 만들 것인가"를 선언으로 분리**한다(예: 기준 블록에 `JENKINS_BUILD_NEXT_VERSION` 같은 명시 define). 의도를 버전 문자열의 생김새에 기대지 않는다 |
 >
 > 네 벌(스킬 asset·PSU APP·PSU FBL·TPMS APP)의 `PostPackage.bat` 이 **바이트까지 같다**(md5 `a5024b75f638`) — 과제별로 고쳐 쓰는 파일이 아니라 asset 이 그대로 퍼진 것이다. 고칠 때는 **과제별 분기를 넣지 말고 전용 훅이 넘기는 환경변수로 빼낸다.** PSU APP·FBL 재검증이 따라온다.
 >
