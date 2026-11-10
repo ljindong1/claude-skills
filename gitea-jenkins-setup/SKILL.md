@@ -358,11 +358,11 @@ APP·FBL이 **같은 파일 한 벌**을 쓴다. 차이는 `PJ_Define.h`의 버�
 > | asset | 하드코딩 | 영향 |
 > | --- | --- | --- |
 > | `PostPackage.bat:35` | `VEHICLE_OPTION_FILE` = 규정 경로의 `PJ_Define.h` | 규정 밖에 둔 저장소(TPMS FBL)에서 1단계 OEUK 탐색부터 못 간다. 싱글뱅크 APP 은 애초에 대상이 아니라 무해하다 |
-> | `PostPackage.bat:36` | `SECUREFLASH_INI` = `References\Doc_MB\02_Signed_Firmware_CFG\Autron_CYT2BLXX_SecureFlash2_psu_v300.ini` | **PSU 전용 경로·파일명.** 2026-11-10 실측 — 이 경로가 **TPMS APP·FBL 양쪽 모두 없다.** FBL 도 해당이다 |
+> | ~~`PostPackage.bat:36`~~ | `SECUREFLASH_INI` 에 PSU 전용 경로·파일명이 박혀 있었다 | ✅ **고쳤다 (2026-11-10).** 경로를 박지 않고 **훅이 `SECUREFLASH_INI` 를 넘기면 그것을, 없으면 `References\*Signed_Firmware*\*.ini` 를 찾는다.** 폴더명(`Doc_MB`/`Doc_MobaseElec`)·번호(`02_`/`03_`)·파일명이 과제마다 다르다. ini 가 없는 과제(FBL)는 전처럼 WARNING 만 남는다 — `if exist` 로 감싸여 있어 **rom zip 자체는 만들어진다** |
 > | `BuildVariants.bat:29` | `PJ_FILE` = 규정 경로 | 훅이 돌려도 여기서 되돌아간다 |
 > | `PJ_Variant.ps1` `Get-NextVersion` | `[long]$v + 10` — **전부 숫자여야 한다** | 문자가 섞인 버전은 예외 → plan 이 KEEP 2줄만 내고 **필요한 업 버전 2개가 조용히 빠진다.** ⚠ 2026-11-10 실측 — **현재 TPMS APP 에는 해당하지 않는다**(`PJ_FILE` 이 없어 변종 경로에 진입조차 하지 않는다). OEUK 를 쓰면서 버전에 문자가 섞인 과제가 생길 때의 잠재 위험이다. ⚠ 그런데 **이 제약이 FBL 을 2개로 묶어 두는 장치이기도 하다** — 단순히 일반화하면 FBL(`HE130I02`·`DEV30I02`)이 갑자기 4개를 빌드한다. 고칠 때는 증가 규칙만 일반화하지 말고 **"업 버전을 만들 것인가"를 선언으로 분리**한다(예: 기준 블록에 `JENKINS_BUILD_NEXT_VERSION` 같은 명시 define). 의도를 버전 문자열의 생김새에 기대지 않는다 |
 >
-> 네 벌(스킬 asset·PSU APP·PSU FBL·TPMS APP)의 `PostPackage.bat` 이 **바이트까지 같다**(md5 `a5024b75f638`) — 과제별로 고쳐 쓰는 파일이 아니라 asset 이 그대로 퍼진 것이다. 고칠 때는 **과제별 분기를 넣지 말고 전용 훅이 넘기는 환경변수로 빼낸다.** PSU APP·FBL 재검증이 따라온다.
+> ⚠ **사본이 과제마다 같지 않다 — 같다고 단정하지 말고 세어 본다.** 2026-11-10 실측 `PostPackage.bat` 은 **세 갈래**였다: 스킬 asset = TPMS APP, PSU APP = PSU FBL, TPMS FBL 은 혼자 다름. asset 을 고쳐도 과제 저장소에 자동으로 퍼지지 않으므로, **고친 뒤 과제별로 반영 여부를 따로 확인한다.** 고칠 때는 **과제별 분기를 넣지 말고 전용 훅이 넘기는 환경변수로 빼낸다**(위 `SECUREFLASH_INI` 가 그 방식이다).
 >
 > ⚠️ **첫 빌드 뒤 산출물 폴더를 반드시 눈으로 확인한다.** `PJ_Define.h` 를 못 찾으면 `PostPackage` 가 콘솔에 한 줄만 남기고 건너뛰는데, **빌드는 `SUCCESS` 로 끝나므로 로그 결과만 보면 알 수 없다.**
 >

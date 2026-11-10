@@ -33,7 +33,16 @@ set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
 set "VEHICLE_OPTION_FILE=..\Application\app_code\a_app_service\src\PJ_Define.h"
-set "SECUREFLASH_INI=%SCRIPT_DIR%..\References\Doc_MB\02_Signed_Firmware_CFG\Autron_CYT2BLXX_SecureFlash2_psu_v300.ini"
+rem  SecureFlash ini - do NOT hardcode a path here. The dedicated hook may
+rem  pass SECUREFLASH_INI; otherwise it is looked up under References.
+rem  The folder name (Doc_MB / Doc_MobaseElec), its number prefix (02_ / 03_)
+rem  and the file name all differ per project. Projects that have no such ini
+rem  (FBL) leave it unset and get the WARNING below - that is expected.
+if not defined SECUREFLASH_INI (
+    for /f "delims=" %%F in ('dir /b /s "%SCRIPT_DIR%..\References\*.ini" 2^>nul ^| findstr /i "Signed_Firmware"') do (
+        if not defined SECUREFLASH_INI set "SECUREFLASH_INI=%%F"
+    )
+)
 set "BUILDWARNING_EXE=D:\BuildWarning\BuildWarning_Build.exe"
 
 rem ---- 1) resolve target variant -------------------------------------------
@@ -162,7 +171,7 @@ if "!HAS_S19!"=="1" if not "!version!"=="UNKNOWN" (
     if exist "%SECUREFLASH_INI%" (
         copy "%SECUREFLASH_INI%" "!ROM_DIR!\" > nul
     ) else (
-        echo [PostPackage] [WARNING] SecureFlash ini not found.
+        echo [PostPackage] [WARNING] SecureFlash ini not found - looked for References\*Signed_Firmware*\*.ini. Set SECUREFLASH_INI in the hook to override.
     )
     echo [PostPackage] Create zip file : !ROM_DIR!.zip
     tar -a -cf "!ROM_DIR!.zip" "!ROM_DIR!"
