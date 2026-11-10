@@ -58,9 +58,48 @@ def config():
     return url, key
 
 
+def check_bmp(body):
+    """4바이트 문자(비BMP)가 있으면 보내기 전에 멈춘다.
+
+    이 Redmine 의 DB 는 3바이트 utf8 이라 U+10000 이상을 저장하지 못하고
+    **HTTP 500 Internal Server Error** 로 떨어진다. 서버 메시지에는 원인이 없어
+    "네트워크 문제인가"로 한참 헤매게 된다(2026-11-10 #49951, 🔴 U+1F534).
+    3바이트 안에 드는 기호(⭐ ✅ ⚠ ※ → · ─)는 문제가 없으니 그쪽으로 바꿔 쓴다.
+    """
+    found = {}
+
+    def walk(v, where):
+        if isinstance(v, str):
+            for ch in v:
+                if ord(ch) > 0xFFFF:
+                    k = (ch, where)
+                    found[k] = found.get(k, 0) + 1
+        elif isinstance(v, dict):
+            for k2, v2 in v.items():
+                walk(v2, "%s.%s" % (where, k2) if where else str(k2))
+        elif isinstance(v, (list, tuple)):
+            for x in v:
+                walk(x, where)
+
+    walk(body, "")
+    if not found:
+        return
+    lines = ["보내는 내용에 4바이트 문자가 있습니다 — 이 Redmine 은 저장하지 못하고 HTTP 500 을 냅니다.", ""]
+    for (ch, where) in sorted(found, key=lambda k: -found[k]):
+        lines.append("  %s  U+%05X  %d 개  (%s)" % (ch, ord(ch), found[(ch, where)], where or "본문"))
+    lines += [
+        "",
+        "  3바이트 기호로 바꾸세요 — ⭐ ✅ ⚠ ❗ ※ → · ─ 는 모두 안전합니다.",
+        "  (Confluence 는 4바이트도 되지만 Redmine 은 안 됩니다. 옮겨 쓸 때 걸립니다.)",
+    ]
+    die("\n".join(lines))
+
+
 def request(method, path, params=None, body=None):
     """Redmine API 호출. 헤더 인증을 먼저 쓰고, 막히면 쿼리 파라미터로 재시도한다."""
     base, key = config()
+    if body is not None and method in ("POST", "PUT", "PATCH"):
+        check_bmp(body)
     payload = json.dumps(body, ensure_ascii=False).encode("utf-8") if body is not None else None
     qs = "?" + urllib.parse.urlencode(params) if params else ""
     url = f"{base}{path}{qs}"
