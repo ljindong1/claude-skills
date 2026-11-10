@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""설정 키 하나(또는 여럿)의 값을 HAE 회차별 배포본과 당사 저장소에서 회차순으로 뽑는다 — 기본 원칙 8(과거 이력).
+"""설정 키 하나(또는 여럿)의 값을 HAE 회차별 배포본과 당사 저장소에서 회차순으로 뽑는다 — 기본 원칙 9(과거 이력).
    이번 배포본이 이전 회차 보정을 되돌린 값이면 '되돌림 의심'으로 표시한다(three-way-merge §4.8).
 
   python history_trace.py --file Configuration/Ecu/Ecud_EcuM.arxml --key PMem_Driver \
