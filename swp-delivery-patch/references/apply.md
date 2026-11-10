@@ -73,6 +73,20 @@ python scripts/patch_tool_plan.py --pkg <배포본 루트> --app <당사 앱> [-
 
 ### 돌렸으면 — 바뀐 자리 목록을 뽑는다
 
+⭐⭐ **이 목록은 적용 후보가 아니라 보고 대상이다.** 담당자 방침(2026-11-10) - "도구에 의한 것은 참조만 합니다. 작업의 고려 대상도 아닙니다. **알려만 주고 패치 작업에는 반영하지 않습니다.**"
+
+그래서 돌린 뒤 하는 일은 셋이다.
+
+1. 모든 줄에 `[도구 산물]` 을 붙여 **사용자에게 목록으로 보고**한다
+2. 안내 `2 설정변경`(또는 일감 요청 항목)에 **같은 줄이 적혀 있는 것만** `[안내 요청]` 으로 떼어내 `decision-rules.md` 0 의 A~D 로 판정한다
+3. 남은 `[도구 산물]` 은 **판정하지 않고, 적용하지 않고, HAE 에 묻지도 않는다.** 판정표에 `도구 산물 / 미반영` 한 줄로 남긴다
+
+⚠ **가르는 기준은 안내에 그 줄이 있는지 하나다.** `IA-xxx`·`VC-xxx` 사유가 붙어 있다는 것은 기준이 아니다 - 스크립트는 자기가 하는 모든 일에 그럴듯한 사유를 달고 있다.
+
+⚠ **시험 브랜치를 쓰는 이유가 여기서 하나 더 늘어난다.** 적용하지 않을 것을 읽기 위해 돌리는 것이므로, 작업 브랜치에서 돌리면 안 된다 - 되돌리는 길은 git 뿐이다(원칙 9).
+
+판정 경로 -> `decision-rules.md` 0 경로 E. 라벨·보고 양식 -> `communication.md` 7.
+
 툴은 판정 없이 공통 보정을 한꺼번에 넣으므로, **무엇이 바뀌었는지가 손에 있어야** 끝난 것이다.
 
 ```
@@ -154,7 +168,69 @@ harmonize 는 한쪽 설정의 **존재**를 보고 다른 쪽 짝을 만든다.
 
 #49949 사례 — EcuM `EcuMDriverInitListThree` 를 빈 컨테이너로 남겨 둔 상태에서는 BswM harmonize 가 `AC/AI_EcuMDriverInitListThree` 짝을 만들고 `BswMActionListItemIndex` 를 밀었다. 컨테이너째 지운 뒤 같은 절차를 다시 돌리니 **되살아나지 않았고 설정값 변화가 0** 이 됐다. 빈 컨테이너 하나가 Validation 오류(§3)와 harmonize 되돌림을 동시에 만든 것이다.
 
+### 5-1. CLI 를 맨손으로 부르지 않는다 — HAE 실행기를 쓴다
+
+`mobilgene-cli.exe` 를 직접 부르면 콘솔에서 **대화형 약관 확인에 걸려 멈춘다.**
+
+```
+Do you agree to the terms of service? (y/n) :
+```
+
+`mobilgene-cli.ini` 에 `-clearPersistedState` 가 들어 있어 **동의가 보존되지 않는다** — 실행마다 묻는다. GUI 로만 써 온 사용자는 이 프롬프트를 본 적이 없으므로, **이것을 사용자에게 동의해 달라고 요청하면 없는 요구를 만드는 것이다.** 배포본이 이미 답을 갖고 있다.
+
+배포본 `patch_tool/src/patch_manager/mobilgene_executor.py` 가 호출마다 인자를 붙인다(2026-11-10 확인, 88·102·179·211행).
+
+```python
+cmd.extend(["-AgreeTermsEarlyCLI", "y"])
+```
+
+⚠ 형태를 틀리지 않는다 — **하이픈 하나에 값 `y`** 다. `--AgreeTermsEarlyCLI true` 로 넘기면 듣지 않는다. 실행기가 만드는 전체 명령은 이렇다.
+
+```
+mobilgene-cli.exe -nosplash -data <mobilgene설치폴더>\.mobilgene_workspace
+                  -consolelog -project <프로젝트>
+                  -harmonize <json> [-script cli_runner.py] -AgreeTermsEarlyCLI y
+```
+
+`-data` 가 **별도 워크스페이스**를 쓰는 것도 중요하다. 프로젝트 안의 `workspace/.metadata` 를 건드리지 않는다.
+
+**그래서 직접 구현하지 말고 그 클래스를 불러 쓴다.** 인자·순서·후처리가 다 들어 있다.
+
+```python
+sys.path.insert(0, str(BUNDLE / "src"))
+from patch_manager.mobilgene_executor import MobilgeneExecutor
+ex = MobilgeneExecutor(mobilgene_path=<C Studio 설치폴더>, project_path=<저장소>,
+                       platform_root=<저장소>,            # project/Configuration 이 있으면 저장소 자신
+                       patches_dir=BUNDLE / "module_patch", ar_version="R44")
+ex.run_pre_harmonize()   # pre_harmonize.py -> PREHarmonize.json -> -harmonize
+ex.harmonize()           # rte_pre -> gen_harmonize.py -> GENHarmonize.json -> -harmonize + rte_post
+```
+
+`platform_root` 판정은 `src/common/project_layout.py` 규칙이다 — `project/Configuration` 이 있으면 프로젝트 자신, 없으면 한 단계 아래에서 찾는다.
+
+### 5-2. 두 번으로 나뉘는 이유와 대상 모듈
+
+| 호출 | 하는 일 | 대상 |
+|---|---|---|
+| `run_pre_harmonize()` | `pre_harmonize.py` 가 `References/MIA/json/PREHarmonize.json` 을 만들고, **그 파일이 생겼을 때만** `-harmonize` 를 부른다 | EcuM |
+| `harmonize()` | `rte_pre_harmonize.py`(BswModuleInstance 스냅샷) → `gen_harmonize.py`(`GENHarmonize.json`) → `-harmonize` → `rte_post_harmonize.py`(새로 생긴 BswModuleInstance 삭제) | Rte |
+
+**대상 모듈은 추측하지 않는다 — IMS 안내 댓글 §4 "harmonize 필요 모듈" 에 적혀 있다.** 실측: #49949 FBL = `EcuM, BswM`, #49951 APP = `Rte, EcuM`. 안내를 읽으면 전수 대조 범위가 그 자리에서 좁혀진다(`ims-workflow.md`).
+
+⚠ **`bswm_pre/post_harmonize.py` 는 실행기가 부르지 않는다.** docstring 에 "FBL only" 로 적혀 있고 `harmonize()` 는 `rte_*` 만 연결한다. BswM harmonize 가 `BswMUserIncludeFiles` 의 `Com.h` 와 `AC_UserCallout_Com_DeInit` 을 되살리므로, **Com 을 제외한 프로젝트는 `bswm_post_harmonize.py` 를 직접 돌려야 한다**(#49949 실측, `troubleshooting.md`).
+
+### 5-3. 끝났다고 말하려면
+
+- ⭐ **`References/MIA/json/` 에 `PREHarmonize.json`·`GENHarmonize.json` 이 실제로 생겼는지 눈으로 봤다.** 실행기는 그 파일이 없으면 **건너뛰면서 성공을 돌린다**(`if not pre_json.exists(): return True`) — `OK` 는 돌았다는 근거가 아니다. 드라이버는 `PYTHONIOENCODING=utf-8 PYTHONUTF8=1` 로 띄운다(cp949 콘솔에서 실행기의 출력 스레드가 죽어 JSON 이 안 생긴다 → `troubleshooting.md`)
+- `Static_Code/modulesVersion.json` 의 `tool_info` 가 **로컬 C Studio 버전으로 덮였는지** 본다. 당사 기준 버전과 다르면 되돌린다
+- 시험 브랜치에서 돌렸고, **컨테이너·파라미터 전수 비교**로 값 변화를 세었다(#49949 실측 형식: "컨테이너 1351 · 파라미터 2266 에서 값 변화 0")
+- 보호 설정이 살아 있는지 이름을 들어 확인했다(`protected-settings.md` §6)
+- 되살아난 것(`Com.h`·콜아웃·InitList 짝)을 다시 지웠거나, 되살아날 근거가 없음을 확인했다
+- harmonize JSON(`PRE`/`GEN`/registry)과 `modulesVersion.json` 은 **부산물이라 커밋하지 않는다**
+
 ## 6. 버전업
+
+**끝났다고 말하려면** `version_bump_check.py` 를 돌려 "이전 토큰 잔존 0곳"과 "기대 위치 누락 없음"을 본 뒤여야 한다. 눈으로 훑고 끝내지 않는다 — #49951 에서 `.project` 만 올리고 `.utp` 두 개를 빠뜨렸는데, 빌드는 성공하고 `.s19` 만 조용히 구 버전으로 나왔다. 스크립트를 돌렸으면 그 자리에서 걸렸다.
 
 패치마다 바꾸는 "버전"은 세 종류다. 섞어 쓰면 안 된다.
 
@@ -170,5 +246,43 @@ harmonize 는 한쪽 설정의 **존재**를 보고 다른 쪽 짝을 만든다.
 - **FBL**: 버전 문자가 있는 프로젝트는 `PJ_Define.h` 의 버전 문자를 올린다. 없는 프로젝트는 `.project` `<name>` 한 곳뿐이고 후처리가 `.sre` 이름으로 폴더·접두를 정한다. **다른 과제의 문자 규칙을 적용하지 않는다.**
 - **확인**: 버전 문자열을 코드에 두는 프로젝트는 빌드된 `.sre` 의 버전 영역(주소는 프로필)을 판독한다. 없으면 산출물 이름·`.project` 로만 확인하고 판독 방법을 프로필에 적는다.
 - **APP 저장소 반영**: 검증을 통과한 FBL 바이너리를 APP 의 `References/02_Fbl_Binary/<변형>/` 에 교체(elf/hex/map/sre, readme). FBL 검증 전에 넣지 않는다 — APP 라이팅이 이 바이너리를 짝으로 쓴다.
-- **잔존 확인**: `python scripts/version_bump_check.py <앱 또는 FBL 폴더> <이전 토큰> <새 토큰>` — 이전 토큰이 남은 곳이 0 이고, 새 토큰이 프로필 목록에 모두 들어갔는지 본다.
+- **잔존 확인**: `python scripts/version_bump_check.py <앱 또는 FBL 폴더> <이전 토큰> <새 토큰> --expect <프로필의 버전 위치 파일...>` — 이전 토큰이 남은 곳이 0 이고, 새 토큰이 프로필 목록에 모두 들어갔는지 본다. git 이 추적하는 텍스트 파일 전부를 보므로 프로필에 적히지 않은 위치도 드러난다(T32 `.cmm` 등). 남은 곳이 있으면 **하나씩 판정**한다 — 올릴 것인지, 그 회차에 해당 없는 것인지.
 - **Doc**: ReleaseNote·ModuleList·Module Change List 를 프로필 규칙대로 추가한다.
+
+## 7. FBL 산출물 등록 — 세트가 빠지는 것은 아무 검사에도 걸리지 않는다
+
+**들어가기 전** — 프로필의 `FBL 산출물 등록` 절에서 **세트 확장자 목록**과 **이름 규칙**을 읽는다. 프로젝트마다 다르고, 기억으로 하면 빠진다.
+
+APP 저장소가 FBL 빌드 결과를 형상으로 들고 있는 프로젝트가 있다(예 `References/FBL_Output/OEUK_<차종>/`). 이것은 **APP 빌드의 입력이 아니다** — 참조하는 빌드 설정이 없는지 먼저 확인하고, 없으면 "형상 보관"으로 다룬다.
+
+### 왜 따로 절을 두나
+
+플래시에 올라가지 않는 파일이 세트에 섞여 있다. GHS(Green Hills) 컴파일 옵션 `-dual_debug` 가 디버그 정보를 `.elf` 에서 떼어 둘로 내보낸다.
+
+| | 정체 | 타겟에 올라가나 |
+|---|---|---|
+| `.dla` | `ar` 아카이브. 안에 `.dlo`(번역 단위별 디버그 오브젝트) 수백 개 | **아니오** |
+| `.dnm` | `\x7fGHS` 로 시작하는 색인. `.elf` 과 `.dla` 를 잇는다 | **아니오** |
+| `.elf` · `.hex` · `.map` · `.sre` | 이미지와 지도 | `.sre`·`.hex` 는 예 |
+
+⭐ **그래서 `.dla`·`.dnm` 이 빠져도 빌드도 Validation 도 실기도 통과한다.** 없으면 디버거가 변수·행 번호를 못 찾을 때 비로소 드러난다 — 그때는 이미 회차가 끝나 있다. **사람이 세는 수밖에 없고, 그래서 스크립트로 센다.**
+
+### 이름을 바꿔 넣어야 하는 경우
+
+FBL 빌드 산출물의 이름은 **FBL `PJ_Define.h` 의 OEUK 선택과 무관하게 고정**인 경우가 있다(TPMS: 항상 `e_bj_...`). 등록 폴더의 관례가 다르면(`OEUK_LT2` → `e_lt2_...`) **복사할 때 바꾼다.** 폴더와 파일의 차종이 어긋나면 나중에 어느 FBL 인지 알 수 없다.
+
+판단 기준은 **그 폴더의 직전 버전 이름**이다. 폴더 이름에서 유추하지 않는다 — `OEUK_TEST` 는 차종이 아니라서 유추가 틀린다.
+
+### 끝났다고 말하려면
+
+```
+python <스킬>/scripts/fbl_output_check.py --root <APP 저장소> --fbl-root <FBL 저장소>
+```
+
+- **1. 폴더별 등록 상태** — `빠진 확장자` 가 `없음` 인지. 하나라도 있으면 FBL 저장소 `Debug/` 에서 가져온다
+- **2. 이름 규칙** — 직전 버전과 base 이름이 같은지
+- **3. 빌드가 만든 것 중 옮기지 않은 것** — FBL `Debug/` 에 남아 있는 세트가 등록된 버전인지
+
+`확인 필요 0 건` 이 아니면 **등록이 끝난 것이 아니다.** 커밋 메시지에 "의도된 것인지 확인 필요"로 적어 넘기지 않는다 — 그것은 확인하지 않았다는 말이다.
+
+> 2026-11-10 실측(#49951) — `.elf`·`.hex`·`.map`·`.sre` 4개만 옮겨 `.dla`·`.dnm` 이 빠졌다. 빌드는 둘 다 만들어 FBL `Debug/` 에 그대로 있었다. 커밋 메시지에 "확인 필요"로 적어 두었지만 그것으로는 막히지 않았다. 다른 사람의 같은 회차 작업과 대조해서야 드러났다.

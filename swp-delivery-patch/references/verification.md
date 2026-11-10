@@ -60,6 +60,9 @@ grep 'line="Configuration/System' <저장 폴더>/validation-results.xml
 
 ## 2. 빌드 검수
 
+**들어가기 전** — 이번 회차에 모듈을 교체했거나 설정을 바꿨다면 Jenkins `BuildType=Rebuild` 로 돌렸는지 확인한다. 증분 빌드는 바뀐 모듈을 생성기 `-M` 목록에서 빼므로 그 모듈 Validation 이 돌지 않는다(jenkins-flow §1).
+**끝났다고 말하려면** — ① `Validation SUCCESS` 모듈 목록에 이번에 손댄 모듈이 **전부** 있는지 ② 새 Validation 코드 대조 ③ `UTIP` 실패 0건 ④ 훅 `Final ERROR LEVEL : 0` ⑤ 산출물(`.elf`·`.sre`·`.s19`)이 저장소에 실제로 올라왔는지. ①을 건너뛰고 "ERR 0건이라 통과"라고 쓰면 미수행을 통과로 보고하는 것이다.
+
 커밋·push 한 뒤 순서는 이렇다. **push 가 빌드 트리거**이므로 커밋은 사용자 지시가 있을 때만 한다.
 
 1. **빌드가 시작됐는지** — Job 이름은 프로필. 번호는 생략하면 최신 빌드를 본다.

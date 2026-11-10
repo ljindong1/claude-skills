@@ -108,12 +108,80 @@ HAE 는 "하모나이즈로 생성된 설정은 임의로 바꾸지 말 것"을 
 - **다시 Harmonize 하면 같은 값이 또 덮인다**는 사실 한 줄
 - 같은 되돌림이 회차마다 반복되면 그 항목은 C 경로로 "이 값을 유지해도 되는지" HAE 에 확인해 근거를 받아 둔다 — 반복 되돌림은 언젠가 빠진다
 
+## 6-1. ADMIN-DATA 장부를 읽으면 "언제 덮일지" 를 미리 안다
+
+ECUC arxml 은 파라미터마다 **유효값과 별도로 세 가지 장부**를 ADMIN-DATA 의 `SDG` 에 남긴다. 이것을 읽으면 Harmonize 를 돌리기 **전에** 어느 보호 설정이 위험한지 알 수 있다.
+
+| SDG GID | 뜻 |
+|---|---|
+| `ODIN_WRITER_TYPE:USER_CONFIGURED` | **사람이 넣은 값**과 넣은 날짜 |
+| `ODIN_AUTO_CONFIG_PROPERTY` | `true` 면 그 파라미터가 **자동구성 대상** |
+| `ODIN_WRITER_TYPE:AUTO_CONFIGURED` | **도구가 넣으려는 값**과 그 날짜 |
+
+**유효값은 이 셋이 아니라** `<DEFINITION-REF …/><VALUE>` 쌍이다. 장부만 보고 값을 말하면 틀린다.
+
+실측 — `#49951` APP `Configuration/Ecu/Ecud_Dcm.arxml` 9005~9065행:
+
+```xml
+<SDG GID="ODIN_WRITER_TYPE:USER_CONFIGURED">
+  <SD T="2024-09-03T16:07:43Z" GID="DcmTaskTime">0.01</SD>      <- 사람이 2024-09-03 에 넣음
+<SDG GID="ODIN_AUTO_CONFIG_PROPERTY">
+  <SD GID="DcmTaskTime">true</SD>                               <- 자동구성 대상
+<SDG GID="ODIN_WRITER_TYPE:AUTO_CONFIGURED">
+  <SD T="2026-02-05T15:56:47Z" GID="DcmTaskTime">0.005</SD>     <- 도구가 넣으려는 값
+...
+  <DEFINITION-REF DEST="ECUC-FLOAT-PARAM-DEF">/AUTRON/Dcm/DcmGeneral/DcmTaskTime</DEFINITION-REF>
+  <VALUE>0.01</VALUE>                                           <- 유효값
+```
+
+읽히는 것: **HAE 가 권고하는 `0.005`(IA-059)가 2026-02-05 부터 이미 장부에 들어와 있고**, 당사 `0.01` 이 `USER_CONFIGURED` 로 그것을 누르고 있다. `AUTO_CONFIG_PROPERTY` 가 `true` 이므로
+
+> ⚠ **Dcm 을 Harmonize 대상에 넣고 `overwriteUserConfiguredParametersAndReferences` 가 켜져 있으면 `0.01` 이 `0.005` 로 덮인다.**
+
+이번 회차에 살아남은 이유는 **Dcm 이 harmonize 대상이 아니었기** 때문이다(안내 §4 = `Rte, EcuM`). 운이 아니라 대상 목록 덕이다 — 그러나 다음 회차에 Dcm 이 대상에 들어오면 그대로 덮인다. **보호 설정 중 `AUTO_CONFIG_PROPERTY=true` 이고 `AUTO_CONFIGURED` 값이 당사 값과 다른 것은 "지금 안전" 이 아니라 "대상에 들어오면 즉시 위험" 으로 분류한다.**
+
+⚠ **`scripts/protected_check.py` 의 한계(2026-11-10 확인).** 이 스크립트는 `#49951` 프로필의 보호 설정 3건을 모두 `키 없음(컨테이너 이름 변경·삭제 의심)` 으로 낸다 — 오탐이다. `DcmTaskTime` 은 `SD GID=` 안에 있고, `tool_info` 는 arxml 이 아닌 JSON 이며, `BswInstance_Crypto` 행은 키가 아니라 "개명하지 않는다" 라는 지시문이다. **스크립트 결과만으로 보호 설정을 판정하지 말고 위 구조로 직접 확인한다.**
+
+## 6-2. 보호 설정 표를 쓰는 규칙 — `protected_check.py` 가 읽는 형식
+
+표를 잘못 쓰면 **오류가 아니라 침묵**으로 나타난다. 조용히 검사에서 빠지거나, `키 없음(컨테이너 이름 변경·삭제 의심)` 이라는 **엉뚱한 경고**가 harmonize 직후에 뜬다. 2026-11-10 에 `tpms_rf_receiver.md` 가 네 가지를 동시에 틀렸다.
+
+| 칸 | 규칙 | 틀리면 |
+|---|---|---|
+| 키 | `컨테이너 SHORT-NAME 경로#파라미터 정의명` (`three_way.py` `parse()` 형식, 예 `/Dcm/DcmGeneral#DcmTaskTime`) | 사람이 읽는 이름(`DcmTaskTime`)은 `키 없음` — 컨테이너가 사라진 것처럼 보인다 |
+| 당사 값 | **값만.** 백틱은 벗겨지지만 `**` 와 괄호 설명은 남는다 | `**0.01** (IA-059 권고는 0.005)` → 실제 `0.01` 과 문자열이 달라 `바뀜` |
+| 구분 | `APP` · `FBL` · `공통` 중 하나와 **정확히 일치** | `APP·FBL` 은 `--part APP` 에도 `--part FBL` 에도 걸리지 않아 **조용히 빠진다** |
+| 파일 | 실제 경로 | MCAL 모듈은 `Configuration/Ecu/Mcal/` 아래다. `Configuration/Ecu/Ecud_Can.arxml` 로 적으면 안 된다 |
+
+⭐ **절 안에 다른 표를 두지 않는다.** 파서는 `## 보호 설정…` 절에서 **처음 만난 표의 머리글**을 헤더로 삼고, `###` 소제목으로는 초기화하지 않는다(`read_rules()`). 설명용 표를 앞에 두면 `키` 칸이 사라져 **그 절의 모든 행이 무효가 된다.** 설명은 글머리표로 쓰고, 성격이 다른 항목은 **"보호 설정" 으로 시작하지 않는 별도 `##` 절**에 둔다.
+
+**스크립트가 원리적으로 못 보는 것** — `.arxml` 의 ECUC 파라미터만 비교한다(`if not n.endswith(".arxml"): continue`). 아래는 표에 넣지 말고 별도 절에 "사람이 확인" 으로 둔다.
+
+- JSON·텍스트 설정 (`Static_Code/modulesVersion.json` 의 `tool_info`)
+- 폴더·모듈 버전 (MCAL `S32K3xx_RTD_4.0.0_P24`)
+- 값이 아닌 **지시문** (`BswInstance_Crypto` 를 개명하지 않는다 — 확인은 `grep -c "SHORT-NAME>…<"`)
+- 도구 상태 파일 (`.settings/com.autron.odin.auto.config.prefs`)
+
+**키는 추측하지 말고 뽑는다.**
+
+```
+python -c "import sys;sys.path.insert(0,r'<스킬>/scripts');from three_way import parse;
+           [print(k,'=',v) for k,v in parse('<파일>.arxml').items() if '<파라미터>' in k]"
+```
+
+쓴 뒤에는 **반드시 돌려서 `✅ 유지` 가 뜨는지 본다.** 행을 추가하고 돌리지 않으면 그 행이 읽히는지조차 모른다.
+
 ## 7. 기록 형식
 
-판정표 형식은 `three-way-merge.md` §6 하나다. 보호 설정 행 예:
+판정표는 데이터이고 표는 생성물이다 — 형식은 `three-way-merge.md` §6 하나뿐이니 여기에 사본을 두지 않는다. 보호 설정 행은 판정표 데이터에 이렇게 들어간다(사람이 채우는 칸만 적었다).
 
-| HAE 요청 | 판정 | 경로 | 이전 상태 (Ours) | 처리 (파일) | 확인 근거 | 이력 (이전 회차) |
-|---|---|---|---|---|---|---|
-| (Harmonize 부수 변경) CanIfMetaDataSupport | 보호 — 당사 값 유지 | A | 1 (#38061, 이유 미상) | Ecud_CanIf 되돌림 | 쓰는 PDU 0건(CanIf_Cfg.c 전부 INVALID_METADATA_TYPE), 사용자 확인 10-11 | #38061 부터 1, HAE 배포본·VC 는 0 (3.0.18·3.0.19 동일) |
+```json
+{"id": "R042", "file": "Configuration/Ecu/Ecud_CanIf.arxml",
+ "key": "/CanIf/CanIfPrivateCfg#CanIfMetaDataSupport",
+ "path": "B", "action": "보호 — 당사 값 유지 (되돌림)",
+ "basis": "#38061 부터 1, HAE 배포본·VC 는 0 (3.0.18·3.0.19 동일). 쓰는 PDU 0건 — CanIf_Cfg.c 전부 INVALID_METADATA_TYPE. 사용자 확인 2026-10-11"}
+```
+
+`verdict`·`ours`(= 당사 현재값)는 생성되므로 적지 않는다. **보호 설정은 거의 항상 B 다** — 왜 당사 값이 그렇게 되었는지의 출처가 근거이고, `basis_auto`(현재값)로는 닫히지 않는다.
 
 Redmine "적용 제외·당사 값 유지" 절에는 위 행을 그대로 옮기고, Harmonize 를 다시 돌리면 같은 값이 덮어써진다는 것을 한 줄 적는다.

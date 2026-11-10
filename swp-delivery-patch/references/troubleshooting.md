@@ -17,6 +17,7 @@
 | 판정 | MCP0806-256/279, #48891 note-21 | **이번 배포본이 이전 회차 보정을 되돌렸는데 "기존 충족"으로 통과.** 3.0.18 08-31 보정본은 PMem_Driver_StartUp 을 EcuM ListTwo 로 옮겼는데 3.0.19 배포본은 BswM 방식. HE1i 가 3.0.19 와 같아 넘어감 | 3-way 는 이번 회차 델타만 봄. Prev(3.0.18+보정본)→Cur 의 "EcuM→BswM" 을 HAE 의도로 봄 | 모든 행 과거 회차 이력 대조, 되돌림 의심은 사용자 확인·C 경로 (기본 원칙 8, three-way §4.8) |
 | 판정 | 이전 담당자 경험 | HAE 참고 설정을 그대로 넣어 당사 로직 문제 | 참고 프로젝트 기준 설정 | 3-way 판정, 통째 복사 금지 (기본 원칙 2) |
 | 판정 | MCP0806-280 | 참고 설정의 새 PDF 입력이 당사에 없는 파일 | HAE 참고 프로젝트의 다른 모듈 버전(Crypto 2.0) | patch_tool 주석으로 이유 확인 → 제외, 묶음 판정 (three-way §4.4, decision-rules 공통) |
+| 판정 | #49949·#49951, 11-09~10 | **규칙은 있는데 수행하지 않아 하루에 네 건이 샘.** A 경로 항목을 "전제"로 적어 두고 닫지 않음, 짝 일감(FBL→APP) 문장을 값 재확인 없이 옮겨 적음, HAE 표기를 당사 파일명으로 확정 | 전제를 결론 칸에 적으면 빈 칸이 아니게 되어 확인 동기가 사라진다. 판정표가 산문이라 **사실을 사람이 타이핑**했다 | 판정표를 데이터로 바꿨다 — 사실 칸은 생성되고 사람은 경로·처리만 채운다. `three_way.py --json` → `issue_table.py --probe --strict` (three-way §6) |
 | 질문 | MCP0806-280, 10-12 | **IMS 질문이 거꾸로 읽히고, 확인하지 않은 전제가 들어감.** "참고 SCons 에 IM 표준에 없는 항목"을 HAE 가 "당사 누락"으로 읽음. CDD_Router 초기화를 파일을 열지 않고 전제로 씀 | 모호한 이름("참고 형상"), 한 문장에 세 곳을 섞음, 추정을 사실처럼 | 확인한 것만·이름 고정표·"A 에는 있고 B 에는 없다" (communication §1~3) |
 | 적용 | #38061 | 모듈 폴더 통째 교체로 당사 수정 소실 위험 | 당사가 HAE 모듈 파일을 직접 수정(CanTrcv) | `owner_edits.py` 로 교체 전 확인 (three-way §5.1, 프로필) |
 | 적용 | FBL V3.0.19 시험 10-10 | **Harmonize 기본 옵션이 당사 수동 값을 덮어씀** — CanIfMetaDataSupport 1→0, CanFdPaddingValue 0 명시, Rx 버퍼 10→64 등. 결과가 VC 와 같았음 | Overwrite / Remove Invalid / Auto-Regeneration 기본 켬, 내역은 git 무시 폴더 xls 에만 | 시험 브랜치, xls 보관, `protected_check.py` (protected-settings §6) |
@@ -38,6 +39,32 @@
 | 실기 | #48909 | 리셋 중 레스트버스 송신 막힘 | 실험대 ACK 노드 부재 | 리셋 동안 1초 정지, 실험대 특이사항으로 기록 (verification §2) |
 | 실기 | — | ALL 전환 후 CURRENT 복귀 누락 위험 | 평가 끝난 뒤 잊음 | 실기 마지막 단계에 복귀 커밋 체크 (jenkins-flow §2) |
 
+## 보고 — 당사 실측 사례
+
+| 증상 | 원인 | 조치 |
+|---|---|---|
+| 사용자가 "어떻게 작성했는지 여기 출력하라" 고 함 | 스크립트 미리보기를 세 번 찍고 "미리보기 그대로입니다" 로 가리켰다. **도구 출력은 사용자 화면에 보이지 않는다** | 승인 대상 글은 답변 본문에 전문을 싣는다 (`communication.md` §0) |
+| 사용자가 "무슨 말인지 모르겠다" 고 함 | 내 편집 전후 diff·수정 내역을 설명했다. 사용자는 **결과물**만 알면 된다 | 내가 무엇을 고쳤는지가 아니라 **지금 무엇을 승인해야 하는지**를 쓴다 |
+| "권고 2, 3 같은 말은 왜 적었나" | 값 두 개 중 하나를 고르는 질문에 `선택지`·`권고` 양식을 기계적으로 끼웠다 | 양식은 판단이 갈리는 건에만 쓴다. 값 선택 질문은 **두 값과 각 근거, 그리고 질문 한 줄** |
+| "무엇에 대한 것인지는 알려줘야지" | 질문만 적고 어떤 패치·어디까지 진행됐는지를 뺐다 | 코멘트 머리에 **무슨 건인지 / 진행 상황 / 묻는 이유** 세 줄 |
+
+## 빌드·검수 — 당사 실측 사례
+
+| 증상 | 원인 | 조치 |
+|---|---|---|
+| 빌드 SUCCESS, `ERR` 0건인데 교체한 모듈의 신규 Validation 이 하나도 안 걸림 | 증분 빌드가 그 모듈을 생성기 `-M` 목록에서 뺐다. `ERR` 0건은 **미수행** | `BuildType=Rebuild`(= `do_clean()`)로 재실행. `Validation SUCCESS` 모듈 목록으로 수행 여부를 확인 (#49951 빌드 #3) |
+| 빌드 SUCCESS 인데 `.s19` 가 만들어지지 않고, 이어진 Auto commit 이 저장소의 `.s19` 를 지움 | `.utp` 가 낡은 산출물명(`..._v2110.sre`)을 LOAD 하는데 `Rebuild` 가 `Debug/` 를 지워 그 파일이 없었다. `UTIP_FAIL` 은 훅의 성패에 반영되지 않는다 | `.utp` 의 LOAD 경로를 버전업한다. 버전업 단계에서 `version_bump_check.py` 를 돌리면 사전에 걸린다 (#49951 빌드 #4) |
+| 증분 빌드가 `UTIP_SUCCESS` 인데 `.s19` 내용이 구 버전 | `Debug/` 에 남아 있던 직전 회차 `.sre` 를 읽었다. 로그만 보면 정상으로 보인다 | 같음 — `.utp` 버전업. 산출물 해시를 패치 전과 대조해 실제로 바뀌었는지 본다 (#49951 빌드 #3) |
+| 설정 파일(`.utp`·문서·바이너리)만 바꾼 커밋의 빌드가 FAILURE, 산출물이 커밋되지 않음 | 재컴파일할 것이 없어 새 `.elf` 가 없고, 훅이 `No new .elf file - treated as build failure.` 로 Git Push 를 건너뛴다 | 산출물을 저장소에 넣어야 하면 `BuildType=Rebuild` 로 다시 돌린다 (#49951 빌드 #5) |
+| `jenkins_wait.py` 가 "생성기 실행 0회", "Validation 오류 없음"으로 보고 | Toolset 3.0.3 의 문구가 `INF000004: <0> Error(s)...` 로 숫자가 꺾쇠 안이고, 모듈별 Validation 수행 여부를 보지 않았다 | 2026-11-10 스크립트 수정(정규식·모듈 목록·UTIP·훅 ERROR LEVEL 추가). 백업 `jenkins_wait.py.bak` |
+| `Ecud_Rte.arxml` 에서 배포본 안내대로 BswInstance 를 개명했더니 SHORT-NAME 중복 | 같은 이름의 인스턴스가 파일 뒤쪽에 이미 있었다(MCAL 쪽 하나 + HAE 모듈 쪽 하나) | 개명하지 않고 그대로 둔다. 개명 안내를 받으면 **그 이름이 파일에 이미 있는지 먼저 grep** (#49951) |
+| `Ecud_Dem_Mcal.arxml` DemEventId 를 IA-068 대로 맞추니 다른 이벤트와 번호 충돌 | 미사용 Eth 이벤트가 그 번호대를 쓰고 있었다 | 충돌하는 쪽을 빈 번호로 옮기고, 유지/제외 판단은 당사 담당자에게 질의 (#49951) |
+| FBL 에서 `BswM` 생성물이 `Com.h` 를 include 해 빌드 실패(`Com.h` 미발견), 같은 설정의 APP 은 통과 | `BswM/BswMGeneral/BswMUserIncludeFiles` 에 `Com.h` 항목이 남아 있다. **FBL 은 `Generation/Com` 을 `Used=False` 로 꺼서 헤더가 생기지 않고**, APP 은 Com 을 컴파일에서만 제외(`ExcludeList`)하고 모듈 폴더를 그대로 둬 `Static_Code/Modules/Com_R44/delivery/inc/Com.h` 가 남아 있다 | `BswMUserIncludeFiles` 의 `Com.h` 를 지운다. ⚠ **harmonize 가 되살리므로** 배포본 `bswm_post_harmonize.py` 를 직접 돌려 다시 지운다. APP 은 지금 안 깨지지만 **`Generation/Com` 을 끄면 같은 실패가 난다** — Com 제외 작업을 할 때 이 항목을 함께 본다 (#49949 FBL 2026-11-03·11-09, #49951 APP 확인) |
+| 패치 스크립트가 참조로 거는 ECM 문서가 정리 페이지에 없어 적용 여부를 알 수 없다 | 문서 조건이 "○○.arxml **설정 변경 시**" 인 경우가 많다 | **문서를 못 열어도 전제부터 본다** — 그 파일이 이번 회차에 실제로 바뀌었는지 `git diff` 로 확인한다. 변경 0건이면 해당 없음으로 닫히고 문서를 구할 필요가 없다. 실측 — ECM `334008428`(`Ecud_Dcm.arxml` 변경 시 `Bswmd_BswM.arxml` 수동 설정)은 `Ecud_Dcm.arxml` 변경 0건으로 해당 없음 (#49951) |
+| HAE `mobilgene_executor.py` 로 harmonize 를 돌렸는데 `PRE-Harmonize : OK` 가 찍히고 **실제로는 아무것도 안 바뀜** | 윈도우 콘솔이 cp949 라 실행기의 출력 읽기 스레드가 `UnicodeEncodeError: 'cp949' codec can't encode character` 로 **죽는다**(`mobilgene_executor.py:369` 의 `print`). CLI 스크립트가 `PREHarmonize.json`·`GENHarmonize.json` 을 못 만들고, 실행기는 `if not pre_json.exists(): return True` 로 **건너뛰며 성공을 돌린다** | 드라이버를 `PYTHONIOENCODING=utf-8 PYTHONUTF8=1` 로 실행한다. ⚠ **끝났다고 말하기 전에 `References/MIA/json/` 에 `PREHarmonize.json`·`GENHarmonize.json` 이 실제로 생겼는지 본다** — 없으면 돌지 않은 것이다. `OK` 는 근거가 아니다 (#49951 2026-11-10) |
+| CLI 로그에 `mobilgene Studio Terms of Service / Please read the following terms carefully` 가 찍힌다 | `-AgreeTermsEarlyCLI y` 는 **약관을 출력하고 기다리지 않는** 것이다(Agree Terms **Early**). 멈춘 것이 아니다 | 정상이다. 이 줄을 보고 "사용자 동의가 필요하다" 고 판단하지 않는다. **인자 없이** 맨손으로 부를 때만 `(y/n) :` 에서 실제로 멈춘다 (#49951) |
+| 배경 실행의 종료코드가 0 인데 로그 끝에 파이썬 traceback 이 있다 | `python x.py > log 2>&1` 뒤에 `echo` 를 붙이면 보고되는 종료코드가 **`echo` 것**이다 | 파이썬을 그 명령의 마지막(또는 유일한) 명령으로 둔다. 로그 **끝 10줄**을 읽고 판단한다 — 종료코드만 보지 않는다 (#49951) |
+
 ## 빌드 오류 — 다른 담당자 사례 (IMS)
 
 | 증상 | 원인 / 해결 | 근거 |
@@ -51,3 +78,6 @@
 | Os 신규 Validation (SC3/4) | Task 스택은 2^n, 32 이상. .ld 의 task stack 은 Ecud_Os 최대값 | MCP1105-104 [8][12] |
 | 사용 안 하는 callout 설정 에러 (FlashcMain…Callout) | 모듈에서 함수 삭제됨 → 설정에서도 제거 (IA-057) | MCP0806-255 [10][11] |
 | 모듈을 뺀 뒤 `<모듈>_Cfg.c` 에서 헤더 없음 | 이전 생성물이 남아 컴파일됨 → 그 모듈 생성물 삭제 | #48891 #18 (위 빌드 행) |
+| FBL 산출물 | `References/FBL_Output/OEUK_*/` 에 `.elf`·`.hex`·`.map`·`.sre` 만 넣고 **`.dla`·`.dnm` 을 빠뜨렸다** | 세트가 6종인 것을 기억으로 했다. 이 둘은 GHS `-dual_debug` 가 만드는 디버그 정보라 **플래시에 올라가지 않아 빌드·Validation·실기 전부 통과한다** | ⭐ `fbl_output_check.py --root . --fbl-root <FBL 저장소>` 를 회차마다 돌린다. 세트 목록은 프로필 `FBL 산출물 등록` 절에 적혀 있다. 커밋 메시지에 "확인 필요"로 적는 것으로는 막히지 않았다(2026-11-10 #49951) |
+| FBL 산출물 | `OEUK_LT2` 폴더에 `e_bj_...` 이름을 넣어 폴더와 파일의 차종이 어긋났다 | FBL 빌드 산출물명은 OEUK 선택과 무관하게 고정(`e_bj_...`)인데 그대로 복사했다 | 그 폴더의 **직전 버전 이름**을 보고 맞춘다. 폴더 이름에서 유추하지 않는다 — `OEUK_TEST` 는 차종이 아니다. `fbl_output_check.py` 의 §2 가 본다 |
+| 보고·질문 | 배포본 patch_tool 을 돌려서 나온 `DcmTaskTime 0.01 vs 0.005` 를 **담당자 확인 목록에 올렸다** | 항목에 출처를 적지 않아 "도구를 돌려서 나온 것" 과 "안내가 글로 요청한 것" 이 한 목록에 섞였다. **담당자 기준으로 도구 산물은 참조일 뿐 작업의 고려 대상이 아니다** - 물을 필요가 없는 항목이었다 | 항목마다 `[안내 요청]`/`[도구 산물]`/`[부산물]`/`[당사 판단]` 을 붙이고, 보내기 전 **항목 수와 라벨 수가 같은지 센다**. 가르는 기준은 안내 `2 설정변경` 에 그 줄이 있는지 하나다(IA 번호 유무가 아니다) -> `communication.md` 7 |

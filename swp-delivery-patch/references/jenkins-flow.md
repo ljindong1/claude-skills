@@ -8,6 +8,20 @@
 - `Build_Hook_GIT_ASEC.bat`(표준, 수정 금지)은 인자가 Hook 이면 **마지막 커밋 제목**을 빌드 동작으로 쓴다: `Build`, `Compile`, `GenerateAll`, `Rebuild`, `Clean`. 제목이 이 단어 하나인 빈 커밋이 그 동작의 트리거다. 일반 커밋 제목은 기본 동작(Build: 변경분 생성+컴파일).
 - 과제 Hook(예: `Build_Hook_HE1I.bat`, `Build_Hook_LT2.bat`)은 `PJ_Define.h` 의 `JENKINS_BUILD_TARGET` 을 읽어 `ALL` 이면 변형 빌드(`BuildVariants.bat`), 아니면 단일 빌드 + `PostPackage.bat`. **`PJ_Define.h` 경로가 과제마다 다르다** — Hook 안에 그 경로가 박혀 있으니 거기서 확인한다.
 - 빌드 성공 시 `GitPush.bat` 이 `git add -f .` 후 `Auto commit from Jenkins #N` 으로 커밋해 같은 브랜치에 push 한다(의도된 동작 — 지적하지 않는다). 그래서 사람 커밋 뒤에는 항상 pull 이 필요하다.
+- Job 에 **`BuildType` 매개변수**가 있으면 커밋 제목에 의존하지 않고 `buildWithParameters` 로 직접 고를 수 있다(`Hook|Build|Compile|GenerateAll|Rebuild|Clean`, 기본 `Hook`). 빈 커밋을 만들지 않아도 되므로 이쪽이 낫다. Job 마다 있고 없고가 다르니 `.../api/json?tree=property[parameterDefinitions[name,choices]]` 로 먼저 본다.
+
+**BuildType 이 실제로 무엇을 하는가** (`Build_Hook_LT2.bat` → `Build.bat` → `site_scons/build.py`, 2026-11-10 실측)
+
+| BuildType | 훅이 넘기는 것 | build.py 동작 | 전체 재생성? |
+|---|---|---|---|
+| `Hook` | 커밋 제목을 읽어 결정, 못 읽으면 `Build` | 아래 각 행 | 제목에 따라 |
+| `Build` | `Build` | `GenerateAll`+`Compile` | **아니다 — 증분** |
+| `Compile` | `Compile` | `Compile` | 아니다 |
+| `GenerateAll` | `GenerateAll` | `GenerateAll` (`.elf` 확인·패키징·push 생략) | 아니다 — 증분 |
+| **`Rebuild`** | `Rebuild -j8` | **`do_clean()`** 후 `GenerateFBL`·`BuildFBL`·`GenerateAll`·`Compile` | **그렇다** |
+| `Clean` | `Build -c` | SCons `--clean` 옵션. `do_clean()` 이 아니다 | 아니다 |
+
+`do_clean()` 은 `.sconsign.dblite`·`.toolsetHash` 를 지우고 `DEBUG_DIR`(`Debug/`)·`DEBUG_FBL_DIR`·`GEN_OUTPUT_DIR`(`Generated/`)를 rmtree 한다 — HAE patch_tool 이 GenerateAll 직전에 하는 것과 같다(§5). **모듈을 교체하거나 설정을 바꾼 회차는 `Rebuild` 여야 한다.** 그러지 않으면 바뀐 모듈이 생성기 `-M` 목록에 들어가지 않아 그 모듈 Validation 이 아예 돌지 않는다(§4).
 
 ## 2. ALL / CURRENT
 
@@ -72,7 +86,21 @@ Debug/OEUK_HE1I/
 
 `scripts/jenkins_wait.py <job> <번호> [--compare <비교 빌드>] [--log <저장 경로>]`
 - 빌드가 끝날 때까지 30초 간격으로 기다리고 콘솔 로그를 저장한다.
-- 요약: 결과, 소요 시간, 생성기 `INF000004: n Error(s) and m Warning(s)`, `Rte Validation Finished. n errors, m warnings`, SAFERTE_ERR/WARN 종류별 건수, 산출물(`Making binary(...)`, `[PostPackage] Built artifact`).
+- 요약: 결과, 소요 시간, 생성기 실행 횟수·`-M` 모듈 목록, **모듈별 Validation 수행/실패**, `INF000004: <n> Error(s) and <m> Warning(s)`, `Rte Validation Finished.`, SAFERTE_ERR/WARN, ERR·WRN 코드 집계, **UTIP 성공/실패**, **훅 ERROR LEVEL**, 산출물.
+
+**세 가지를 반드시 가려 읽는다.**
+
+| 로그가 말하는 것 | 실제 뜻 |
+|---|---|
+| `ERR` 0건 + `Validation SUCCESS` 0개 | **미수행.** 생성 단계가 돌지 않았다 |
+| `ERR` 0건 + `Validation SUCCESS` 에 **내 모듈이 없다** | 그 모듈은 **미수행** — 증분 빌드가 건너뛴 것이다. 생성기 `-M` 목록을 보면 확인된다 |
+| `ERR` 0건 + `Validation SUCCESS` 에 내 모듈이 있다 | 통과 |
+
+`INF000000: [<모듈>] Validation SUCCESS in <n> ms` 가 모듈별 수행 증거다. 이것 없이 "ERR 0건이라 통과"라고 보고하면 안 된다 — #49951 에서 Dcm 모듈을 교체했는데 증분 빌드가 Dcm 을 건너뛰어 HF4 신규 Validation 17개가 하나도 돌지 않았고, 요약은 "오류 없음"으로 보였다.
+
+**빌드 SUCCESS 가 산출물 정상을 뜻하지 않는다.**
+- `UTIP_FAIL` 이 나도 훅은 `Final ERROR LEVEL : 0` 으로 성공 처리한다. 그러면 `.s19`(라이팅·리프로그래밍 이미지)가 만들어지지 않고, 이어지는 Auto commit 이 저장소에 있던 `.s19` 를 **삭제**한다.
+- 반대로 `[HOOK] No new .elf file - treated as build failure.` 는 **새 `.elf` 가 없으면 실패**로 보는 것이다. 설정 파일만 바꾼 커밋(`.utp`, 문서, 바이너리)은 재컴파일할 것이 없어 여기 걸리고, 그러면 **Git Push 를 건너뛰어** 그 빌드가 만든 산출물이 커밋되지 않는다. 산출물을 저장소에 넣어야 하면 `Rebuild` 로 돌린다.
 - `--compare`: 직전 회차에서 **전체 재생성이 일어난 빌드**(Rebuild 또는 패치 커밋 빌드)와 비교. 증분 빌드(Generate 로그 없음)와 비교하면 의미가 없다.
 - 오래 걸리면 Bash `run_in_background` 로 돌리고 완료 알림을 기다린다(폴링 sleep 금지).
 

@@ -24,7 +24,7 @@
 루트는 Build/, Configuration/ 이 들어 있는 폴더(예: VersionComparison/CurrentVersion, psu_app).
 --files 를 생략하면 Prev 와 Cur 에서 내용이 다른 .arxml 을 자동으로 고른다.
 """
-import argparse, io, os, sys
+import argparse, io, json, os, sys
 import xml.etree.ElementTree as ET
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
@@ -204,12 +204,15 @@ def main():
     ap.add_argument("--ours", required=True)
     ap.add_argument("--files", nargs="*")
     ap.add_argument("--md")
+    ap.add_argument("--json", help="판정표를 데이터로 저장한다 (--max 무시, 전 행). "
+                                   "사실 칸은 생성되고 사람은 path/action 만 채운다")
     ap.add_argument("--check", action="store_true", help="적용 후 Ours 와 Cur 의 남은 차이만")
-    ap.add_argument("--max", type=int, default=60, help="파일당 출력 행 수 한도")
+    ap.add_argument("--max", type=int, default=60, help="파일당 출력 행 수 한도 (--json 에는 적용 안 됨)")
     a = ap.parse_args()
 
     files = a.files or changed_files(a.prev, a.cur)
     rows, summary, seq_rows = [], {}, []
+    all_rows = []  # --json 용. --max 로 잘리지 않은 전 행
     for rel in files:
         cpath = find_in(a.cur, rel)
         opath = find_in(a.ours, rel)
@@ -236,8 +239,11 @@ def main():
                 continue
             summary["이름변경·" + v] = summary.get("이름변경·" + v, 0) + 1
             n += 1
-            rows.append((rel, f"{old} → {new.rsplit('/', 1)[-1]}", "이름변경·" + v, "있음", "있음(새 이름)",
-                         "새 이름" if o_has_new else ("옛 이름" if o_has_old else "없음"), "하위 값 동일 — 이름(ShortName)만 변경, 참조처 git grep 확인"))
+            row = (rel, f"{old} → {new.rsplit('/', 1)[-1]}", "이름변경·" + v, "있음", "있음(새 이름)",
+                   "새 이름" if o_has_new else ("옛 이름" if o_has_old else "없음"),
+                   "하위 값 동일 — 이름(ShortName)만 변경, 참조처 git grep 확인")
+            rows.append(row)
+            all_rows.append(row)
         for k in keys:
             if k in covered:
                 continue
@@ -265,10 +271,12 @@ def main():
                 continue  # --check: 반영된 것은 숨기고 남은 것만
             summary[verdict] = summary.get(verdict, 0) + 1
             n += 1
+            if P is None:
+                note = setdiff(o, c) if max(len(c or ()), len(o or ())) > 1 else ""
+            row = (rel, k, verdict, fmt(p) if P is not None else "-", fmt(c), fmt(o), note)
+            all_rows.append(row)
             if n <= a.max:
-                if P is None:
-                    note = setdiff(o, c) if max(len(c or ()), len(o or ())) > 1 else ""
-                rows.append((rel, k, verdict, fmt(p) if P is not None else "-", fmt(c), fmt(o), note))
+                rows.append(row)
         if n > a.max:
             rows.append((rel, f"… 외 {n - a.max}행", "", "", "", "", ""))
         if n == 0:
@@ -298,6 +306,41 @@ def main():
                 for rel, parent, pname, po, co, oo, warn in seq_rows:
                     f.write(f"| {rel} | {parent} ({pname}) | {', '.join(po)} | {', '.join(co)} | {', '.join(oo)} | {warn} |\n")
         print(f"\n판정표 저장: {a.md}")
+    if a.json:
+        import datetime
+        out = {
+            "meta": {
+                "generated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "prev": a.prev or None, "cur": a.cur, "ours": a.ours,
+                "check_mode": bool(a.check), "files": list(files),
+                "schema": "판정표 v1 — 사실 칸(file/key/verdict/prev/cur/ours/note)은 생성된다. "
+                          "사람은 path(A~E)·action 만 채운다. basis_auto 를 근거로 그대로 쓴다.",
+            },
+            "rows": [], "seq": [],
+        }
+        i = 0
+        for rel, k, v, p, c, o, note in all_rows:
+            kind = ("none" if k == "(차이 없음)" else
+                    "elided" if k.startswith("… 외") or not v else "decision")
+            rec = {"file": rel, "key": k, "verdict": v, "prev": p, "cur": c, "ours": o,
+                   "note": note, "kind": kind}
+            if kind == "decision":
+                i += 1
+                rec["id"] = "R%03d" % i
+                # 근거를 타이핑하지 않게 미리 만들어 둔다. 당사 현재값을 그대로 인용한다.
+                rec["basis_auto"] = "%s : %s = %s" % (rel, k, o)
+                rec["path"] = ""      # 사람이 채운다 — A/B/C/D/E
+                rec["action"] = ""    # 사람이 채운다 — 반영 / 제외 / 보류 / 질문
+                rec["basis"] = ""     # 비우면 basis_auto 를 쓴다
+            out["rows"].append(rec)
+        for rel, parent, pname, po, co, oo, warn in seq_rows:
+            out["seq"].append({"file": rel, "container": parent, "param": pname,
+                               "prev": list(po), "cur": list(co), "ours": list(oo), "warn": warn})
+        with open(a.json, "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False, indent=1)
+        nd = sum(1 for r in out["rows"] if r["kind"] == "decision")
+        print(f"\n판정표 데이터 저장: {a.json}  (판정 대상 {nd} 행 / 전체 {len(out['rows'])} 행)")
+        print("  사람이 채울 칸은 path·action 뿐이다. 근거는 basis_auto 를 쓴다 — 값을 다시 타이핑하지 않는다.")
 
 
 if __name__ == "__main__":

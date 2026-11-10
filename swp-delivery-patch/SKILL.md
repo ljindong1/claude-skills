@@ -31,8 +31,9 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 
 1. **판단 기준은 HAE 원본이다** — IMS 티켓 본문·댓글 전체·첨부 전부·변경 이력·연결 수평전개, 그리고 IM/IA/SAG. 일감과 다른 사람의 적용본(Redmine, Gitea)은 정리물이고 참고다.
 2. **참고 설정은 통째로 복사하지 않는다.** 3-way 판정에서 "복사 가능"인 항목만 그 위치에 반영한다. 다만 **쓰임이 둘**이다 — 값을 복사하는 데는 쓰지 않지만 **최종 형상을 확인하는 데는 반드시 쓴다.** 안내문은 "무엇을 바꿔라"만 말하고 결과 형상을 말하지 않으므로, 안내가 언급한 컨테이너는 참고 설정에서 그것의 최종 모습을 먼저 본다 → `three-way-merge.md` §4.7.
-3. **모르는 것은 추정하지 않는다.** 애매하거나 당사 설정과 충돌하면 사용자에게 묻고, 원하면 IMS 로 HAE 에 확인한다.
+3. **모르는 것은 추정하지 않고, 사람에게 묻기 전에 eCoDY 를 본다.** 사실을 묻는 것(안내 항 번호, IM·IA·SAG 의 조건, 어느 버전에서 고쳐졌나, HAE 가 무엇을 요청했나)은 **원본에 적혀 있다** — `ecody-search` 로 IMS 티켓 본문·댓글 전체와 ECM 문서를 읽어 **스스로 닫는다.** 정리 페이지·일감에 번호나 근거가 남지 않았다는 것은 질문거리가 아니라 **원본을 읽을 이유**다. 사용자에게 묻는 것은 **당사 판단이 필요한 것만** — 제품·사업 결정(그 기능을 앞으로 쓸 계획인가), 보호 설정 변경, 일정·우선순위, 외부로 나가는 글의 승인. 그래도 모르면 그때 IMS 로 HAE 에 확인한다.
 4. **외부에 쓰는 일은 모두 미리보기 → 승인 → 실행이다.** IMS 댓글, Redmine, Confluence, git commit / push(= Jenkins 빌드), 보드 라이팅, CAN 송신. 승인은 그 한 건에만 유효하다. 커밋·push 는 사용자가 지시할 때만 하고 먼저 제안하지 않는다.
+5. **도구를 돌려서 나온 것은 "도구 산물" 이라고 밝힌다.** 항목마다 출처(안내 요청 / 도구 산물 / 부산물 / 당사 판단)를 적는다 - **도구 산물은 알려만 주고 패치 작업에는 반영하지 않는다**(담당자 방침, `decision-rules.md` 0 경로 E). 가르는 기준은 안내 `2 설정변경` 에 그 줄이 있는지 하나다 -> `communication.md` 7.
 5. **확인한 것과 하지 않은 것을 구분해 보고한다.** 빌드 성공은 실기 검증이 아니고, 정적 검수는 동작 검증이 아니다.
 6. **확인한 것만, 이름을 밝혀, 쉽게 말한다.** 파일을 열어 본 뒤에만 경로·행과 함께 말하고, 비교는 "A 에는 있는데 B 에는 없다"로 먼저 쓴다. 보내기 전 점검 → `communication.md`.
 7. **보호 설정이 바뀌면 "동작 차이 없음"이어도 사용자 확인을 받는다.** 값이 없던 파라미터가 생기거나 사라지는 것(생성기 기본값 의존)도 같다. Harmonize·CLI·수동·이 스킬 반영 어느 경로든 → `protected-settings.md`.
@@ -72,9 +73,10 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 | 빌드 | 빌드 검수 (생성물 diff·남은 생성물·RAM/ROM) | `verification.md` §2 | `jenkins_wait.py`, `gen_diff_review.py`, `gen_stale_check.py`, `map_mem.py` |
 | 코드 영향 (수평전개·API 변경) | 코드 영향 판정 | `three-way-merge.md` §5.4 | `git grep`, `symbol_crosscheck.py` |
 | 버전업 | 버전 세 종류·위치·잔존 확인 | `apply.md` §6 | `version_bump_check.py` |
+| FBL 산출물 등록 | 세트 확장자·이름 규칙 확인 (APP 저장소가 FBL 결과를 들고 있는 프로젝트). **플래시에 안 올라가는 파일이 섞여 있어 빌드·실기로는 누락이 안 걸린다** | `apply.md` §7 | `fbl_output_check.py` |
 | 실기 | 판정 기준·순서 (실행은 각 스킬) | `verification.md` §3 | cvd-project, can-bench-setup, hota |
-| 질문 (Q 목록) | 경로 A~D 로 분류 → C 만 질문 | `decision-rules.md` §0, `ims-workflow.md` §2 | — |
-| 검증·완료 기준 | 항목마다 결과·판정, 미수행은 미수행으로 | `verification.md` | `review_all.py` |
+| 질문 (Q 목록) | **Q 번호는 `issue_table.py` 가 C 행에만 붙인다.** 사람이 Q 목록을 쓰지 않는다 — A·B 로 닫을 수 있는 것은 `--probe` 로 값을 읽어 그 자리에서 닫힌다 | `three-way-merge.md` §6, `decision-rules.md` §0, `ims-workflow.md` §2 | `three_way.py --json`, `issue_table.py`, ecody-search |
+| 검증·완료 기준 | 항목마다 결과·판정, 미수행은 미수행으로. **판정 완결성은 계산한다** — `issue_table.py --strict` 미결 0 | `verification.md`, `three-way-merge.md` §6 | `review_all.py`, `issue_table.py` |
 | 참고 문서 | 근거 읽기 | — | ecody-search |
 | 마무리 | PR, 상태 변경 | `pr-assembly.md` | gitea-jenkins-setup 모드 D |
 | **모든 단계** | 단계가 끝나면 **일감 본문 체크**, 막히면 **코멘트** | `issue-report.md` | redmine-issue |
@@ -111,7 +113,7 @@ HAE 가 eCoDY-IMS 로 배포한 SWP 패치를 당사 제어기 프로젝트에 �
 
 - 일감 본문의 **구조·지시 내용** 작성·갱신 → redmine-patch-issue (이 스킬은 단계 체크와 결과 한 줄만 고친다)
 - 작업 브랜치·Jenkins Job 신설, PR 구성 → gitea-jenkins-setup
-- eCoDY-ECM·IMS 읽기·검색 → ecody-search (이 스킬은 IMS 댓글 쓰기만)
+- eCoDY-ECM·IMS **쓰기**(댓글)만 이 스킬이 한다. 읽기·검색은 ecody-search 를 **적극적으로 불러 쓴다** — 범위 밖이라는 뜻이 아니라 도구가 거기 있다는 뜻이다(원칙 3)
 - 라이팅·CAN 측정 → cvd-project, can-bench-setup, canoe-project-setup
 - H-OTA A·B 그룹 평가·산출물 → hota
 - Redmine 일감 단순 조회 → redmine-issue
