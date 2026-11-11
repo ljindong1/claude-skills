@@ -15,10 +15,22 @@ description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Clas
 | 접속 방법 | **기본: API 토큰** `ECODY_ECM_TOKEN` + `scripts/ecm_monitor.py` / 폴백: 크롬 로그인 세션 + `collect.js`·`dump.js`·`read_pages.js` |
 | 발행 인스턴스 | `mobaseasec.atlassian.net` |
 | 발행 스페이스 | `mobaseasec4` (spaceId `43843599`) |
-| 부모 페이지 | `330366991` "eCoDY ECM" |
+| 부모 페이지 | `330366991` "eCoDY ECM" — 안내 영역(`ECM-INDEX`)과 원장 8종이 있는 묶음 |
+| 날짜별 기록 위치 | 묶음 페이지 **`384761860`** "일별 기록 (eCoDY ECM 변경 모니터링)" **하위**. 부모 바로 아래가 아니다 |
 | 날짜별 기록 제목 | `eCoDY ECM 변경 모니터링 YYYY-MM-DD (요일)` |
 | 원장 제목 | `eCoDY 원장 - 공지 (NOTICE)` 외 7종 — `references/ledger.md` §1 |
 | 원장 시작일 | 2026-09-15 첫 실행부터. 과거 자료는 가져오지 않는다 |
+
+```
+eCoDY ECM (330366991)                                   <- 부모. ECM-INDEX 안내 영역 + 원장 8종
+├─ 일별 기록 (eCoDY ECM 변경 모니터링) (384761860)        <- 묶음. 본문은 사람이 쓴 안내문
+│   ├─ eCoDY ECM 변경 모니터링 2026-11-11 (수)            <- 이 스킬이 하루 한 장 만든다
+│   └─ … (날짜순으로 쌓인다)
+├─ eCoDY 원장 - 공지 (NOTICE) (330530833)
+└─ … 원장 7종
+```
+
+**날짜별 기록은 묶음 아래로 모은다**(2026-11-11 사용자 재배치 — `ecody-ims-patch-monitor` 의 `380698635` 와 같은 모양). 이유는 둘이다: 부모 바로 아래에 날짜 페이지가 쌓이면 원장 8종이 그 사이에 묻혀 트리에서 안 보인다. 그리고 M2 가 하위 목록을 읽을 때 날짜 페이지와 원장이 한 목록에 섞여 제목 문자열로만 갈라야 한다 — 부모가 다르면 목록 자체가 갈린다.
 
 발행 형식·톤은 `confluence-writing` 스킬 규약(H3부터, html + `data-colwidth` 표, 첨부 있는 페이지는 html 왕복, 수정 직전 fetch)을 따른다. 단 **"수정 전 사용자 허락" 규칙은 이 스킬이 관리하는 페이지(그룹별 원장·부모 안내 영역·자신이 만든 기록 페이지)에 한해 사용자가 사전 승인했다**(2026-09-15). 부모·스페이스는 위 표로 고정되어 매번 확인하지 않는다.
 
@@ -48,8 +60,9 @@ description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Clas
 - 로그인·OTP·비밀번호는 입력하지 않는다. 토큰 값도 페이지·보고·로그에 쓰지 않는다. 접속 계정이 공용 계정이면(2026-11-04 실측: 본인 계정이 아닌 공용 계정) 그 사실을 알고 권한 범위를 그 계정 기준으로 본다.
 
 **사내 Confluence(mobaseasec) — 생성·수정 가능, 삭제 금지** (사용자 설정: MCP는 삭제 외 전부 허용)
-- 생성: 부모 `330366991` 아래 날짜별 기록 페이지, 없는 원장 페이지(최초 1회).
+- 생성: 묶음 `384761860` 아래 **날짜별 기록 페이지**(성공·실패 모두), 부모 `330366991` 아래 **없는 원장 페이지**(최초 1회). 날짜 페이지를 부모 바로 아래에 만들지 않는다.
 - 수정 허용 범위는 세 가지뿐이다: ① 그룹별 원장 페이지(행 추가·갱신), ② 부모 페이지의 `ECM-INDEX` 관리 영역, ③ 같은 날 이 스킬이 만든 당일 기록 페이지(추가 수집분 덧붙이기), ④ 이 스킬이 만든 `(수집 실패)` 페이지(복구 표시). 그 밖의 페이지는 읽기만 한다.
+- 묶음 페이지 `384761860` 의 **본문**은 사람이 쓴 안내문이다 — 읽기만 하고 고치지 않는다. 그 아래에 날짜 페이지를 **만드는** 것은 허용이고, 묶음 본문을 쓰는 것은 금지다.
 - 모든 수정은 **직전 `getConfluencePage(contentFormat="html")` → 필요한 부분만 바꿈 → 나머지는 받은 html 그대로 → `updateConfluencePage`** 순서를 지킨다. MCP는 본문 전체를 교체하므로, 받은 html을 건너뛰고 새로 쓰면 사람이 붙여 둔 내용·첨부가 사라진다.
 - 삭제·이동(`parentId` 변경)은 하지 않는다. 오래된 페이지 정리도 하지 않는다.
 
@@ -67,7 +80,7 @@ description: 현대오토에버 eCoDY-ECM(ecody-ecm.autoever.com, mobilgene Clas
 ```
 M0  컨텍스트     KST 날짜·요일, 현재 UTC
 M1  접속 확인    ecm_monitor.py check (실패 시 크롬 폴백, 둘 다 실패면 M7-F)
-M2  구간 확정    하위 페이지 목록 → 직전 마커 · 당일 기록 여부 · 미복구 실패 · 원장 id · 원장 미반영분
+M2  구간 확정    목록 둘(묶음 하위=날짜 페이지 · 부모 하위=원장) → 직전 마커 · 당일 기록 여부 · 미복구 실패 · 원장 id · 원장 미반영분
 M3  수집         ecm_monitor.py collect (폴백: collect.js → dump.js → get_page_text)
 M4  정독         ecm_monitor.py read 로 신규 본문 / 변경 줄 확보
 M5  작성         references/page-format.md 형식
@@ -122,15 +135,18 @@ python <스킬폴더>\scripts\ecm_monitor.py check
 
 ## M2. 구간 확정
 
-1. `getConfluencePageDescendants(cloudId="mobaseasec.atlassian.net", pageId="330366991", depth=1)`로 하위 페이지 목록(id·제목)을 받는다.
-2. 제목을 세 부류로 나눈다.
+1. 목록을 **두 번** 받는다 — 날짜 페이지와 원장이 서로 다른 부모 아래에 있다.
+   - `getConfluencePageDescendants(cloudId="mobaseasec.atlassian.net", pageId="384761860", depth=1)` → **날짜별 기록 페이지** 목록(id·제목). 2~5번은 이 목록으로 본다.
+   - `getConfluencePageDescendants(cloudId="mobaseasec.atlassian.net", pageId="330366991", depth=1)` → **원장** 목록(4-2번용). 이 목록에는 묶음 페이지 `384761860` 자신도 들어 있다 — 원장이 아니니 건너뛴다.
+   - 부모 목록에 `eCoDY ECM 변경 모니터링 …` 제목이 섞여 있으면 **옮기지 않고**(이동 금지) 결과 보고에 "묶음 밖 날짜 페이지 N건 — 수동 이동 필요"로 적는다. 구간 판정은 묶음 목록만 쓰므로, 묶음 밖 페이지의 마커는 보지 않는다.
+2. 날짜 페이지 목록의 제목을 세 부류로 나눈다.
    - **성공 페이지**: `eCoDY ECM 변경 모니터링 YYYY-MM-DD (요일)` — `(수집 실패)` 없음
    - **미복구 실패 페이지**: `(수집 실패)`가 있고 `복구됨`이 없음 → M8 대상 목록으로 기억
    - **복구된 실패 페이지**: `(수집 실패 → 복구됨)` → 무시
 3. 성공 페이지 중 제목 날짜 최신 1건을 `getConfluencePage(contentFormat="markdown")`로 읽어 `ECM-WINDOW-END-UTC: <ISO>`를 정규식 `ECM-WINDOW-END-UTC:\s*(\S+)`로 뽑는다. 이 값이 `WINDOW_START`.
 4. 그 최신 성공 페이지의 제목 날짜가 **오늘(KST)**이면 → **당일 재실행 모드**(M7-B). 페이지 id를 기억한다.
 4-1. 같은 최신 성공 페이지 푸터에 `ECM-LEDGER-PENDING: <그룹들>`이 있으면 → 직전 실행의 원장 반영이 덜 끝난 것이다. 그룹 목록을 기억해 M8에서 먼저 처리한다(`references/ledger.md` §5).
-4-2. 목록에서 제목이 `eCoDY 원장 - `으로 시작하는 페이지의 id를 그룹별로 기억한다(M8에서 사용). 없는 그룹은 M8에서 만든다.
+4-2. **부모 목록**에서 제목이 `eCoDY 원장 - `으로 시작하는 페이지의 id를 그룹별로 기억한다(M8에서 사용). 없는 그룹은 M8에서 부모 `330366991` 아래에 만든다.
 5. 성공 페이지가 없거나 마커가 없으면 → **오늘 00:00 KST**(= 전날 15:00 UTC)로 폴백하고 페이지에 "최초 실행" 표시. 사용자 방침이 "과거는 가져오지 않고 오늘부터 누적"이기 때문이다.
 6. 구간이 7일을 넘으면 그대로 수집하되 개요에 "장기 공백(N일)"을 명시한다.
 
@@ -197,7 +213,7 @@ python <스킬폴더>\scripts\ecm_monitor.py read --start <WINDOW_START ISO UTC>
 
 ### M7-A. 당일 페이지가 없을 때 — 신규 생성
 
-`createConfluencePage(cloudId="mobaseasec.atlassian.net", spaceId="43843599", parentId="330366991", title="eCoDY ECM 변경 모니터링 YYYY-MM-DD (요일)", contentFormat="html", body=…)`. 발행 후 `getConfluencePage`로 한 번 읽어 마커 줄과 표가 살아 있는지 확인한다.
+`createConfluencePage(cloudId="mobaseasec.atlassian.net", spaceId="43843599", parentId="384761860", title="eCoDY ECM 변경 모니터링 YYYY-MM-DD (요일)", contentFormat="html", body=…)`. **`parentId` 는 묶음 `384761860`** 이다 — 부모 `330366991` 을 넣으면 원장 사이에 날짜 페이지가 끼고, 다음 날 M2 가 묶음 목록에서 그 페이지를 못 찾아 구간 사슬이 끊긴다. 발행 후 `getConfluencePage`로 한 번 읽어 마커 줄과 표가 살아 있는지 확인한다.
 
 ### M7-B. 당일 페이지가 있을 때 — 추가 수집분 덧붙이기
 
@@ -206,7 +222,7 @@ python <스킬폴더>\scripts\ecm_monitor.py read --start <WINDOW_START ISO UTC>
 ### M7-F. 실패 처리
 
 세션 실패·크롬 미연결·수집 예외가 나면:
-- **당일 성공 페이지가 없으면** 제목 `eCoDY ECM 변경 모니터링 YYYY-MM-DD (요일) (수집 실패)`로 짧은 페이지를 만든다. 같은 제목이 이미 있으면 새로 만들지 않고 그 페이지에 `references/confluence-updates.md` §2의 "재실패 기록" 한 줄만 추가한다. 내용: 실패 단계, 오류 메시지, 조치("크롬에서 eCoDY-ECM 재로그인 후 수동 실행: 'eCoDY 모니터링 실행'"). **마커는 넣지 않는다** — 다음 성공 실행이 직전 성공 지점부터 이어 받는다.
+- **당일 성공 페이지가 없으면** 묶음 `384761860` 아래에 제목 `eCoDY ECM 변경 모니터링 YYYY-MM-DD (요일) (수집 실패)`로 짧은 페이지를 만든다(성공 페이지와 같은 자리다). 같은 제목이 이미 있으면 새로 만들지 않고 그 페이지에 `references/confluence-updates.md` §2의 "재실패 기록" 한 줄만 추가한다. 내용: 실패 단계, 오류 메시지, 조치("크롬에서 eCoDY-ECM 재로그인 후 수동 실행: 'eCoDY 모니터링 실행'"). **마커는 넣지 않는다** — 다음 성공 실행이 직전 성공 지점부터 이어 받는다.
 - **당일 성공 페이지가 이미 있으면** 실패 페이지를 만들지 않는다(그 페이지 마커가 여전히 유효하다). 부모 안내 영역의 마지막 실행만 실패로 바꾼다.
 - 어느 경우든 M10 부모 안내 갱신은 수행한다(Confluence 자체는 정상이므로). M8 원장 반영과 M9 복구 표시는 건너뛴다.
 - Confluence 발행까지 실패하면 결과 보고에 그 사실을 분명히 적는다.
@@ -228,7 +244,7 @@ M7-A/B가 성공했고 M2에서 미복구 실패 페이지가 있었다면, 각 
 
 ## M10. 부모 안내 영역
 
-부모 `330366991`의 `ECM-INDEX-BEGIN` ~ `ECM-INDEX-END` 영역만 `references/confluence-updates.md` §3 형식으로 다시 쓴다(원장 링크·행 수·마지막 실행 결과). 영역 밖은 받은 html 그대로 보존한다. 실패 실행(M7-F)이어도 이 단계는 수행한다.
+부모 `330366991`의 `ECM-INDEX-BEGIN` ~ `ECM-INDEX-END` 영역만 `references/confluence-updates.md` §3 형식으로 다시 쓴다(원장 링크·행 수·마지막 실행 결과, 그리고 **묶음 페이지 링크와 최근 기록 3건**). 영역 밖은 받은 html 그대로 보존한다. 실패 실행(M7-F)이어도 이 단계는 수행한다.
 
 ## M11. 마무리
 

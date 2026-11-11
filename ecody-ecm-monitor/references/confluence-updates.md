@@ -92,7 +92,8 @@ versionMessage 예: `[ecody-ecm-monitor] 추가 수집 14:05 (rows 7)`.
   </tbody>
 </table>
 <h3>날짜별 기록</h3>
-<p>하위의 <code>eCoDY ECM 변경 모니터링 YYYY-MM-DD</code> 페이지에 그날 바뀐 내용이 중요도순으로 정리됩니다.</p>
+<p><a href="https://mobaseasec.atlassian.net/wiki/spaces/mobaseasec4/pages/384761860/">일별 기록 (eCoDY ECM 변경 모니터링)</a> 아래에 <code>eCoDY ECM 변경 모니터링 YYYY-MM-DD</code> 페이지가 하루 한 장씩 쌓입니다. 그날 바뀐 내용이 중요도순으로 정리됩니다.</p>
+<p>최근: <a href="…">11-11 (수)</a> · <a href="…">11-10 (화)</a> · <a href="…">11-06 (금)</a></p>
 <p><em>ECM-INDEX-END</em></p>
 ```
 
@@ -102,5 +103,7 @@ versionMessage 예: `[ecody-ecm-monitor] 추가 수집 14:05 (rows 7)`.
 - 문서 수: 각 원장 표의 현재 행 수(M8 update 뒤 값).
 - 마지막 실행 반영: 이번 실행에서 그 원장에 반영한 결과. 이번에 반영 없던 원장은 이전 값을 유지한다. 미반영(PENDING)이면 `⚠️ 반영 실패 — 다음 실행에서 보충`.
 - 마지막 실행 줄: 성공 `✅ 성공` / 추가 수집 `🔁 추가 수집 성공` / 실패 `❌ 실패 (<단계>) — 크롬 재로그인 후 수동 실행 필요`.
+- 날짜별 기록의 "최근" 줄: 묶음 `384761860` 하위 목록에서 **제목 날짜 최신 3건**을 `MM-DD (요일)` 로 걸고, 실패 페이지는 뒤에 `(수집 실패)` 를 붙인다. 묶음 페이지 링크 자체는 늘 둔다.
+- 날짜 페이지를 묶음 밖(부모 바로 아래)에서 발견했으면(M2 1번) 이 영역 끝에 한 줄 적는다: `<p>⚠️ 묶음 밖 날짜 페이지 N건 — 수동으로 384761860 아래로 옮겨 주세요</p>`. 스킬은 옮기지 않는다.
 
 versionMessage 예: `[ecody-ecm-monitor] 안내 영역 09-16 갱신`.
