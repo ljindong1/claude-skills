@@ -1,6 +1,6 @@
 ---
 name: "cvd-project"
-description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM)를 MCU에 기록하고 플래시 내용을 이미지와 대조 검증하는 스킬. 실행은 회사 저장소 Joule(D:\\Mobase\\asec_autotest_tool)의 joule-flash 를 그 자리에서 부른다(코드·라이팅 기본 틀은 저장소에 있다). 과제 최초 1회 init(프로젝트 폴더 조사 → 모르는 것만 질문 → 기본 틀로 생성), 이후 flash/verify. 생성된 .csf 는 CVD 화면 버튼(PD/VF/PA/RE)으로도 쓴다. 사용자가 \"CVD로 다운로드\", \"보드에 구워줘\", \"라이팅\", \"CVD init\", \"CVD 설정 만들어줘\", \"새 차종 라이팅 환경\", \"빌드 새로 나왔으니 다시 써줘\", \"보드 붙었는지 확인해줘\", \"플래시 검증해줘\", \"CVD 검증\", \"SFlash 지워도 되나\", \"Erase All 해도 되나\", \"SYSDOWN 이 뜨는데\", \"0xEC2 에러\", \"CVD 로 다운로드가 안 돼\", \"CAN 이 안 나와\", \"main 에서 멈춰\", \"데이터 지웠는데 값이 남아\" 등을 말하면 사용한다. Claude Code CLI(CVD 와 Joule 저장소가 있는 사용자 PC) 전용. S32_Config 와 기존 loadfile.cmm 은 수정하지 않는다(읽기는 사용자 허락 시에만). T32(Lauterbach)·CANoe 설정은 범위가 아니다."
+description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM)를 MCU에 기록하고 플래시 내용을 이미지와 대조 검증하는 스킬. 실행은 회사 저장소 Joule(D:\\Mobase\\asec_autotest_tool)의 joule-flash 를 그 자리에서 부른다(코드·라이팅 기본 틀은 저장소에 있다). 과제 최초 1회 init(프로젝트 폴더 조사 → 모르는 것만 질문 → 기본 틀로 생성), 이후 flash/verify. 생성된 .csf 는 CVD 화면 버튼(PD/VF/PA/RE)으로도 쓴다. 사용자가 \"CVD로 다운로드\", \"보드에 구워줘\", \"라이팅\", \"CVD init\", \"CVD 설정 만들어줘\", \"새 차종 라이팅 환경\", \"빌드 새로 나왔으니 다시 써줘\", \"보드 붙었는지 확인해줘\", \"플래시 검증해줘\", \"CVD 검증\", \"SFlash 지워도 되나\", \"Erase All 해도 되나\", \"SYSDOWN 이 뜨는데\", \"0xEC2 에러\", \"CVD 로 다운로드가 안 돼\", \"CAN 이 안 나와\", \"main 에서 멈춰\", \"데이터 지웠는데 값이 남아\", \"S32K3 라이팅\", \"Target power off\", \"보드가 자꾸 자요\" 등을 말하면 사용한다. Claude Code CLI(CVD 와 Joule 저장소가 있는 사용자 PC) 전용. S32_Config 와 기존 loadfile.cmm 은 수정하지 않는다(읽기는 사용자 허락 시에만). T32(Lauterbach)·CANoe 설정은 범위가 아니다."
 ---
 
 # cvd-project
@@ -76,9 +76,35 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 
 - 6 = 연결 실패, **아무것도 쓰지 않음** → 전원·IGN·케이블 (0xEC2 항목).
   `Target power off (0x510200 / 0x520200)` 는 포드가 디버그 커넥터의 보드 전압(VTref)을 못 읽는다는 뜻이다. 릴레이가 '공급'이어도 날 수 있으니 디버그 케이블을 다시 꽂게 한다 (2026-10-20 NQ6e PSU, 다시 꽂고 전원 재투입 뒤 붙음).
+  **커넥터를 거꾸로 꽂아도 똑같은 오류가 난다** - 2026-11-11 TPMS LT2 에서 이것 때문에 오래 헤맸다 (10핀 Cortex, 방향만 바로잡으니 바로 붙음). 스크립트를 고치기 전에 **방향부터 확인**하고, 그래도 안 되면 1번(VTref)↔3번(GND) 전압을 재게 한다 - 3.3V 가 나와야 한다. 0V 면 스크립트로 풀 수 없는 문제다.
 - 5 = 쓰기 단계 시간 초과, **CVD 를 끄지 않았음** → 사용자가 화면을 보고 닫는다.
 - 3 에서 `-> ... 버전 X 와 일치` 가 나오면 보드에 그 버전이 들어 있다는 뜻으로 전한다.
 - `[알림] 두 뱅크의 APP 가 다릅니다` 는 OTA·진단 SW 버전이 기록한 버전과 다를 수 있다는 뜻이라 꼭 전한다.
+
+## IGN 이 없는 제어기 (빨리 자는 보드)
+
+전원만 넣으면 몇 초 만에 자는 제어기가 있다. 자면 디버그 전원 도메인이 내려가 `SYStem.Up` 이 `Target power off (0xEC2)` 로 실패한다 - 커넥터·전원이 멀쩡해도 그렇다.
+
+- 깨우는 조건은 프로젝트의 `Configuration\Ecu\Ecud_EcuM.arxml` 에 있다. `EcuMWakeupSourceMask` 를 보면 그 ECU 가 무엇으로 깨는지 나온다. IGN 항목이 없으면 B+ 하나로 도는 보드이니 "IGN 을 켜라" 고 하지 않는다.
+- 2026-11-11 TPMS RF 수신기(LT2): 웨이크업이 `GPT`(타이머)·`LCAN_RX`(CAN)·`RF_RX` 뿐이고 IGN 이 없다. 전원 투입 뒤 약 7초만 깨어 있었다.
+- **접속을 재시도 루프로 감싸지 않는다.** `ON ERROR GOSUB` 가 오류마다 쌓여 `Script stack is overflow` 로 끝난다 (2026-11-11 확인). 슬립이 진짜 원인인지부터 가리고(커넥터 방향·VTref), 정말 필요하면 CAN 레스트버스로 깨워 둔다.
+
+## S32K3 싱글뱅크 (손으로 만든 과제)
+
+`joule-flash init` 은 CYT2BL 듀얼뱅크 기본 틀만 만든다. S32K3 는 2026-11-11 에 과제 `TPMS_RF_RECEIVER_LT2` 를 손으로 만들어 두었다 - 같은 MCU 가 또 나오면 그 폴더를 본보기로 쓴다.
+
+- 바탕은 벤더 `S32_Config\S32_Config_bak\JG1_MFSW\s32k3_ABSWAP_J.csf` 다. 플래시 선언(`FLASH.Create`, `FLASH.ChangeType ... NOP`)은 **그 보드에서 쓰고 있는 T32 스크립트와 같게 두고 바꾸지 않는다** - 지우는 주소를 스스로 판단해 바꾸는 것이 가장 위험하다.
+- 접속부도 프로젝트의 `References\JTAG\*.cmm` 를 베낀다. 그게 그 보드에서 검증된 절차다.
+- `_connect.csf` 는 맨 위에서 `_config.csf` 를 읽어 `&cfg_elf`·`&cfg_src` 를 쓴다 (경로를 박지 않는다 - Ed 버튼으로 고친 값이 따라가야 한다).
+- **`joule-flash flash/verify/set` 은 2026-11-12 에 길이 열렸으나 이 보드로 아직 확인하지 않았다.** 그때까지는 CVD 화면 버튼(PA/VF/PD/RE)이나 `_run.csf`·`_check.csf` 로 쓴다. 막혀 있던 까닭은 버그가 아니라 박아 둔 상수였다 - `src/joule/flash/image.py` 의 `VERIFY_RANGE` 가 CYT2BL 주소(`0x10028000~`)라 S32K3 코드가 창 밖이어서 대조 지점이 0개가 되고, config 를 덮어쓴 뒤 종료 코드 4(대조 미완료)가 났다. 지금은 MCU 표(`image.MCUS`, 과제 config 의 `cpu` 접두어로 고른다)가 S32K3 코드 영역(`0x00400000~`)을 쓴다. 창을 넓히는 것으로는 안 됐다 - **S32K3 에서 `0x10000000` 은 데이터 플래시**이고 CYT2BL 창 안에 들어온다.
+  - **`set` 은 대조 지점을 다시 만든다.** 손으로 넣은 지점이 지워진다 (TPMS LT2 는 16번이 FBL 공개키 자리라 그것으로 일반/TEST 판을 가린다) - 쓰기 전에 config 를 백업하고, 끝나고 그 지점을 되돌린다.
+- **무인으로 쓸 때는 `_run.csf` 가 CLI 진입점이다**: `CVD.exe "<과제폴더>\<과제>_run.csf"` 가 config -> 접속 -> 지움+쓰기 -> 대조 -> `QUIT` 까지 돌고, 진행은 `_result.log` 의 `STEP=start|connected|flashing|flashed|done` 으로 본다 (2026-11-12 TPMS LT2 에서 처음 끝까지 돌렸다 - 18초, 종료 코드 0, 16지점 일치). 실패하면 `QUIT` 에 못 가 **CVD 창이 남으므로** 다시 돌리기 전에 닫는다. `STEP=done` 이 없으면 쓰기가 끝난 것이 아니다.
+- `ChangeType ... NOP` 으로 빼 둔 구간이 APP 영역 안에 있으면 **한계선을 주석으로 적어 둔다.** 코드가 커져 그 구간을 넘기면 조용히 안 써진다 (TPMS LT2: `0x004D4000~0x004FFFFF`, 2026-11-11 기준 여유 289KB).
+- **굽기 직전에 `SYStem.Up` 을 넣는다.** 벤더 원본은 자기가 접속까지 하고 바로 구워서 그 줄이 없는데, PA/VF 로 **이미 붙어 있으면** 접속 블록(`IF !SYStem.Up()`)이 통째로 건너뛰어진다. 그러면 지우기는 되고 **쓰기에서 `Download Failed (0xF0000126)` + `Flash reprogram error (0x00000002)`** 가 난다 - 2026-11-11 TPMS LT2 에서 겪었고, 이 한 줄로 해결됐다. 같은 설치의 `S32_Config_bak\s32k3_cvd.cmm` 도 굽기 직전·직후에 `SYStem.Up` 을 한다.
+  - **그 `SYStem.Up` 바로 뒤에 `GOSUB InitSRAM` 을 다시 넣는다.** `SYStem.Up` 이 코어를 다시 세우면 접속 블록에서 돌린 SRAM 초기화가 풀리고, `FLASH.TARGET` 이 알고리즘을 내리는 `0x20400000` 이 초기화 전이라 **같은 `Download Failed (0xF0000126)` + `Flash reprogram error (0x00000002)`** 가 난다 (2026-11-12 TPMS LT2 에서 겪음). 접속 블록 안에만 `GOSUB InitSRAM` 이 있으면 어느 길로 들어와도 굽는 순간에는 풀려 있다 - 굽기 직전이 제자리다.
+  - 이때 **플래시는 이미 지워진 뒤**다. 실패했다고 보드가 그대로일 거라 말하지 말고 VF 로 확인한 뒤 전한다.
+  - 플래시가 비면 ECU 소프트웨어가 없어 더 이상 자지 않는다 - 빨리 자던 보드도 이 상태에서는 접속이 편하다.
+- 대조 지점은 앞 바이트가 0 인 값(예: `0x0000FFFF`)을 고르지 않는다. CVD 로그가 `FFFF` 로 찍어 사람이 불일치로 읽는다 (실제 비교는 `IF &v!=&cfg_ve<n>` 수치 비교라 통과한다).
 
 ## 규칙
 
@@ -91,6 +117,6 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 ## 범위 밖
 
 - T32(Lauterbach), CANoe 설정·측정
-- 싱글뱅크·CYT2BL 외 MCU (기본 틀부터 저장소 `src/joule/flash/assets/` 에 넣는 작업)
+- 싱글뱅크·CYT2BL 외 MCU 의 **joule-flash 기본 틀**을 저장소 `src/joule/flash/assets/` 에 넣는 작업. 과제를 손으로 만드는 것은 범위 안이다 - 위 "S32K3 싱글뱅크" 참고.
 - 벤더 플래시 알고리즘 수정 (소거 확인 창 -> 선택값, 뱅크 B APP 기록 선택, work flash 소거 명령 `cflash.erase` 외에는 원본 그대로)
 - OTA 리프로그래밍
