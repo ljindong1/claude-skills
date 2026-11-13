@@ -26,7 +26,9 @@ setlocal EnableExtensions EnableDelayedExpansion
 
 set "HOOK_DIR=%~dp0"
 for %%I in ("%HOOK_DIR%..") do set "PROJ_DIR=%%~fI"
-set "PJ_FILE=%PROJ_DIR%\Application\app_code\a_app_service\src\PJ_Define.h"
+rem  the hook (Build_Hook_<MODEL>.bat, 0-0 packaging declaration) may have
+rem  already pointed PJ_FILE at this repository's PJ_Define.h - keep it.
+if not defined PJ_FILE set "PJ_FILE=%PROJ_DIR%\Application\app_code\a_app_service\src\PJ_Define.h"
 set "TOOL=%HOOK_DIR%PJ_Variant.ps1"
 set "FIRST_ACT=%~1"
 set "JOPT=%~2"

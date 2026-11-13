@@ -204,7 +204,15 @@ try {
                 if ($base) { $folder = $base }
             }
             $ver = Get-Version $text $folder
-            if ($ver -and (Get-KeepReason $text $folder)) {
+            if (-not $ver) {
+                # no SOFTWARE_VERSION_* anywhere : the version axis is OFF for this
+                # project, so the layout is flat (TPMS FBL - Debug\OEUK_LT2\).
+                # Without this the else branch below would invent a literal
+                # "UNKNOWN" version folder (Debug\OEUK_LT2\UNKNOWN\).
+                if ($Variant -eq $TestVariant -and $folder -ne $Variant) { $folder = $folder + '_TEST' }
+                Write-Output "$folder . UNKNOWN"
+            }
+            elseif (Get-KeepReason $text $folder) {
                 # FBL : flat, <OEUK> / <base OEUK>_TEST, version of the variant itself
                 $real = Get-Version $text $Variant
                 if (-not $real) { $real = 'UNKNOWN' }

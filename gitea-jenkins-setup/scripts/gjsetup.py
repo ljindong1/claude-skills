@@ -460,7 +460,9 @@ _ALL_BLOCK = (
     b"rem  CURRENT or no define -> the normal single build below.\r\n"
     b'set "BUILD_TARGET=CURRENT"\r\n'
     b'set "ALL_OK=0"\r\n'
-    b'set "PJ_FILE=%PROJ_DIR%\\Application\\app_code\\a_app_service\\src\\PJ_Define.h"\r\n'
+    b"rem  single declaration point : see 0-0) above. An empty\r\n"
+    b"rem  PKG_RESOLVER_FILE (version axis only project) -> single build.\r\n"
+    b'set "PJ_FILE=%PKG_RESOLVER_FILE%"\r\n'
     b'if /i "!result!"=="Build -c"    goto :single_build\r\n'
     b'if /i "!result!"=="GenerateAll" goto :single_build\r\n'
     b'if not exist "%HOOK_DIR%BuildVariants.bat" goto :single_build\r\n'
@@ -534,7 +536,68 @@ _SUB_BLOCK = (
 )
 
 
-def _render_project_hook(model):
+# 전용 훅 머리에 넣는 패키징 선언 블록 (표준 훅의 set "PUSH_RC=0" 뒤)
+# PostPackage.bat 은 과제 분기를 갖지 않는다 - 어디에 담을지는 이 블록이 선언한다.
+_DECL_HEAD = [
+    'rem ---- 0-0) packaging declaration ------------------------------------------',
+    'rem  Where PostPackage.bat puts this build. TWO independent axes under Debug,',
+    'rem  a "." token means that axis is OFF:',
+    'rem      Debug{B} [ <variant>{B} ] [ <version>{B} ]',
+    'rem        variant axis : on when the build carries a signature verify public',
+    'rem                       key, so an OEUK_TEST variant exists -> OEUK_<MODEL>{B}',
+    'rem                       dual bank: APP and FBL. single bank: FBL only.',
+    'rem        version axis : on when artifacts are kept per customer version for',
+    'rem                       up/downgrade evaluation (APP)        -> <version>{B}',
+    'rem',
+    'rem  This file is the project hook - edit the lines below. Declare ONE of:',
+    'rem    (a) PKG_RESOLVER_FILE   PJ_Define.h; PJ_Variant.ps1 decides both axes.',
+    'rem                            Use it whenever the project has OEUK options.',
+    'rem                            Also used by 1-1) below as PJ_FILE.',
+    'rem    (b) PKG_VERSION_FILE    any file + PKG_VERSION_PATTERN (.NET regex with',
+    'rem        PKG_VERSION_PATTERN exactly one capture group) -> version axis only.',
+    'rem                            Use it when the project has no OEUK options at',
+    'rem                            all (single bank APP) but keeps version folders.',
+    'rem    (c) PKG_FOLDER          literal "<variant> <verdir> <version>".',
+    'rem  Optional:',
+    'rem    PKG_ROM_S19             which .s19 goes into rom_<version>{B}',
+    'rem                            (default <artifact>.s19)',
+    'rem    SECUREFLASH_INI         aSIMS ini for rom_ (default is a lookup under',
+    'rem                            References{B}*Signed_Firmware*{B}*.ini)',
+    'rem',
+    'rem  Declaring nothing is allowed: PostPackage.bat then tries the standard',
+    'rem  PJ_Define.h path and, failing that, falls back to the version token of the',
+    'rem  artifact name and prints a WARNING block. It never skips packaging silently,',
+    'rem  so a SUCCESS build always leaves a packaged folder behind.',
+]
+
+
+def _decl_block(pkg):
+    """패키징 선언 블록을 만든다. 쓰지 않는 선택지는 주석으로 남겨 둔다."""
+    pkg = pkg or {}
+    L = [x.format(B=chr(92)) for x in _DECL_HEAD]
+    res = 'set "PKG_RESOLVER_FILE=%PROJ_DIR%' + chr(92) + PJ_DEFINE_DEFAULT + '"'
+    vf = pkg.get("version_file")
+    vp = pkg.get("version_pattern")
+    rom = pkg.get("rom_s19")
+    if vf:
+        L.append('rem (a) no OEUK options in this project - resolver mode is not used:')
+        L.append('rem ' + res)
+        L.append('set "PKG_VERSION_FILE=%PROJ_DIR%' + chr(92) + vf + '"')
+        L.append('set "PKG_VERSION_PATTERN=' + (vp or '') + '"')
+    else:
+        L.append(res)
+        L.append('rem (b) version axis only (no OEUK options), e.g. a single bank APP:')
+        L.append('rem set "PKG_VERSION_FILE=%PROJ_DIR%' + chr(92)
+                 + 'Application' + chr(92) + '...' + chr(92) + 'configuration.h"')
+        L.append(r'rem set "PKG_VERSION_PATTERN=#define\s+SW_VERSION_XXX\s+.(\w+)"')
+    if rom:
+        L.append('set "PKG_ROM_S19=' + rom + '"')
+    else:
+        L.append('rem set "PKG_ROM_S19=<name>_Reprogramming.s19"')
+    return ("\r\n".join(["", ""] + L) + "\r\n").encode("latin-1")
+
+
+def _render_project_hook(model, pkg=None):
     """표준 훅을 읽어 차종 전용 훅을 만든다. 표준 훅 자체는 건드리지 않는다.
 
     차이 - 머리말(이 파일이 랩 표준이 아니라 과제 전용임을 명시), :skip_check 뒤의
@@ -560,9 +623,11 @@ def _render_project_hook(model):
          b"rem             Build_Hook_GIT_ASEC.bat is kept untouched as a fallback.\r\n"
          b"rem  Base     : copy of Build_Hook_GIT_ASEC.bat + step 3-1 packaging call\r\n"
          b"rem             + step 1-1 / 4-1 ALL variant build"),
-        (b'set "PUSH_RC=0"\r\n', b'set "PUSH_RC=0"\r\n' + _SUB_BLOCK),
+        (b'set "PUSH_RC=0"\r\n',
+         b'set "PUSH_RC=0"\r\n' + _decl_block(pkg) + _SUB_BLOCK),
         (b"rem  Steps    : 1) decide action  2) run Build.bat  3) check new .elf",
-         b"rem  Steps    : 0) update git submodules  1) decide action  2) run Build.bat\r\n"
+         b"rem  Steps    : 0-0) declare the packaging layout  0) update git\r\n"
+         b"rem             submodules  1) decide action  2) run Build.bat\r\n"
          b"rem             3) check new .elf"),
         (b"\r\n:skip_check\r\n", b"\r\n:skip_check\r\n" + _PACK_BLOCK),
         (b"\r\nrem ---- 2) build ----", b"\r\n" + _ALL_BLOCK + b"rem ---- 2) build ----"),
@@ -596,6 +661,13 @@ def build_command(project, model):
 
 PJ_DEFINE_DEFAULT = "Application/app_code/a_app_service/src/PJ_Define.h".replace("/", chr(92))
 PJ_DEFINE_TOKEN = PJ_DEFINE_DEFAULT.encode("latin-1")
+
+
+def _rel_in_project(val):
+    """프로젝트 폴더 기준 상대경로를 bat 에 넣을 모양으로 다듬는다."""
+    if not val:
+        return None
+    return val.strip().strip(chr(34)).replace("/", chr(92)).lstrip(chr(92))
 
 
 def _pj_rel(val):
@@ -690,10 +762,20 @@ def c_add_bat(a):
     build_dir = os.path.join(root, a.project, "Build") if a.project != "." else os.path.join(root, "Build")
     if not os.path.isfile(os.path.join(build_dir, "Build.bat")):
         out(False, "not_found", "Build.bat 없음: " + build_dir)
+    pkg = {
+        "version_file": _rel_in_project(getattr(a, "pkg_version_file", None)),
+        "version_pattern": getattr(a, "pkg_version_pattern", None),
+        "rom_s19": getattr(a, "pkg_rom_s19", None),
+    }
+    pkg["mode"] = "version" if pkg["version_file"] else "resolver"
+    if pkg["version_file"] and not pkg["version_pattern"]:
+        out(False, "invalid",
+            "--pkg-version-file 에는 --pkg-version-pattern 이 함께 필요하다 "
+            "(캡처 그룹 1개를 가진 .NET 정규식)")
     files = {
         "Build_Hook_GIT_ASEC.bat": open(os.path.join(ASSETS, "Build_Hook_GIT_ASEC.bat"), "rb").read(),
         "GitPush.bat": _render_gitpush(a.commit_name, a.email),
-        hook_name(a.model): _render_project_hook(a.model),
+        hook_name(a.model): _render_project_hook(a.model, pkg),
         "PostPackage.bat": open(os.path.join(ASSETS, "PostPackage.bat"), "rb").read(),
         "BuildVariants.bat": open(os.path.join(ASSETS, "BuildVariants.bat"), "rb").read(),
         "PJ_Variant.ps1": open(os.path.join(ASSETS, "PJ_Variant.ps1"), "rb").read(),
@@ -774,13 +856,22 @@ def c_add_bat(a):
     # PJ_Define.h 를 실제로 찾을 수 있는지. 못 찾으면 PostPackage 가 조용히 건너뛰고
     # 빌드는 SUCCESS 로 끝나 산출물이 OEUK 폴더에 담기지 않는다 - 반드시 드러낸다.
     pj_info = {"path": pj_rel, "is_default": pj_rel == PJ_DEFINE_DEFAULT,
-               "found": bool(bt.get("pj_define")), "patched": pj_hits}
-    if not pj_info["found"]:
+               "found": bool(bt.get("pj_define")), "patched": pj_hits,
+               "mode": pkg["mode"]}
+    if pkg["mode"] == "version":
+        # 버전 축만 선언한 과제(싱글뱅크 APP)는 OEUK 변종이 없는 것이 설계다.
+        pj_info["note"] = (
+            "PKG_VERSION_FILE 선언 방식이다 - OEUK 변종이 없는 구조라 PJ_Define.h "
+            "가 없는 것이 정상이고, 산출물은 Debug" + chr(92) + "<버전>" + chr(92)
+            + " 에 담긴다. 변종 축은 꺼져 있다")
+    elif not pj_info["found"]:
         pj_info["warning"] = (
             "PJ_Define.h 를 '%s' 에서 찾지 못했다. 이대로 빌드하면 PostPackage 가 "
-            "OEUK 를 읽지 못해 패키징을 건너뛰고(빌드는 SUCCESS) 산출물이 "
-            "Debug" + chr(92) + "OEUK_<차종>" + chr(92) + " 가 아니라 Debug" + chr(92)
-            + " 에 평면으로 생긴다. --pj-define 으로 실제 경로를 지정하라") % pj_rel
+            "변종·버전을 해석하지 못해 산출물 이름의 버전 토큰으로 되돌아가 "
+            "Debug" + chr(92) + "<v####>" + chr(92) + " 에 담고 WARNING 을 찍는다"
+            "(빌드는 SUCCESS). --pj-define 으로 실제 경로를 지정하거나, OEUK 변종이 "
+            "없는 과제라면 --pkg-version-file 과 --pkg-version-pattern 으로 버전 축만 "
+            "선언하라") % pj_rel
     if not added and not replaced and len(tracked_set) == len(rel_all) and not dirty:
         out(True, "exists", "표준 bat이 이미 커밋되어 있음", same=same,
             build_target=bt, pj_define=pj_info)
@@ -1046,6 +1137,13 @@ def main():
                    help="PJ_Define.h 의 프로젝트 폴더 기준 상대경로. 저장소 구조가 규정과 다를 때만 지정한다")
     p.add_argument("--no-replace", action="store_true",
                    help="devel_* 브랜치에서도 Jenkins 전용 파일을 교체하지 않고 conflict로 멈춘다")
+    p.add_argument("--pkg-version-file", dest="pkg_version_file", default=None,
+                   help="버전 축만 쓰는 과제: 버전이 적힌 파일의 프로젝트 폴더 기준 상대경로. "
+                        "OEUK 변종이 없는 싱글뱅크 APP 에 쓴다")
+    p.add_argument("--pkg-version-pattern", dest="pkg_version_pattern", default=None,
+                   help="--pkg-version-file 에서 버전을 뽑을 .NET 정규식. 캡처 그룹 1개")
+    p.add_argument("--pkg-rom-s19", dest="pkg_rom_s19", default=None,
+                   help="rom_<버전> 에 담을 .s19 파일명. 기본값은 <산출물>.s19")
     p.add_argument("--name", required=True); p.add_argument("--commit-name", required=True)
     p.add_argument("--email", required=True)
     p.add_argument("--model", required=True, help="차종 코드 (예: HE1i). 전용 훅 이름에 쓰인다")

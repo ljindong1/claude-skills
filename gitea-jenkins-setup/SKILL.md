@@ -29,7 +29,7 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
 
 - `scripts/gjsetup.py` — 모든 API·git 작업. 명령마다 JSON 한 개를 출력한다 (`ok`, `status`, `message`, 추가 필드).
   실행: `python "<이 SKILL.md가 있는 폴더>\scripts\gjsetup.py" <명령> [옵션]`
-- `assets/` — 배포용 파일(CRLF·ASCII, 수정 금지: 표준 훅 `Build_Hook_GIT_ASEC.bat`, `GitPush.bat`, `PostPackage.bat`, `BuildVariants.bat`, `PJ_Variant.ps1`), Job XML 템플릿
+- `assets/` — 배포용 파일(CRLF·ASCII), Job XML 템플릿. `Build_Hook_GIT_ASEC.bat`· `GitPush.bat`·`PostPackage.bat`·`BuildVariants.bat`·`PJ_Variant.ps1` 은 **과제 저장소에 바이트 그대로 배포하고 과제에서 고치지 않는다** — 과제별 차이는 전용 훅의 0-0) 선언으로 낸다. asset 자체를 고치는 것은 스킬 개선이므로 가능하지만, **과제 분기를 넣지 말고 선언으로 빼낸다**
 - `references/token_guide.md` — 토큰 발급·등록 (토큰이 없을 때 사용자에게 안내)
 - `references/chrome_mode.md` — 토큰이 없는 시스템을 Chrome으로 처리하는 절차
 - `references/troubleshooting.md` — 실패·conflict 대응
@@ -287,12 +287,12 @@ python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name
 | --- | --- | --- |
 | `Build_Hook_GIT_ASEC.bat` | `assets` 바이트 그대로 | 랩 표준 훅. **수정하지 않는다.** 전용 훅이 없는 브랜치를 위한 fallback |
 | `GitPush.bat` | `assets` + `[USER]` 2줄 치환 | 빌드 결과물 자동 커밋·push |
-| `Build_Hook_<차종>.bat` | 표준 훅에서 생성 | ⭐ **Job이 실제로 부르는 훅.** 표준 훅 + **서브모듈 체크아웃 블록(0단계)** + `PostPackage` 호출 블록 + `ALL` 분기·push 블록 |
-| `PostPackage.bat` | `assets` 바이트 그대로 | `Build_all.bat`의 `[Post-build] Archiving` 블록 기반. APP는 **버전별 폴더** `Debug\OEUK_xxxx\<버전>\`에 차종명 산출물(`_Writing.s19` 등)과 `rom_<버전>\`(aSIMS 서명 입력) 생성. `OEUK_TEST` 빌드는 기준 OEUK 폴더의 `<기준 버전>_test\`(같은 레벨)로, rom 패키지도 `rom_<기준 버전>_test\`·`.zip`으로 만든다. FBL은 **평면 폴더** `Debug\OEUK_HE1I\`·`Debug\OEUK_HE1I_TEST\`(APP 저장소 `02_Fbl_Binary\`와 같은 이름). `.s19`가 없으면(FBL) `rom` 패키징 생략 |
+| `Build_Hook_<차종>.bat` | 표준 훅에서 생성 | ⭐ **Job이 실제로 부르는 훅.** 표준 훅 + **0-0) 패키징 선언 블록**(산출물을 `Debug` 아래 어디에 담을지) + **서브모듈 체크아웃 블록(0단계)** + `PostPackage` 호출 블록 + `ALL` 분기·push 블록. **수정 허용** — 과제에서 선언 줄을 직접 고쳐도 된다 |
+| `PostPackage.bat` | `assets` 바이트 그대로 | `Build_all.bat`의 `[Post-build] Archiving` 블록 기반. **과제 분기가 없다** — `Debug` 를 기준으로 산출물을 모으고(`.sre` 최신), 어디에 담을지는 전용 훅의 **0-0) 선언**이 정한다(2축: 변종·버전, `.` 은 그 축 꺼짐). `rom_<버전폴더>\`·`.zip`(aSIMS 서명 입력)을 만들고, `.s19` 가 없으면(FBL) 생략한다. 해석 실패 시 조용히 건너뛰지 않고 산출물 이름의 버전 토큰으로 되돌아가며 WARNING 을 찍는다. 📐·📁 절 참고 |
 | `BuildVariants.bat` | `assets` 바이트 그대로 | `JENKINS_BUILD_TARGET ALL`일 때 빌드 1회 안에서 가능한 조합(APP 4개, FBL 2개)을 차례로 빌드·패키징 |
 | `PJ_Variant.ps1` | `assets` 바이트 그대로 | `PJ_Define.h` 읽기·임시 전환(설정값, 빌드 목록, OEUK 전환·버전 기록, 산출물 폴더 이름). 바이트·줄바꿈 보존 |
 
-APP·FBL이 **같은 파일 한 벌**을 쓴다. 차이는 `PJ_Define.h`의 버전 배치뿐이고 스크립트가 알아서 읽는다.
+**네 과제가 같은 파일 한 벌**을 쓴다. 차이는 전용 훅의 **0-0) 선언 한 블록**뿐이다 — `PostPackage.bat`·`BuildVariants.bat`·`PJ_Variant.ps1` 에는 과제 분기가 없다.
 
 > 🎯 **빌드 대상 설정 — `PJ_Define.h`의 `JENKINS_BUILD_TARGET`**
 >
@@ -324,68 +324,107 @@ APP·FBL이 **같은 파일 한 벌**을 쓴다. 차이는 `PJ_Define.h`의 버�
 > - 평소에는 `CURRENT`로 두고, 필요할 때만 `ALL`로 바꿔 커밋한 뒤 결과를 받고 되돌리도록 안내한다(매 push마다 여러 번 빌드하지 않도록).
 > - 실측(HE1I): APP ALL 4개 약 21~23분, FBL ALL 2개 약 0.5분.
 
-> 📐 **규정 — `PJ_Define.h` 위치와 FBL 산출물 폴더 이름 (저장소가 이 규정을 따른다)**
+> 📐 **2축 모델 — 산출물을 `Debug` 아래 어디에 담을지는 두 축의 조합이다**
 >
-> | 항목 | 규정 |
-> | --- | --- |
-> | `PJ_Define.h` 위치 | `<프로젝트 폴더>\Application\app_code\a_app_service\src\PJ_Define.h` — APP·FBL 공통 |
-> | FBL 산출물 폴더 | `<프로젝트 폴더>\Debug\OEUK_<차종>\` 과 `\Debug\OEUK_<차종>_TEST\` |
+> 과제마다 폴더 구조가 달라 보이지만 **특수 사례가 네 개 있는 것이 아니라 축이 두 개**다. 각 축은 독립적으로 켜지거나 꺼진다.
 >
-> 확인된 기준 저장소: `psu_master`(PSU APP) `psu_app/Application/app_code/a_app_service/src/PJ_Define.h`, `psu_fbl_master`(NQ6E FBL) `psu_fbl/Application/app_code/a_app_service/src/PJ_Define.h` + `psu_fbl/Debug/OEUK_NQ6E/`·`OEUK_NQ6E_TEST/`. `assets\PostPackage.bat` 의 `VEHICLE_OPTION_FILE` 이 이 규정 경로다.
+> ```
+> Debug\ [ <변종>\ ] [ <버전>\ ]
+> ```
 >
-> **스크립트를 저장소에 맞추지 않는다** — 경로 후보를 늘리거나 과제별 분기를 넣으면 과제마다 갈라져 규정이 사라진다. 어긋난 것을 발견하면 **고치지 말고 사용자에게 보고**한다(공유 소스 이동은 `#include` 에 영향이 있어 저장소 소유자 판단이다).
+> | 축 | 언제 켜지나 | 폴더 |
+> | --- | --- | --- |
+> | **변종(OEUK)** | 빌드가 **서명검증 공개키**(`Dcm_GaaPublicKeyData`)를 품을 때. 그래야 test 키 변종이 필요하다 | `OEUK_<차종>\`, `OEUK_<차종>_TEST\` |
+> | **버전** | 산출물을 **고객 버전별로 쌓아 둘 때**(업/다운그레이드 평가용, APP) | `<버전>\`, `<버전>_test\` |
 >
-> ⚠️ **다만 "저장소를 규정에 맞춘다" 가 늘 가능한 것은 아니다 — `OEUK_TEST` 의 유무는 뱅크 구조가 가른다.** `OEUK_TEST` 는 **서명검증 공개키(`Dcm_GaaPublicKeyData`)를 품은 빌드에만** 있다. 듀얼뱅크는 돌고 있는 APP 이 반대 뱅크 이미지를 검증하므로 APP 도 키를 갖고, 그래서 test 키 변종이 필요하다. 싱글뱅크는 FBL 만 검증하므로 **APP 에는 키도 변종도 없는 것이 설계**다 — 메울 공백이 아니다. 2026-11-10 네 저장소 실측:
+> 2026-11-13 네 저장소 실측 — 예외 없이 이 2×2 안에 들어간다.
 >
-> | 뱅크 | 과제 | 공개키 | 변종 선택 | 버전 define | 위치 |
+> | | 버전 축 켜짐 | 버전 축 꺼짐 |
+> | --- | --- | --- |
+> | **변종 축 켜짐** | PSU APP `Debug\OEUK_HE1I\26810\` | PSU FBL · TPMS FBL `Debug\OEUK_HE1I\` · `Debug\OEUK_LT2\` |
+> | **변종 축 꺼짐** | TPMS APP `Debug\26B100\` | (평면) `Debug\` — 2026-11-09 고치기 전 TPMS FBL 이 이 모양이었다 |
+>
+> **왜 축이 꺼지는가**는 뱅크 구조가 가른다. 듀얼뱅크는 돌고 있는 APP 이 반대 뱅크 이미지를 검증하므로 APP 도 공개키를 갖고, 그래서 test 변종이 필요하다. 싱글뱅크는 FBL 만 검증하므로 **APP 에는 키도 변종도 없는 것이 설계**다 — 메울 공백이 아니다. 같은 제품군 안에서도 FBL 은 OEUK 가 있고 APP 은 없다.
+>
+> | 뱅크 | 과제 | 공개키 | 변종 선택 | 버전 define | `PJ_Define.h` 위치 |
 > | --- | --- | --- | --- | --- | --- |
-> | 듀얼 (규정) | PSU APP·FBL (HE1i, NQ6e) | **APP·FBL 둘 다** | `PJ_Define.h` 의 `OEUK_*` 하나만 주석 해제 | OEUK 블록 안 `SOFTWARE_VERSION_0~n`, `(u8)'2'` 한 글자씩 | 규정 경로 |
-> | 싱글 | TPMS **FBL** | 있음 (`Static_Code/Reference_Code/src/App_DiagnosticService.c`) | `OEUK_*` 있음 (`//OEUK_TEST 0u` / `//OEUK_BJ1 1u` / `OEUK_LT2 2u`) | **없음** | `Application\app_code\type\PJ_Define.h` (규정 밖) |
-> | 싱글 | TPMS **APP** | **없음** | **없음** (정상) — 두 차종을 한 바이너리에 담고 런타임에 고름(`CONFIG_TABLE[e_VEHICLE_MODEL_MAX]`) | 없음. `configuration.h` 에 문자열·문자로 흩어짐 | `Application\Implementation_TPMS\DataTypes\configuration.h` |
->
-> 같은 제품군 안에서도 FBL 은 OEUK 가 있고 APP 은 없다. 그래서 **뱅크 구조를 먼저 가린다.**
+> | 듀얼 | PSU APP·FBL (HE1i, NQ6e) | **APP·FBL 둘 다** | `OEUK_*` 하나만 주석 해제 | OEUK 블록 안 `SOFTWARE_VERSION_0~n`, `(u8)'2'` 한 글자씩 | `Application\app_code\a_app_service\src\` |
+> | 싱글 | TPMS **FBL** | 있음 (`Static_Code/Reference_Code/src/App_DiagnosticService.c`) | `OEUK_*` 있음 (`//#define OEUK_TEST 0u` / `//#define OEUK_BJ1 1u` / `#define OEUK_LT2 2u`) | **없음** | `Application\app_code\type\` |
+> | 싱글 | TPMS **APP** | **없음** | **없음** (정상) — 두 차종을 한 바이너리에 담고 런타임에 고름(`CONFIG_TABLE[e_VEHICLE_MODEL_MAX]`) | 없음. `configuration.h` 의 `SW_VERSION_LT2 "26B100"` | 없음 |
 >
 > ⚠️ **FBL 은 원래 업 버전이 없다.** 현재 버전과 `OEUK_TEST` 둘만 둔다 — 2벌이 정상이고 모자란 것이 아니다.
 >
+> 📁 **선언 계약 — 훅이 선언하고, `PostPackage.bat` 은 과제 분기를 갖지 않는다**
+>
+> `PostPackage.bat` 은 두 부분으로 나뉜다.
+>
+> 1. **모으기** — `Debug` 를 기준으로 한다. 어느 과제든 `Debug` 는 반드시 있고 빌드 결과가 거기 떨어지므로, 과제를 몰라도 이 단계는 똑같다. `Debug\*.sre` 중 **가장 최근 것**으로 이번 빌드의 이름을 정하고(실패한 move 가 남긴 옛 `.sre` 를 집지 않도록), 같은 이름의 `.elf/.hex/.map` 과 `*.s19` 전부, `*BuildWarning.xlsx` 를 모은다.
+> 2. **담기** — 전용 훅 `Build_Hook_<차종>.bat` 의 **0-0) 선언 블록**이 정한다. 토큰이 `.` 이면 그 축은 꺼진 것이다.
+>
+> 선언은 셋 중 하나다(전용 훅은 수정 허용 파일이므로 과제에서 직접 고쳐도 된다).
+>
+> | 선언 | 쓰는 곳 | 결정하는 것 |
+> | --- | --- | --- |
+> | `PKG_RESOLVER_FILE` | OEUK 가 있는 과제 전부 (PSU APP·FBL, TPMS FBL) | `PJ_Variant.ps1` 이 **두 축을 모두** 정한다. `1-1)` ALL 분기의 `PJ_FILE` 도 이 값을 쓴다 — **선언 지점은 한 곳이다** |
+> | `PKG_VERSION_FILE` + `PKG_VERSION_PATTERN` | OEUK 가 없고 버전만 쌓는 과제 (TPMS APP) | **버전 축만** 켠다. 패턴은 캡처 그룹 1개를 가진 .NET 정규식 |
+> | `PKG_FOLDER` | 위 둘로 안 되는 경우 | `"<변종> <버전폴더> <버전>"` 을 직접 적는다 |
+>
+> 선택 사항: `PKG_ROM_S19`(`rom_` 에 담을 `.s19`, 기본값 `<산출물>.s19`), `SECUREFLASH_INI`(aSIMS ini, 기본은 `References\*Signed_Firmware*\*.ini` 탐색).
+>
+> 스크립트에서 넘길 때는 `add-bat` 의 `--pkg-version-file` · `--pkg-version-pattern` · `--pkg-rom-s19` 를 쓴다. `PJ_Define.h` 가 규정 밖에 있으면 전처럼 `--pj-define` 을 쓰고, 그 값이 선언 줄까지 함께 치환된다.
+>
+> ```bat
+> rem TPMS APP (변종 없음, 버전만) — add-bat 이 생성한 선언
+> set "PKG_VERSION_FILE=%PROJ_DIR%\Application\Implementation_TPMS\DataTypes\configuration.h"
+> set "PKG_VERSION_PATTERN=#define\s+SW_VERSION_LT2\s+.(\w+)"
+> set "PKG_ROM_S19=e_bj_tpms_asr_swp_sf1_Reprogramming.s19"
+> ```
+>
+> ⚠️ **아무것도 해석되지 않아도 패키징을 건너뛰지 않는다.** 산출물 이름의 버전 토큰(`e_..._app_v2111` → `v2111`)으로 되돌아가 `Debug\v2111\` 에 담고 **WARNING 블록**을 찍는다. 예전에는 한 줄만 남기고 조용히 건너뛰어서, 빌드가 `SUCCESS` 로 끝나는 바람에 로그만 보면 알 수 없었다(2026-11-09 TPMS FBL Jenkins #1 실제 사례). 이제는 콘솔에 반드시 드러나지만, **첫 빌드 뒤 폴더는 여전히 눈으로 확인한다.**
+>
+> ```
+> [PostPackage] [WARNING] packaging layout could not be resolved.
+> [PostPackage] [WARNING] Falling back to Debug\v2111\ - that version
+> [PostPackage] [WARNING] comes from the artifact name, not the project.
+> ```
+>
+> ⚠️ **변종 축이 꺼진 과제에서 `Debug` 를 청소하면 안 된다.** 변종 폴더가 없으면 "변종 폴더"가 곧 `Debug` 자신이고, 거기에는 오브젝트 트리(`Application\`·`Generated\`·`Static_Code\`)와 `.dla`·`.dnm`·`.elf.opt`·`exclude_list.txt` 가 있다. 지우면 다음 증분 빌드가 깨진다 — 모든 청소는 변종 폴더가 있을 때만 돈다.
+>
+> **고칠 때는 과제별 분기를 넣지 말고 선언으로 빼낸다.** 경로 후보를 늘리거나 `if 과제 == ...` 를 넣으면 과제마다 갈라져 규정이 사라진다. 공유 소스(`PJ_Define.h` 자리 옮기기 등)가 어긋난 것을 발견하면 **고치지 말고 사용자에게 보고**한다 — `#include` 에 영향이 있어 저장소 소유자 판단이다.
+>
 > | 어떤 저장소인가 | 할 일 |
 > | --- | --- |
-> | 규정과 같다 | 그대로 진행 |
-> | 변종 체계는 있는데 **위치·이름만** 다르다 (TPMS FBL) | 파일 경로는 이미 매개변수다 — `PJ_Variant.ps1` 은 `-File`, 전용 훅 `Build_Hook_<차종>.bat` 은 `PJ_FILE` 을 set 한다. **전용 훅에서 `PJ_FILE` 을 그 저장소의 실제 파일로 돌린다**(수정 허용 파일). 저장소를 옮기지 않는다 |
-> | 변종 체계 자체가 **없다** (TPMS APP, 싱글뱅크) | **맞출 것이 없다 — 변종 빌드 대상이 아니다.** 싱글뱅크 APP 은 공개키를 품지 않으므로 `OEUK_TEST` 가 필요 없다. 전용 훅이 `PJ_FILE` 부재를 보고 **단일 빌드로 내려가는 것이 정상 동작**이다(`Build_Hook_<차종>.bat` 의 `if not exist "%PJ_FILE%" goto :single_build`). `PJ_Define.h` 를 새로 넣지 않는다 |
+> | OEUK 가 규정 경로에 있다 (PSU) | 그대로 진행. 선언은 기본값이다 |
+> | OEUK 는 있는데 **위치만** 다르다 (TPMS FBL) | `--pj-define Application\app_code\type\PJ_Define.h`. 선언 줄·`PJ_FILE`·`PJ_Variant.ps1 -File` 이 한꺼번에 그 경로를 가리킨다 |
+> | OEUK 가 **없다** (TPMS APP, 싱글뱅크) | **변종 축을 켜지 않는다.** `--pkg-version-file`·`--pkg-version-pattern` 으로 버전 축만 선언한다. `PJ_Define.h` 를 새로 넣지 않으며, `1-1)` ALL 분기는 `PJ_FILE` 이 비어 단일 빌드로 내려간다(정상 동작) |
 >
-> ⚠️ **asset 에 과제 고정값이 박혀 있는 곳이 있다 (스킬 결함, 2026-11-10 확인).** 이것은 저장소 탓이 아니므로 저장소를 고쳐도 해결되지 않는다.
+> **✅ 2026-11-13 에 고친 asset 결함**
 >
-> | asset | 하드코딩 | 영향 |
+> | asset | 무엇이었나 | 지금 |
 > | --- | --- | --- |
-> | `PostPackage.bat:35` | `VEHICLE_OPTION_FILE` = 규정 경로의 `PJ_Define.h` | 규정 밖에 둔 저장소(TPMS FBL)에서 1단계 OEUK 탐색부터 못 간다. 싱글뱅크 APP 은 애초에 대상이 아니라 무해하다 |
-> | ~~`PostPackage.bat:36`~~ | `SECUREFLASH_INI` 에 PSU 전용 경로·파일명이 박혀 있었다 | ✅ **고쳤다 (2026-11-10).** 경로를 박지 않고 **훅이 `SECUREFLASH_INI` 를 넘기면 그것을, 없으면 `References\*Signed_Firmware*\*.ini` 를 찾는다.** 폴더명(`Doc_MB`/`Doc_MobaseElec`)·번호(`02_`/`03_`)·파일명이 과제마다 다르다. ini 가 없는 과제(FBL)는 전처럼 WARNING 만 남는다 — `if exist` 로 감싸여 있어 **rom zip 자체는 만들어진다** |
-> | `BuildVariants.bat:29` | `PJ_FILE` = 규정 경로 | 훅이 돌려도 여기서 되돌아간다 |
-> | `PJ_Variant.ps1` `Get-NextVersion` | `[long]$v + 10` — **전부 숫자여야 한다** | 문자가 섞인 버전은 예외 → plan 이 KEEP 2줄만 내고 **필요한 업 버전 2개가 조용히 빠진다.** ⚠ 2026-11-10 실측 — **현재 TPMS APP 에는 해당하지 않는다**(`PJ_FILE` 이 없어 변종 경로에 진입조차 하지 않는다). OEUK 를 쓰면서 버전에 문자가 섞인 과제가 생길 때의 잠재 위험이다. ⚠ 그런데 **이 제약이 FBL 을 2개로 묶어 두는 장치이기도 하다** — 단순히 일반화하면 FBL(`HE130I02`·`DEV30I02`)이 갑자기 4개를 빌드한다. 고칠 때는 증가 규칙만 일반화하지 말고 **"업 버전을 만들 것인가"를 선언으로 분리**한다(예: 기준 블록에 `JENKINS_BUILD_NEXT_VERSION` 같은 명시 define). 의도를 버전 문자열의 생김새에 기대지 않는다 |
+> | `PostPackage.bat` | `VEHICLE_OPTION_FILE` 에 규정 경로가 박혀 있어 규정 밖 저장소(TPMS FBL)에서 OEUK 탐색부터 못 갔고, 과제 분기(`:tpms_layout`)가 사본마다 갈라져 있었다 | 과제 분기를 전부 없애고 **선언 방식**으로 바꿨다. 기본값은 규정 경로이고 `_apply_pj` 가 저장소별로 치환한다 |
+> | `PostPackage.bat` | `SECUREFLASH_INI` 에 PSU 전용 경로·파일명이 박혀 있었다 | 훅이 넘기면 그것을, 없으면 `References\*Signed_Firmware*\*.ini` 를 찾는다. ini 가 없는 과제(FBL)는 WARNING 만 남고 **rom zip 은 만들어진다** |
+> | `PostPackage.bat` | `.sre` 탐색이 루프의 **마지막** 값을 집었다 | `LastWriteTime` 내림차순 첫 번째(가장 최근)를 집는다 |
+> | `PostPackage.bat` | 차종 접두어 개명이 **첫 토큰**을 무조건 바꿨다 | 실측 결과 **네 과제 모두(TEST 폴더까지) 빌드가 내는 이름 그대로**라 개명은 전부 무변경이다. 이름에 차종이 이미 있으면 건너뛴다 — 안 그러면 `e_lt2_tpms_…` 가 `lt2_lt2_tpms_…` 로 망가진다 |
+> | `BuildVariants.bat` | `PJ_FILE` 에 규정 경로가 박혀 훅이 돌려도 되돌아갔다 | `if not defined PJ_FILE` 로 감싸 훅의 선언을 존중한다 |
+> | `PJ_Variant.ps1` `-Action folder` | `SOFTWARE_VERSION_*` 가 **아예 없는** 과제(TPMS FBL)에서 `OEUK_LT2 UNKNOWN UNKNOWN` 을 내 `Debug\OEUK_LT2\UNKNOWN\` 을 만들었다 | 버전 정보가 전혀 없으면 **버전 축이 꺼진 것**으로 보고 `OEUK_LT2 . UNKNOWN` 을 낸다 → `Debug\OEUK_LT2\` 평면 |
 >
-> ⚠ **사본이 과제마다 같지 않다 — 같다고 단정하지 말고 세어 본다.** 2026-11-10 실측 `PostPackage.bat` 은 **세 갈래**였다: 스킬 asset = TPMS APP, PSU APP = PSU FBL, TPMS FBL 은 혼자 다름. asset 을 고쳐도 과제 저장소에 자동으로 퍼지지 않으므로, **고친 뒤 과제별로 반영 여부를 따로 확인한다.** 고칠 때는 **과제별 분기를 넣지 말고 전용 훅이 넘기는 환경변수로 빼낸다**(위 `SECUREFLASH_INI` 가 그 방식이다).
+> ⚠️ **남아 있는 제약 — `PJ_Variant.ps1` `Get-NextVersion` 은 `[long]$v + 10`** 이라 전부 숫자여야 한다. 문자가 섞인 버전은 예외 → `Get-KeepReason` → 기준+test 2개만 낸다. 지금은 해당 과제가 없지만(TPMS APP 은 변종 축이 꺼져 이 경로에 들어오지 않는다), **OEUK 를 쓰면서 버전에 문자가 섞인 과제**가 생기면 필요한 업 버전 2개가 조용히 빠진다. 그런데 **이 제약이 FBL 을 2개로 묶어 두는 장치이기도 하다** — 증가 규칙만 일반화하면 FBL(`HE130J02`)이 갑자기 4개를 빌드한다. 고칠 때는 **"업 버전을 만들 것인가"를 선언으로 분리**한다(예: `JENKINS_BUILD_NEXT_VERSION`). 의도를 버전 문자열의 생김새에 기대지 않는다.
 >
-> ⚠️ **첫 빌드 뒤 산출물 폴더를 반드시 눈으로 확인한다.** `PJ_Define.h` 를 못 찾으면 `PostPackage` 가 콘솔에 한 줄만 남기고 건너뛰는데, **빌드는 `SUCCESS` 로 끝나므로 로그 결과만 보면 알 수 없다.**
+> ⚠ **사본이 과제마다 같지 않다 — 같다고 단정하지 말고 세어 본다.** asset 을 고쳐도 과제 저장소에 자동으로 퍼지지 않는다. 2026-11-13 현재 네 과제의 `PostPackage.bat` 은 모두 **새 asset 이전 버전**이므로, 평가가 끝난 뒤 저장소별로 반영 여부를 따로 확인한다(`md5sum` 으로 센다).
 >
-> ```
-> [PostPackage] No enabled OEUK option found. Skipping.
-> ```
+> ⚠️ **cmd 함정 두 가지 (2026-11-13 실측).** `PostPackage.bat` 을 고칠 때 반드시 지킨다.
 >
-> 이 줄이 있거나 산출물이 `Debug\OEUK_<차종>\` 이 아니라 `Debug\` 바로 아래 평면으로 생겼으면 패키징이 빠진 것이다. 실제 사례 — `Kahuz/tpms_rf_receiver_bj_fbl`(TPMS FBL)은 `PJ_Define.h` 가 규정에서 벗어난 `Application\app_code\type\` 에 있어 2026-11-09 Jenkins #1(SUCCESS, 163초)에서 패키징이 건너뛰어지고 산출물이 `Debug\e_bj_tpms_asr_swp_fbl_v219.*` 로 평면 생성됐다. 같은 저장소의 다른 차이(OEUK 선언에 `1u` 값이 붙음, `SOFTWARE_VERSION_*` 없음, TEST 폴더가 차종별이 아닌 `OEUK_TEST` 공용)는 그 자체로는 막지 않는다 — `PJ_Variant.ps1` 의 정규식이 값 붙은 `#define` 을 읽고, FBL 평면 구조는 폴더명에 버전을 쓰지 않는다.
+> - **지연확장과 캐럿**: `!VAR!` 가 같은 줄에 있으면 cmd 가 그 줄을 한 번 더 파싱해 **캐럿 한 겹을 먹는다.** 그래서 `'(?m)^\s*#define…'` 의 `^` 앵커가 조용히 풀려 주석 처리된 `// #define OEUK_TEST` 줄까지 잡혔다. 그래서 PowerShell 에 넘기는 값은 **전부 환경변수(`$env:PKG_*`)로** 넘기고 그 줄에 `!VAR!` 를 두지 않는다. OEUK 탐색은 앵커 대신 `TrimStart()`/`StartsWith()` 를 쓴다 — 캐럿이 없으니 풀릴 것도 없다.
+> - **파이프 이스케이프가 for 형식마다 반대다**: `for /f "usebackq" … in (``…``)` 안에서는 `|` 를 **그냥** 쓴다(`^|` 는 PowerShell 에 캐럿으로 도착한다). `for /f … in ('…')` 안에서는 **반드시** `2^>nul ^| findstr` 로 이스케이프한다.
 >
-> 📁 **산출물 폴더 — APP는 버전별로 쌓이고, FBL은 OEUK별 평면 폴더**
+> **산출물 폴더 세부**
 >
-> 어느 쪽인지는 `PJ_Variant.ps1 -Action folder`가 정한다(출력 `<폴더> <버전폴더> <버전>`). 다음 버전(올림)이 불가능한 프로젝트(FBL)는 버전폴더 자리에 `.`을 내고 평면 구조가 된다.
->
-> - **FBL**: `Debug\OEUK_HE1I\`(기준), `Debug\OEUK_HE1I_TEST\`(TEST). APP 저장소 `psu_app\References\02_Fbl_Binary\`의 폴더 이름과 같아서 **같은 이름 폴더로 그대로 복사**하면 된다(`.sre/.hex/.elf/.map` 4개, `BuildWarning.xlsx` 제외). 빌드마다 그 OEUK 폴더를 통째로 다시 만들며 옛 `HE130I02\`·`HE130I02_test\`도 이때 정리된다. 파일 접두어는 TEST도 기준 차종(`he1i_psu_fbl_…`)이라 폴더로 구분한다. HE1i 실측 2026-10-05 FBL Jenkins #12(ALL)로 확인. 복사·커밋은 사람이 한다(넣을 APP 브랜치를 정해야 해서 Jenkins가 하지 않는다).
->
-> 아래는 **APP** 버전 폴더 설명이다.
->
-> `<버전>`은 `PJ_Define.h`의 `SOFTWARE_VERSION_*`를 위 규칙으로 읽은 문자열이다(APP `26810`). 같은 버전으로 다시 빌드하면 그 버전 폴더만 지우고 새로 만들고, 다른 버전 폴더는 그대로 둔다. `OEUK_xxxx\` 바로 아래의 파일·`rom_*` 폴더(옛 평면 구조)는 정리한다. 버전을 읽지 못하면 `UNKNOWN\`에 넣고 `rom` 패키징은 건너뛴다.
->
-> - **rom 패키지 이름은 버전 폴더 이름을 따른다**: `26810\rom_26810\`·`rom_26810.zip`, `26810_test\rom_26810_test\`·`rom_26810_test.zip`. 예전에는 test 폴더 안에도 `rom_26810`이 생겨 기준 빌드와 구분되지 않았다(2026-10 수정). 콘솔의 `Software version`과 `Finished … v<버전>`에는 `_test`를 뺀 실제 버전이 찍힌다.
->
-> - CVD 등 디버거 다운로드 경로가 `Debug\OEUK_xxxx\<버전>\<차종>_psu_app_vX_Y_Z_Writing.s19`가 되므로 버전을 올리면 디버거 설정 경로도 바꿔야 한다.
-> - 로컬 `Build_all.bat`은 수정하지 않으므로 여전히 `OEUK_xxxx\` 전체를 지우고 평면 구조로 만든다. Jenkins 결과는 `git pull`로 받도록 안내한다.
+> - **버전 축이 꺼진 과제(FBL)**: `Debug\OEUK_HE1I\`(기준), `Debug\OEUK_HE1I_TEST\`(TEST). APP 저장소 `psu_app\References\02_Fbl_Binary\` 의 폴더 이름과 같아서 **같은 이름 폴더로 그대로 복사**하면 된다(`.sre/.hex/.elf/.map` 4개, `BuildWarning.xlsx` 제외). 빌드마다 그 OEUK 폴더를 통째로 다시 만든다. 파일 접두어는 TEST 도 기준 차종(`he1i_psu_fbl_…`)이라 폴더로 구분한다. HE1i 실측 2026-10-05 FBL Jenkins #12(ALL). 복사·커밋은 사람이 한다(넣을 APP 브랜치를 정해야 해서 Jenkins 가 하지 않는다).
+> - **버전 축이 켜진 과제(APP)**: `<버전>` 은 `SOFTWARE_VERSION_*`(PSU `26810`) 또는 `PKG_VERSION_PATTERN`(TPMS `26B100`)으로 읽은 문자열이다. 같은 버전으로 다시 빌드하면 **그 버전 폴더만** 지우고 새로 만들고 다른 버전 폴더는 그대로 둔다. 변종 폴더 바로 아래의 파일·`rom_*`(옛 평면 구조)는 정리한다. 버전을 읽지 못하면 `rom` 패키징을 건너뛴다.
+> - **rom 패키지 이름은 버전 폴더 이름을 따른다**: `26810\rom_26810\`·`rom_26810.zip`, `26810_test\rom_26810_test\`·`rom_26810_test.zip`. 예전에는 test 폴더 안에도 `rom_26810` 이 생겨 기준 빌드와 구분되지 않았다(2026-10 수정). 콘솔의 `Software version` 과 `Finished … version <버전>` 에는 `_test` 를 뺀 실제 버전이 찍힌다.
+> - CVD 등 디버거 다운로드 경로가 `Debug\OEUK_xxxx\<버전>\<차종>_psu_app_vX_Y_Z_Writing.s19` 가 되므로 버전을 올리면 디버거 설정 경로도 바꿔야 한다.
+> - 로컬 `Build_all.bat` 은 수정하지 않으므로 여전히 `OEUK_xxxx\` 전체를 지우고 평면 구조로 만든다. Jenkins 결과는 `git pull` 로 받도록 안내한다.
 
 > 🧩 **서브모듈 — Job 이 받아 주지 않으므로 전용 훅이 받는다**
 >
