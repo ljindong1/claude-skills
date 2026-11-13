@@ -12,7 +12,7 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 
 - 저장소 `D:\Mobase\asec_autotest_tool` (Joule). 그 폴더에서 `uv run joule-flash <명령>` 으로 실행한다. 설치·복사하지 않는다.
 - 사용법·옵션·종료 코드·폴더 구조·문제 해결의 정본은 저장소 **`docs/joule-flash.md`**. 조작·문제 해결 질문은 파일을 만들지 말고 그 문서를 읽고 답한다.
-- 코드 `src/joule/flash/` (CLI 진입점 `cli.py`), 라이팅 기본 틀 `src/joule/flash/assets/cyt2bl_dual/` (CYT2BL 듀얼뱅크만). 고칠 것이 생기면 저장소에서 고치고 `uv run pytest` (보드 없이 `tests/test_flash.py`).
+- 코드 `src/joule/flash/` (CLI 진입점 `cli.py`), 라이팅 기본 틀 `src/joule/flash/assets/` 두 벌 - `cyt2bl_dual`(CYT2BL·듀얼) / `s32k3_single`(S32K3·싱글). 고칠 것이 생기면 저장소에서 고치고 `uv run pytest` (보드 없이 `tests/test_flash.py`).
 - 저장소가 없으면 멈추고 알린다 (회사 Gitea `asec_autotest_tool` 클론 필요).
 - **CVD 설치를 먼저 확인한다.** `scan` 의 `[CVD]` 줄. 기본 경로 `C:\JnDTech\CVI\CVD` 에 없으면 도구가 후보를 보이니 사용자에게 확인받고 모든 명령에 `--cvd-root <설치 폴더>`.
 - 생성된 `.csf` 는 손으로 고치지 않는다. 경로는 `flash` 인자나 `set` 으로 바꾼다.
@@ -27,7 +27,7 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
    - 다른 후보가 있으면 경로의 차종 이름을 반드시 짚는다. `[주의] 같은 때 생긴 서로 다른 파일` 이면 init 은 멈추니 `--fbl/--app/--elf/--hsm` 로 고르게 한다.
    - `Debug\OEUK_*` 가 없으면 저장소 `git pull` 을 안내한다.
 3. AskUserQuestion 한 번으로: **과제명**(제안값), **뱅크 구성**(조사 결과를 근거와 함께 첫 옵션 - 추론으로 넘기지 않는다), **APP 버전**(여러 개면 `현재 소스` 를 추천으로, 나머지도 옵션).
-   싱글뱅크이거나 CYT2BL 이 아니면 기본 틀이 없으니 멈추고 보고한다.
+   CYT2BL 듀얼뱅크와 S32K3 싱글뱅크는 기본 틀이 있다. 그 밖의 조합(예: CYT2BL 싱글, CYT2B9)은 틀이 없어 도구가 멈추니 그대로 보고한다.
 4. `init --repo <폴더> --name <과제명> --bank <dual|single> [--version <버전>] --yes --dry-run` 으로 계획을 보이고 확인받은 뒤 `--dry-run` 없이.
    결과(변환 내역, 검증 지점 수, 시작 바로가기 `CVD Projects`)를 보고한다. 이후 CVD 는 그 바로가기로 켜라고 안내한다.
 
@@ -89,14 +89,16 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 - 2026-11-11 TPMS RF 수신기(LT2): 웨이크업이 `GPT`(타이머)·`LCAN_RX`(CAN)·`RF_RX` 뿐이고 IGN 이 없다. 전원 투입 뒤 약 7초만 깨어 있었다.
 - **접속을 재시도 루프로 감싸지 않는다.** `ON ERROR GOSUB` 가 오류마다 쌓여 `Script stack is overflow` 로 끝난다 (2026-11-11 확인). 슬립이 진짜 원인인지부터 가리고(커넥터 방향·VTref), 정말 필요하면 CAN 레스트버스로 깨워 둔다.
 
-## S32K3 싱글뱅크 (손으로 만든 과제)
+## S32K3 싱글뱅크
 
-`joule-flash init` 은 CYT2BL 듀얼뱅크 기본 틀만 만든다. S32K3 는 2026-11-11 에 과제 `TPMS_RF_RECEIVER_LT2` 를 손으로 만들어 두었다 - 같은 MCU 가 또 나오면 그 폴더를 본보기로 쓴다.
+**`joule-flash init --bank single` 이 만든다** (2026-11-13 부터). 기본 틀이 MCU x 뱅크로 두 벌이다 - `cyt2bl_dual`(CYT2BL·듀얼) / `s32k3_single`(S32K3·싱글). 표(`src/joule/flash/template.py`)에 없는 조합은 도구가 멈춘다. **과제를 손으로 짜지 말고 `init` 을 쓴다.** 2026-11-11 에 손으로 만든 `TPMS_RF_RECEIVER_LT2` 가 그 생성 결과의 정답지다 (`verify`·`run`·`check` 는 바이트 동일, 나머지는 주석만 다르다). **단, init 이 만든 S32K3 과제로 보드에 써 본 적은 아직 없다** - 처음 쓸 때는 결과를 확인하고 사용자에게 그렇다고 알린다. 새 MCU·뱅크 조합은 벤더 원본을 `src/joule/flash/assets/<이름>/` 에 바이트 그대로 두고 그 표와 `image.MCUS` 에 한 줄씩 더하는 일이다 (docs/joule-flash.md "기본 틀").
 
-- 바탕은 벤더 `S32_Config\S32_Config_bak\JG1_MFSW\s32k3_ABSWAP_J.csf` 다. 플래시 선언(`FLASH.Create`, `FLASH.ChangeType ... NOP`)은 **그 보드에서 쓰고 있는 T32 스크립트와 같게 두고 바꾸지 않는다** - 지우는 주소를 스스로 판단해 바꾸는 것이 가장 위험하다.
-- 접속부도 프로젝트의 `References\JTAG\*.cmm` 를 베낀다. 그게 그 보드에서 검증된 절차다.
+아래는 그 틀이 왜 그 모양인지와, 과제를 손봐야 할 때의 함정이다.
+
+- 바탕은 벤더 `S32_Config\S32_Config_bak\JG1_MFSW\s32k3_ABSWAP_J.csf` 다 (틀 `assets\s32k3_single\` 에 바이트 그대로 들어 있다). 플래시 선언(`FLASH.Create`, `FLASH.ChangeType ... NOP`)은 **그 보드에서 쓰고 있는 T32 스크립트와 같게 두고 바꾸지 않는다** - 지우는 주소를 스스로 판단해 바꾸는 것이 가장 위험하다.
+- 접속부는 프로젝트의 `References\JTAG\*.cmm` 를 베낀 것이다 (`assets\s32k3_single\connect.csf`). 그게 그 보드에서 검증된 절차다. 다른 S32K3 보드가 나오면 그 프로젝트의 `.cmm` 와 맞는지 먼저 본다.
 - `_connect.csf` 는 맨 위에서 `_config.csf` 를 읽어 `&cfg_elf`·`&cfg_src` 를 쓴다 (경로를 박지 않는다 - Ed 버튼으로 고친 값이 따라가야 한다).
-- **`joule-flash flash/compare/set` 은 2026-11-12 에 길이 열렸으나 이 보드로 아직 확인하지 않았다.** 그때까지는 CVD 화면 버튼(PA/VF/PD/RE)이나 `_run.csf`·`_check.csf` 로 쓴다. 막혀 있던 까닭은 버그가 아니라 박아 둔 상수였다 - `src/joule/flash/image.py` 의 `VERIFY_RANGE` 가 CYT2BL 주소(`0x10028000~`)라 S32K3 코드가 창 밖이어서 대조 지점이 0개가 되고, config 를 덮어쓴 뒤 종료 코드 4(대조 미완료)가 났다. 지금은 MCU 표(`image.MCUS`, 과제 config 의 `cpu` 접두어로 고른다)가 S32K3 코드 영역(`0x00400000~`)을 쓴다. 창을 넓히는 것으로는 안 됐다 - **S32K3 에서 `0x10000000` 은 데이터 플래시**이고 CYT2BL 창 안에 들어온다.
+- **`joule-flash flash/compare/set` 의 S32K3 길은 2026-11-12 에 열렸으나 이 보드로 아직 확인하지 않았다.** 그때까지는 CVD 화면 버튼(PA/VF/PD/RE)이나 `_run.csf`·`_check.csf` 로 쓴다. 막혀 있던 까닭은 버그가 아니라 박아 둔 상수였다 - `src/joule/flash/image.py` 의 `VERIFY_RANGE` 가 CYT2BL 주소(`0x10028000~`)라 S32K3 코드가 창 밖이어서 대조 지점이 0개가 되고, config 를 덮어쓴 뒤 종료 코드 4(대조 미완료)가 났다. 지금은 MCU 표(`image.MCUS`, 과제 config 의 `cpu` 접두어로 고른다)가 S32K3 코드 영역(`0x00400000~`)을 쓴다. 창을 넓히는 것으로는 안 됐다 - **S32K3 에서 `0x10000000` 은 데이터 플래시**이고 CYT2BL 창 안에 들어온다.
   - **`set` 은 대조 지점을 다시 만든다.** 손으로 넣은 지점이 지워진다 (TPMS LT2 는 16번이 FBL 공개키 자리라 그것으로 일반/TEST 판을 가린다) - 쓰기 전에 config 를 백업하고, 끝나고 그 지점을 되돌린다.
 - **무인으로 쓸 때는 `_run.csf` 가 CLI 진입점이다**: `CVD.exe "<과제폴더>\<과제>_run.csf"` 가 config -> 접속 -> 지움+쓰기 -> 대조 -> `QUIT` 까지 돌고, 진행은 `_result.log` 의 `STEP=start|connected|flashing|flashed|done` 으로 본다 (2026-11-12 TPMS LT2 에서 처음 끝까지 돌렸다 - 18초, 종료 코드 0, 16지점 일치). 실패하면 `QUIT` 에 못 가 **CVD 창이 남으므로** 다시 돌리기 전에 닫는다. `STEP=done` 이 없으면 쓰기가 끝난 것이 아니다.
 - `ChangeType ... NOP` 으로 빼 둔 구간이 APP 영역 안에 있으면 **한계선을 주석으로 적어 둔다.** 코드가 커져 그 구간을 넘기면 조용히 안 써진다 (TPMS LT2: `0x004D4000~0x004FFFFF`, 2026-11-11 기준 여유 289KB).
@@ -117,6 +119,6 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 ## 범위 밖
 
 - T32(Lauterbach), CANoe 설정·측정
-- 싱글뱅크·CYT2BL 외 MCU 의 **joule-flash 기본 틀**을 저장소 `src/joule/flash/assets/` 에 넣는 작업. 과제를 손으로 만드는 것은 범위 안이다 - 위 "S32K3 싱글뱅크" 참고.
+- CYT2BL·S32K3 외 MCU 의 **joule-flash 기본 틀**을 저장소 `src/joule/flash/assets/` 에 새로 넣는 작업 (joule 쪽 일이다). 있는 틀로 과제를 만드는 것은 범위 안이다 - 위 "S32K3 싱글뱅크" 참고.
 - 벤더 플래시 알고리즘 수정 (소거 확인 창 -> 선택값, 뱅크 B APP 기록 선택, work flash 소거 명령 `cflash.erase` 외에는 원본 그대로)
 - OTA 리프로그래밍
