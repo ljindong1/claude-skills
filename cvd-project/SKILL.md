@@ -92,7 +92,12 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 
 ## S32K3 싱글뱅크
 
-**`joule-flash init --bank single` 이 만든다** (2026-11-13 부터). 기본 틀이 MCU x 뱅크로 두 벌이다 - `cyt2bl_dual`(CYT2BL·듀얼) / `s32k3_single`(S32K3·싱글). 표(`src/joule/flash/template.py`)에 없는 조합은 도구가 멈춘다. **과제를 손으로 짜지 말고 `init` 을 쓴다.** 2026-11-11 에 손으로 만든 `TPMS_RF_RECEIVER_LT2` 가 그 생성 결과의 정답지다 (`verify`·`run`·`check` 는 바이트 동일, 나머지는 주석만 다르다). **단, init 이 만든 S32K3 과제로 보드에 써 본 적은 아직 없다** - 처음 쓸 때는 결과를 확인하고 사용자에게 그렇다고 알린다. 새 MCU·뱅크 조합은 벤더 원본을 `src/joule/flash/assets/<이름>/` 에 바이트 그대로 두고 그 표와 `image.MCUS` 에 한 줄씩 더하는 일이다 (docs/joule-flash.md "기본 틀").
+**`joule-flash init --bank single` 이 만든다** (2026-11-13 부터, **실기 통과** - 생성한 과제로 읽기 16지점 불일치 0, 쓰기 17초 불일치 0). 기본 틀이 MCU x 뱅크로 두 벌이다 - `cyt2bl_dual`(CYT2BL·듀얼) / `s32k3_single`(S32K3·싱글). 표(`src/joule/flash/template.py`)에 없는 조합은 도구가 멈춘다. **과제를 손으로 짜지 말고 `init` 을 쓴다.** 2026-11-11 에 손으로 만든 `TPMS_RF_RECEIVER_LT2` 가 그 생성 결과의 정답지다 (`verify`·`run`·`check` 는 바이트 동일, 나머지는 주석만 다르다). 새 MCU·뱅크 조합은 벤더 원본을 `src/joule/flash/assets/<이름>/` 에 바이트 그대로 두고 그 표와 `image.MCUS` 에 한 줄씩 더하는 일이다 (docs/joule-flash.md "기본 틀").
+
+- **S32K3 과제를 만들 때 저장소가 사내 규정과 다르면 `--fbl/--app/--elf` 를 준다.** TPMS 저장소는 `Debug\<버전>\` 평면이고 같은 때 생긴 파일이 둘이라 `scan` 이 `[주의]` 를 찍고 init 이 멈춘다 (그것이 설계다 - 엉뚱한 차종 파일을 고르지 않는다).
+- **쓰기 전에 보드를 읽지 않는다** (HSM 이 없는 MCU). 읽으면 그 접속이 남아 이어지는 쓰기가 `IF !SYStem.Up()` 을 건너뛰고, 코어가 리셋·정지하지 않은 채로 구우면 돌고 있는 APP 가 알고리즘 자리(0x20400000)를 덮어써 `Download Failed (0xF0000126)` 가 난다 - **그때 플래시는 이미 지워진 뒤다** (2026-11-13 LT2 실기에서 겪고 둘 다 고쳤다: 굽기 직전 `SYStem.Down`+`SYStem.Up`+`InitSRAM`, 그리고 그 미리 읽기를 없앰).
+- **단독 `joule-flash` 는 쓰기 뒤 전원을 재투입하지 않는다** (bench 를 안 읽는다). 그대로 CAN 을 보면 ECU 가 조용하니 `joule-power <장비> cycle B+ --off-s 5` 로 넣는다. 기본 릴레이 장비가 아닌 bench 는 `--power <장비 이름>` 도 같이 준다 (TPMS 는 8채널 `relaybox_n4d8b08`).
+- **데이터 영역은 언제나 지워진다** - TPMS LT2 는 NvM 부품번호가 SW 버전(F1B1)을 고르므로, 쓰고 나면 `joule-verify tpms_rf_lt2 deep --tc-file 15_IDENT --run` 으로 다시 적어야 한다 (보드 쓰기라 사용자 확인 뒤).
 
 아래는 그 틀이 왜 그 모양인지와, 과제를 손봐야 할 때의 함정이다.
 
