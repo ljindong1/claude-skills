@@ -45,7 +45,7 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 2. 과제 · APP 버전 · 모드 · APP 뱅크 · FBL/APP/ELF/HSM 경로와 `[알림]` 을 그대로 보이고 AskUserQuestion 으로 확인받는다. 정하지 않은 것은 함께 묻는다.
    - 전원(자동일 때): "쓰기 전 켜기는 flash 가 하고, 쓴 뒤 IGN1 -> B+ 끄고 3초 뒤 B+ -> IGN1 켜기를 릴레이로 한다" 를 함께 보인다. `flash --power` 와 `joule-power on/off` 는 묻지 않고 바로 ECU 전원을 바꾸므로 **이 확인 한 번이 전원 조작 승인**이다.
    - APP 버전: config 버전이 기본. `[알림]` 의 현재 소스·더 새 버전도 옵션으로.
-   - 무엇을 쓸지: IMAGE(FBL+APP, 기본) / HSM / ALL. 새 보드나 다른 HSM 이면 ALL.
+   - 무엇을 쓸지: IMAGE(FBL+APP, 기본) / HSM / ALL. IMAGE 로 쓰려 하면 **도구가 보드를 먼저 읽고, 다른 제어기나 새 보드면 스스로 ALL 로 올린다** (`[모드 변경] IMAGE -> ALL` - IMAGE 는 HSM 을 안 건드려 앞 제어기 HSM 이 남기 때문이다). 사람이 미리 고를 것은 없으니 그 점을 함께 알린다. config 에 HSM 경로가 없으면 올리지 못해 멈춘다.
    - 데이터 영역(DTC·NvM·학습값)은 **언제나 지운다** - 묻지 않는다 (유지 옵션은 2026-10-16 없앰). 같은 보드에 다른 제어기를 쓰면 NvM 이 넘어오기 때문이라고 알린다.
    - APP 뱅크(듀얼뱅크, IMAGE/ALL): config 설정을 첫 옵션으로. A 를 고르면 B 에 다른 버전이 남아 FBL 이 B 로 부팅할 때 그 버전이 돈다는 점을 짚는다.
 3. 확인되면 CVD 화면은 닫아 둔다 (포트가 겹친다). 보드에 B+·IGN1 이 들어가야 한다 - joule-verify deep/full 은 끝날 때 전원을 끈다 (그대로 쓰면 종료 코드 6 / 0xEC2).
