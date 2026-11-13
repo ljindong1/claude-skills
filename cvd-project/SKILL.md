@@ -38,7 +38,7 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 **쓰기 전에 반드시 사용자 확인을 받는다.**
 
 0. **전원 방식을 먼저 정한다 - 릴레이 박스가 응답하면 자동, 아니면 수동.**
-   `uv run joule-power relaybox status` (릴레이를 바꾸지 않으니 확인 없이 실행). 장비 설정 `configs/devices/relaybox.toml` (COM3·19200·ID 1, CH1 = B+, CH2 = IGN1).
+   `uv run joule-power relaybox status` (릴레이를 바꾸지 않으니 확인 없이 실행). 장비 설정 `configs/devices/relaybox.toml` (R4D6F20 20채널, 포트 자동·9600·ID 1, CH1 = B+, CH2 = IGN1). **bench 마다 박스가 다르다** - TPMS 는 `relaybox_n4d8b08`(8채널·19200)이니 `joule-power relaybox_n4d8b08 status`, 쓰기도 `--power relaybox_n4d8b08`.
    - 응답하면 **자동**: 지금 B+·IGN1 공급 상태를 보인다 (IGN1 은 B+ 에 딸려 있어, `status` 의 IGN1 공급 여부는 B+ 까지 함께 본 값이다). **쓰기 전 켜기는 `flash` 가 스스로 한다** (`--power` 기본 `relaybox` - 꺼진 채널을 B+ -> IGN1 순으로 켜고 기다린 뒤 붙는다). 쓴 뒤 재투입(4번)만 릴레이 명령으로 한다.
    - 응답 없음·포트 없음이면 **수동**: 멈추지 않고 그 사실을 알린 뒤, 3·4 에서 사람에게 전원을 안내한다. 이때 **모든 `flash`·`compare` 에 `--power none` 을 붙인다** - 안 붙이면 도구가 박스를 못 열어 보드에 쓰지 않고 멈춘다. 원인(박스 12V +·GND, 포트·보율·ID, A/B bench)은 저장소 `docs/joule-power.md` "처음 붙이기" 로 짚어 준다.
 1. `flash --name <과제명> [인자]` 를 `--yes` 없이 → 계획과 `[옵션]`·`[알림]` 만 나온다 (보드·config 그대로).
@@ -106,11 +106,12 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 - `_connect.csf` 는 맨 위에서 `_config.csf` 를 읽어 `&cfg_elf`·`&cfg_src` 를 쓴다 (경로를 박지 않는다 - Ed 버튼으로 고친 값이 따라가야 한다).
 - **`joule-flash flash/compare/set` 의 S32K3 길은 2026-11-12 에 열렸고 2026-11-13 에 실기로 확인했다** (위). CVD 화면 버튼(PA/VF/PD/RE)과 `_run.csf`·`_check.csf` 도 그대로 쓸 수 있다. 막혀 있던 까닭은 버그가 아니라 박아 둔 상수였다 - `src/joule/flash/image.py` 의 `VERIFY_RANGE` 가 CYT2BL 주소(`0x10028000~`)라 S32K3 코드가 창 밖이어서 대조 지점이 0개가 되고, config 를 덮어쓴 뒤 종료 코드 4(대조 미완료)가 났다. 지금은 MCU 표(`image.MCUS`, 과제 config 의 `cpu` 접두어로 고른다)가 S32K3 코드 영역(`0x00400000~`)을 쓴다. 창을 넓히는 것으로는 안 됐다 - **S32K3 에서 `0x10000000` 은 데이터 플래시**이고 CYT2BL 창 안에 들어온다.
 - **새 보드·빈 보드에도 그냥 쓴다 (고쳤다, 2026-11-13).** 전에는 IMAGE 로 쓸 때 도구가 보드를 먼저 읽고 "다른 제어기" 로 보면 ALL 로 올리려 했고, S32K3 과제에는 HSM 이 없어(`&cfg_hsm=""`) "`--rescan` 으로 HSM 을 찾으세요" 라며 멈췄다 - S32K3 에는 쓸 HSM 이 없으니 따라갈 수 없는 안내였다. 이제 **쓸 HSM 이 없는 틀에서는 그 판단을 하지 않는다** (`CvdProject._escalate_if_other_ecu` 가 `template().hsm is None` 이면 바로 돌아온다). 같은 날 실기에서 지워진 보드에 `flash --mode IMAGE` 가 멈춤 없이 들어갔다 (17초, 16지점 불일치 0).
-- **틀이 이미 `SYStem.Up` + `GOSUB InitSRAM` 을 굽기 직전에 넣는다** - 아래 함정들은 그 까닭이다. 손으로 다시 넣거나 빼지 않는다.
+- **틀이 이미 굽기 직전에 `SYStem.Down` -> `SYStem.Up` -> `GOSUB InitSRAM` 을 넣는다** - 아래 함정들은 그 까닭이다. 손으로 다시 넣거나 빼지 않는다.
   - **`set` 은 대조 지점을 다시 만든다.** 손으로 넣은 지점이 지워진다 (TPMS LT2 는 16번이 FBL 공개키 자리라 그것으로 일반/TEST 판을 가린다) - 쓰기 전에 config 를 백업하고, 끝나고 그 지점을 되돌린다.
 - **무인으로 쓸 때는 `_run.csf` 가 CLI 진입점이다**: `CVD.exe "<과제폴더>\<과제>_run.csf"` 가 config -> 접속 -> 지움+쓰기 -> 대조 -> `QUIT` 까지 돌고, 진행은 `_result.log` 의 `STEP=start|connected|flashing|flashed|done` 으로 본다 (2026-11-12 TPMS LT2 에서 처음 끝까지 돌렸다 - 18초, 종료 코드 0, 16지점 일치). 실패하면 `QUIT` 에 못 가 **CVD 창이 남으므로** 다시 돌리기 전에 닫는다. `STEP=done` 이 없으면 쓰기가 끝난 것이 아니다.
 - `ChangeType ... NOP` 으로 빼 둔 구간이 APP 영역 안에 있으면 **한계선을 주석으로 적어 둔다.** 코드가 커져 그 구간을 넘기면 조용히 안 써진다 (TPMS LT2: `0x004D4000~0x004FFFFF`, 2026-11-11 기준 여유 289KB).
-- **굽기 직전에 `SYStem.Up` 을 넣는다.** 벤더 원본은 자기가 접속까지 하고 바로 구워서 그 줄이 없는데, PA/VF 로 **이미 붙어 있으면** 접속 블록(`IF !SYStem.Up()`)이 통째로 건너뛰어진다. 그러면 지우기는 되고 **쓰기에서 `Download Failed (0xF0000126)` + `Flash reprogram error (0x00000002)`** 가 난다 - 2026-11-11 TPMS LT2 에서 겪었고, 이 한 줄로 해결됐다. 같은 설치의 `S32_Config_bak\s32k3_cvd.cmm` 도 굽기 직전·직후에 `SYStem.Up` 을 한다.
+- **굽기 직전에 `SYStem.Up` 을 넣는다.** 벤더 원본은 자기가 접속까지 하고 바로 구워서 그 줄이 없는데, PA/VF 로 **이미 붙어 있으면** 접속 블록(`IF !SYStem.Up()`)이 통째로 건너뛰어진다. 그러면 지우기는 되고 **쓰기에서 `Download Failed (0xF0000126)` + `Flash reprogram error (0x00000002)`** 가 난다 - 2026-11-11 TPMS LT2 에서 겪었다. 같은 설치의 `S32_Config_bak\s32k3_cvd.cmm` 도 굽기 직전·직후에 `SYStem.Up` 을 한다.
+  - **`SYStem.Up` 한 줄로는 모자랐다.** 이미 붙어 있는 상태에서 `Up` 만 하면 코어가 리셋·정지하지 않아, 돌고 있는 APP 가 알고리즘이 올라갈 `0x20400000` 을 덮어쓴다 (2026-11-13 LT2 실기, IMAGE 미리 읽기가 남긴 접속에서). 그래서 틀은 앞에 `SYStem.Down` 을 둔다 - 붙어 있지 않을 때도 해롭지 않다.
   - **그 `SYStem.Up` 바로 뒤에 `GOSUB InitSRAM` 을 다시 넣는다.** `SYStem.Up` 이 코어를 다시 세우면 접속 블록에서 돌린 SRAM 초기화가 풀리고, `FLASH.TARGET` 이 알고리즘을 내리는 `0x20400000` 이 초기화 전이라 **같은 `Download Failed (0xF0000126)` + `Flash reprogram error (0x00000002)`** 가 난다 (2026-11-12 TPMS LT2 에서 겪음). 접속 블록 안에만 `GOSUB InitSRAM` 이 있으면 어느 길로 들어와도 굽는 순간에는 풀려 있다 - 굽기 직전이 제자리다.
   - 이때 **플래시는 이미 지워진 뒤**다. 실패했다고 보드가 그대로일 거라 말하지 말고 VF 로 확인한 뒤 전한다.
   - 플래시가 비면 ECU 소프트웨어가 없어 더 이상 자지 않는다 - 빨리 자던 보드도 이 상태에서는 접속이 편하다.
