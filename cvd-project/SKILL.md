@@ -1,6 +1,6 @@
 ---
 name: "cvd-project"
-description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM)를 MCU에 기록하고 플래시 내용을 이미지와 대조 검증하는 스킬. 실행은 회사 저장소 Joule(D:\\Mobase\\asec_autotest_tool)의 joule-flash 를 그 자리에서 부른다(코드·라이팅 기본 틀은 저장소에 있다). 과제 최초 1회 init(프로젝트 폴더 조사 → 모르는 것만 질문 → 기본 틀로 생성), 이후 flash/verify. 생성된 .csf 는 CVD 화면 버튼(PD/VF/PA/RE)으로도 쓴다. 사용자가 \"CVD로 다운로드\", \"보드에 구워줘\", \"라이팅\", \"CVD init\", \"CVD 설정 만들어줘\", \"새 차종 라이팅 환경\", \"빌드 새로 나왔으니 다시 써줘\", \"보드 붙었는지 확인해줘\", \"플래시 검증해줘\", \"CVD 검증\", \"SFlash 지워도 되나\", \"Erase All 해도 되나\", \"SYSDOWN 이 뜨는데\", \"0xEC2 에러\", \"CVD 로 다운로드가 안 돼\", \"CAN 이 안 나와\", \"main 에서 멈춰\", \"데이터 지웠는데 값이 남아\", \"S32K3 라이팅\", \"Target power off\", \"보드가 자꾸 자요\" 등을 말하면 사용한다. Claude Code CLI(CVD 와 Joule 저장소가 있는 사용자 PC) 전용. S32_Config 와 기존 loadfile.cmm 은 수정하지 않는다(읽기는 사용자 허락 시에만). T32(Lauterbach)·CANoe 설정은 범위가 아니다."
+description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM)를 MCU에 기록하고 플래시 내용을 이미지와 대조 검증하는 스킬. 실행은 회사 저장소 Joule(D:\\Mobase\\asec_autotest_tool)의 joule-flash 를 그 자리에서 부른다(코드·라이팅 기본 틀은 저장소에 있다). 과제 최초 1회 init(프로젝트 폴더 조사 → 모르는 것만 질문 → 기본 틀로 생성), 이후 flash/compare. 생성된 .csf 는 CVD 화면 버튼(PD/VF/PA/RE)으로도 쓴다. 사용자가 \"CVD로 다운로드\", \"보드에 구워줘\", \"라이팅\", \"CVD init\", \"CVD 설정 만들어줘\", \"새 차종 라이팅 환경\", \"빌드 새로 나왔으니 다시 써줘\", \"보드 붙었는지 확인해줘\", \"플래시 검증해줘\", \"CVD 검증\", \"SFlash 지워도 되나\", \"Erase All 해도 되나\", \"SYSDOWN 이 뜨는데\", \"0xEC2 에러\", \"CVD 로 다운로드가 안 돼\", \"CAN 이 안 나와\", \"main 에서 멈춰\", \"데이터 지웠는데 값이 남아\", \"S32K3 라이팅\", \"Target power off\", \"보드가 자꾸 자요\" 등을 말하면 사용한다. Claude Code CLI(CVD 와 Joule 저장소가 있는 사용자 PC) 전용. S32_Config 와 기존 loadfile.cmm 은 수정하지 않는다(읽기는 사용자 허락 시에만). T32(Lauterbach)·CANoe 설정은 범위가 아니다."
 ---
 
 # cvd-project
@@ -12,7 +12,7 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 
 - 저장소 `D:\Mobase\asec_autotest_tool` (Joule). 그 폴더에서 `uv run joule-flash <명령>` 으로 실행한다. 설치·복사하지 않는다.
 - 사용법·옵션·종료 코드·폴더 구조·문제 해결의 정본은 저장소 **`docs/joule-flash.md`**. 조작·문제 해결 질문은 파일을 만들지 말고 그 문서를 읽고 답한다.
-- 코드 `src/joule/flash/tool.py`, 라이팅 기본 틀 `src/joule/flash/assets/cyt2bl_dual/` (CYT2BL 듀얼뱅크만). 고칠 것이 생기면 저장소에서 고치고 `uv run pytest` (보드 없이 `tests/test_flash.py`).
+- 코드 `src/joule/flash/` (CLI 진입점 `cli.py`), 라이팅 기본 틀 `src/joule/flash/assets/cyt2bl_dual/` (CYT2BL 듀얼뱅크만). 고칠 것이 생기면 저장소에서 고치고 `uv run pytest` (보드 없이 `tests/test_flash.py`).
 - 저장소가 없으면 멈추고 알린다 (회사 Gitea `asec_autotest_tool` 클론 필요).
 - **CVD 설치를 먼저 확인한다.** `scan` 의 `[CVD]` 줄. 기본 경로 `C:\JnDTech\CVI\CVD` 에 없으면 도구가 후보를 보이니 사용자에게 확인받고 모든 명령에 `--cvd-root <설치 폴더>`.
 - 생성된 `.csf` 는 손으로 고치지 않는다. 경로는 `flash` 인자나 `set` 으로 바꾼다.
@@ -39,18 +39,18 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 
 0. **전원 방식을 먼저 정한다 - 릴레이 박스가 응답하면 자동, 아니면 수동.**
    `uv run joule-power relaybox status` (릴레이를 바꾸지 않으니 확인 없이 실행). 장비 설정 `configs/devices/relaybox.toml` (COM3·19200·ID 1, CH1 = B+, CH2 = IGN1).
-   - 응답하면 **자동**: 지금 B+·IGN1 공급 상태를 보이고, 아래 3·4 의 전원 조작을 릴레이로 한다.
-   - 응답 없음·포트 없음이면 **수동**: 멈추지 않고 그 사실을 알린 뒤, 3·4 에서 사람에게 전원을 안내한다. 원인(박스 12V +·GND, 포트·보율·ID, A/B 결선)은 저장소 `docs/joule-power.md` "처음 붙이기" 로 짚어 준다.
+   - 응답하면 **자동**: 지금 B+·IGN1 공급 상태를 보인다 (IGN1 은 B+ 에 딸려 있어, `status` 의 IGN1 공급 여부는 B+ 까지 함께 본 값이다). **쓰기 전 켜기는 `flash` 가 스스로 한다** (`--power` 기본 `relaybox` - 꺼진 채널을 B+ -> IGN1 순으로 켜고 기다린 뒤 붙는다). 쓴 뒤 재투입(4번)만 릴레이 명령으로 한다.
+   - 응답 없음·포트 없음이면 **수동**: 멈추지 않고 그 사실을 알린 뒤, 3·4 에서 사람에게 전원을 안내한다. 이때 **모든 `flash`·`compare` 에 `--power none` 을 붙인다** - 안 붙이면 도구가 박스를 못 열어 보드에 쓰지 않고 멈춘다. 원인(박스 12V +·GND, 포트·보율·ID, A/B bench)은 저장소 `docs/joule-power.md` "처음 붙이기" 로 짚어 준다.
 1. `flash --name <과제명> [인자]` 를 `--yes` 없이 → 계획과 `[옵션]`·`[알림]` 만 나온다 (보드·config 그대로).
 2. 과제 · APP 버전 · 모드 · APP 뱅크 · FBL/APP/ELF/HSM 경로와 `[알림]` 을 그대로 보이고 AskUserQuestion 으로 확인받는다. 정하지 않은 것은 함께 묻는다.
-   - 전원(자동일 때): "쓰기 전 B+ -> IGN1 켜기, 쓴 뒤 IGN1 -> B+ 끄고 3초 뒤 B+ -> IGN1 켜기를 릴레이로 한다" 를 함께 보인다. `joule-power on/off` 는 묻지 않고 바로 ECU 전원을 바꾸므로 **이 확인 한 번이 전원 조작 승인**이다.
+   - 전원(자동일 때): "쓰기 전 켜기는 flash 가 하고, 쓴 뒤 IGN1 -> B+ 끄고 3초 뒤 B+ -> IGN1 켜기를 릴레이로 한다" 를 함께 보인다. `flash --power` 와 `joule-power on/off` 는 묻지 않고 바로 ECU 전원을 바꾸므로 **이 확인 한 번이 전원 조작 승인**이다.
    - APP 버전: config 버전이 기본. `[알림]` 의 현재 소스·더 새 버전도 옵션으로.
    - 무엇을 쓸지: IMAGE(FBL+APP, 기본) / HSM / ALL. 새 보드나 다른 HSM 이면 ALL.
    - 데이터 영역(DTC·NvM·학습값)은 **언제나 지운다** - 묻지 않는다 (유지 옵션은 2026-10-16 없앰). 같은 보드에 다른 제어기를 쓰면 NvM 이 넘어오기 때문이라고 알린다.
    - APP 뱅크(듀얼뱅크, IMAGE/ALL): config 설정을 첫 옵션으로. A 를 고르면 B 에 다른 버전이 남아 FBL 이 B 로 부팅할 때 그 버전이 돈다는 점을 짚는다.
 3. 확인되면 CVD 화면은 닫아 둔다 (포트가 겹친다). 보드에 B+·IGN1 이 들어가야 한다 - joule-verify deep/full 은 끝날 때 전원을 끈다 (그대로 쓰면 종료 코드 6 / 0xEC2).
-   - 자동: 꺼진 채널만 `uv run joule-power relaybox on B+` -> `on IGN1` 순서로 켜고 1초 뒤 같은 인자에 `--yes`.
-   - 수동: "B+ -> IGN1 을 켜 주세요" 라고 안내하고, 켰다는 답을 받은 뒤 `--yes`.
+   - 자동: 같은 인자에 `--yes` 만 더해 바로 실행한다 (꺼져 있으면 도구가 켜고 기다린 뒤 붙는다 - 따로 `joule-power on` 을 돌리지 않는다).
+   - 수동: "B+ -> IGN1 을 켜 주세요" 라고 안내하고, 켰다는 답을 받은 뒤 `--power none --yes`.
 4. 끝나면 CVD 를 닫은 상태에서 **B+·IGN1 을 함께** 껐다 켠다. 순서 IGN1 -> B+ 끄고, 3초 뒤 B+ -> IGN1 켜고, 2초 뒤(부팅) 판정한다 (`joule-run` 과 같은 순서·시간).
    - 자동: 아래 명령을 순서대로 실행하고 끝난 뒤 `status` 로 둘 다 공급인지 보인다.
      ```
@@ -61,13 +61,13 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
      uv run joule-power relaybox on IGN1
      ```
    - 수동: 같은 순서를 사람에게 안내한다.
-   - 포드를 꽂아 둔 채 평가(부팅·슬립·암전류)를 이어 하면, 재투입 전에 저장소에서 `uv run python tools/cvd/cvd_session.py release <결선>` 을 돌린다. 리셋 없이 붙어 디버그 전원 요청(`OPTION.DBGPWRUPREQ OFF`)을 내리고 `DisConnect` 하므로, 포드를 뗀 것과 같아진다. 보드에 쓰지 않으니 확인 없이 실행해도 된다. 재투입 뒤 부팅 확인은 같은 도구의 `probe <결선>` 으로 한다 (OsTick 이 작으면 새로 부팅한 것).
+   - 포드를 꽂아 둔 채 평가(부팅·슬립·암전류)를 이어 해도 된다. **`flash` 가 쓰기 뒤에 스스로 디버거를 놓는다** - 리셋 없이 붙어 디버그 전원 요청(`OPTION.DBGPWRUPREQ OFF`)을 내리고 `DisConnect` 하므로 포드를 뗀 것과 같아진다 (`joule.flash.board.cvd_session("release")`). 손으로 돌릴 CLI 는 없다 - 옛 `tools/cvd/cvd_session.py` 는 2026-10 에 없어졌다(`joule.flash.board` 로 옮김).
    - 쓰기가 실패해도(종료 코드 ≠ 0) 재투입한다. 보드에 남은 빌드로라도 부팅시켜 두기 위해서다. **5(쓰기 시간 초과)만은 예외**로, CVD 가 떠 있으니 사용자가 화면을 보고 닫았다고 답한 뒤에 재투입한다.
-   **B+ 만 끊으면 IGN1 이 켜진 채라 다시 부팅하지 않는다** (2026-10-16 NQ6e PSU, 데이터 영역을 실제로 지운 뒤). 포드는 꽂아 둬도 된다 (암전류만 분리).
+   **IGN1 은 B+ 뒤에서 따 온 종속 전원이다** (2026-11-03 모든 bench 를 실차와 같게 고쳤다 - `relaybox.toml` 의 IGN1 `needs = "B+"`). 그래서 B+ 를 끊으면 IGN1 도 함께 내려가 재투입이 확실하고, 거꾸로 **B+ 가 꺼진 채 IGN1 만 켜면 릴레이만 붙고 제어기에는 전원이 안 간다** - 그 명령은 도구가 멈춘다. 켜는 순서는 늘 B+ -> IGN1, 끄는 순서는 IGN1 -> B+ 다. 포드는 꽂아 둬도 된다 (암전류만 분리).
 
-- 사람 없이 쓰기부터 평가까지 한 번에 하려면 `uv run joule-run <결선>` 을 쓴다 (저장소가 전원 켜기 -> 쓰기 -> 재투입 -> joule-verify full 을 위 순서로 한다. 박스가 응답하지 않으면 시작하지 않는다).
+- 사람 없이 쓰기부터 평가까지 한 번에 하려면 `uv run joule-run <bench>` 를 쓴다 (저장소가 전원 켜기 -> 쓰기 -> 재투입 -> joule-verify full 을 위 순서로 한다. 박스가 응답하지 않으면 시작하지 않는다).
 
-- 검증만 `verify --name <과제명>`, 설정만 `set --name <과제명> --version/--banks ...`, 목록 `list` - 보드에 쓰지 않으니 확인 없이 실행해도 된다.
+- 검증만 `compare --name <과제명>` (2026-11 전 이름은 `verify`), 설정만 `set --name <과제명> --version/--banks ...`, 목록 `list` - 보드에 쓰지 않으니 확인 없이 실행해도 된다.
 - Joule 을 갱신한 뒤(기본 틀 변환 규칙이 바뀜) 기존 과제는 `refresh --name <과제명>`.
 
 ## 결과 전하기
@@ -96,7 +96,7 @@ description: "CVD(CodeViser, JnDTech) 과제 단위로 빌드 결과(FBL/APP/HSM
 - 바탕은 벤더 `S32_Config\S32_Config_bak\JG1_MFSW\s32k3_ABSWAP_J.csf` 다. 플래시 선언(`FLASH.Create`, `FLASH.ChangeType ... NOP`)은 **그 보드에서 쓰고 있는 T32 스크립트와 같게 두고 바꾸지 않는다** - 지우는 주소를 스스로 판단해 바꾸는 것이 가장 위험하다.
 - 접속부도 프로젝트의 `References\JTAG\*.cmm` 를 베낀다. 그게 그 보드에서 검증된 절차다.
 - `_connect.csf` 는 맨 위에서 `_config.csf` 를 읽어 `&cfg_elf`·`&cfg_src` 를 쓴다 (경로를 박지 않는다 - Ed 버튼으로 고친 값이 따라가야 한다).
-- **`joule-flash flash/verify/set` 은 2026-11-12 에 길이 열렸으나 이 보드로 아직 확인하지 않았다.** 그때까지는 CVD 화면 버튼(PA/VF/PD/RE)이나 `_run.csf`·`_check.csf` 로 쓴다. 막혀 있던 까닭은 버그가 아니라 박아 둔 상수였다 - `src/joule/flash/image.py` 의 `VERIFY_RANGE` 가 CYT2BL 주소(`0x10028000~`)라 S32K3 코드가 창 밖이어서 대조 지점이 0개가 되고, config 를 덮어쓴 뒤 종료 코드 4(대조 미완료)가 났다. 지금은 MCU 표(`image.MCUS`, 과제 config 의 `cpu` 접두어로 고른다)가 S32K3 코드 영역(`0x00400000~`)을 쓴다. 창을 넓히는 것으로는 안 됐다 - **S32K3 에서 `0x10000000` 은 데이터 플래시**이고 CYT2BL 창 안에 들어온다.
+- **`joule-flash flash/compare/set` 은 2026-11-12 에 길이 열렸으나 이 보드로 아직 확인하지 않았다.** 그때까지는 CVD 화면 버튼(PA/VF/PD/RE)이나 `_run.csf`·`_check.csf` 로 쓴다. 막혀 있던 까닭은 버그가 아니라 박아 둔 상수였다 - `src/joule/flash/image.py` 의 `VERIFY_RANGE` 가 CYT2BL 주소(`0x10028000~`)라 S32K3 코드가 창 밖이어서 대조 지점이 0개가 되고, config 를 덮어쓴 뒤 종료 코드 4(대조 미완료)가 났다. 지금은 MCU 표(`image.MCUS`, 과제 config 의 `cpu` 접두어로 고른다)가 S32K3 코드 영역(`0x00400000~`)을 쓴다. 창을 넓히는 것으로는 안 됐다 - **S32K3 에서 `0x10000000` 은 데이터 플래시**이고 CYT2BL 창 안에 들어온다.
   - **`set` 은 대조 지점을 다시 만든다.** 손으로 넣은 지점이 지워진다 (TPMS LT2 는 16번이 FBL 공개키 자리라 그것으로 일반/TEST 판을 가린다) - 쓰기 전에 config 를 백업하고, 끝나고 그 지점을 되돌린다.
 - **무인으로 쓸 때는 `_run.csf` 가 CLI 진입점이다**: `CVD.exe "<과제폴더>\<과제>_run.csf"` 가 config -> 접속 -> 지움+쓰기 -> 대조 -> `QUIT` 까지 돌고, 진행은 `_result.log` 의 `STEP=start|connected|flashing|flashed|done` 으로 본다 (2026-11-12 TPMS LT2 에서 처음 끝까지 돌렸다 - 18초, 종료 코드 0, 16지점 일치). 실패하면 `QUIT` 에 못 가 **CVD 창이 남으므로** 다시 돌리기 전에 닫는다. `STEP=done` 이 없으면 쓰기가 끝난 것이 아니다.
 - `ChangeType ... NOP` 으로 빼 둔 구간이 APP 영역 안에 있으면 **한계선을 주석으로 적어 둔다.** 코드가 커져 그 구간을 넘기면 조용히 안 써진다 (TPMS LT2: `0x004D4000~0x004FFFFF`, 2026-11-11 기준 여유 289KB).
