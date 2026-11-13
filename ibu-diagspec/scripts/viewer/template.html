@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IBU 진단사양 뷰어</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* 방향: 차분한 슬레이트 중성색 + 청록 포인트, 카드 계층(그림자 1~2단), 세그먼트 탭, 한 줄 고정 헤더.
+   테마: 헤더 오른쪽 Light/Dark 선택(<html data-theme>). 처음 열 때는 OS 설정을 따른다. */
+:root{
+  --bg:#f3f5f8; --panel:#ffffff; --panel-2:#f8fafc; --fg:#0f1b2d; --muted:#64748b; --line:#e4e9f0; --line-2:#d3dbe6;
+  --accent:#0e7490; --accent-2:#0891b2; --accent-ink:#ffffff; --accent-soft:#e3f3f7; --chip:#eef2f6;
+  --ok:#15803d; --ok-bg:#e6f6ec; --bad:#c2410c; --bad-bg:#fdece4; --unk:#7c8796; --unk-bg:#eef1f5; --warn:#a16207; --warn-bg:#fdf4d8;
+  --indigo:#4f46e5;
+  --shadow-1:0 1px 2px rgba(15,27,45,.05),0 1px 1px rgba(15,27,45,.03);
+  --shadow-2:0 4px 16px -4px rgba(15,27,45,.10),0 2px 4px rgba(15,27,45,.04);
+  --r-lg:12px; --r-md:9px; --r-sm:6px; --hdr:60px;
+  --sans:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b1118; --panel:#121a23; --panel-2:#17212c; --fg:#e6edf3; --muted:#93a1b2; --line:#222f3d; --line-2:#2d3c4d;
+  --accent:#4cc4d6; --accent-2:#67d3e2; --accent-ink:#06222a; --accent-soft:#12303a; --chip:#1c2835;
+  --ok:#5fd18f; --ok-bg:#12321f; --bad:#ff9573; --bad-bg:#3e1d14; --unk:#8b98a8; --unk-bg:#1f2a36; --warn:#f0c454; --warn-bg:#3a2f12;
+  --indigo:#8b87ff;
+  --shadow-1:0 1px 2px rgba(0,0,0,.35); --shadow-2:0 6px 20px -6px rgba(0,0,0,.55),0 2px 4px rgba(0,0,0,.3);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1118; --panel:#121a23; --panel-2:#17212c; --fg:#e6edf3; --muted:#93a1b2; --line:#222f3d; --line-2:#2d3c4d;
+  --accent:#4cc4d6; --accent-2:#67d3e2; --accent-ink:#06222a; --accent-soft:#12303a; --chip:#1c2835;
+  --ok:#5fd18f; --ok-bg:#12321f; --bad:#ff9573; --bad-bg:#3e1d14; --unk:#8b98a8; --unk-bg:#1f2a36; --warn:#f0c454; --warn-bg:#3a2f12;
+  --indigo:#8b87ff;
+  --shadow-1:0 1px 2px rgba(0,0,0,.35); --shadow-2:0 6px 20px -6px rgba(0,0,0,.55),0 2px 4px rgba(0,0,0,.3);
+  color-scheme:dark}
+
+/* 기본 */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.55 var(--sans);-webkit-font-smoothing:antialiased;letter-spacing:-.003em}
+::selection{background:var(--accent-soft)}
+*{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+::-webkit-scrollbar{width:10px;height:10px} ::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:999px;border:3px solid transparent;background-clip:padding-box} ::-webkit-scrollbar-track{background:transparent}
+
+/* 헤더: 브랜드 · 세그먼트 탭 · 테마 전환을 한 줄에. 높이(--hdr)를 고정해 사이드 목록의 sticky 위치가 흔들리지 않게 한다 */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;height:var(--hdr);
+  background:color-mix(in srgb,var(--panel) 86%,transparent);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);
+  border-bottom:1px solid var(--line);
+  padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:20px;align-items:center}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand .mark{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none;color:#fff;
+  background:linear-gradient(135deg,var(--accent) 0%,var(--indigo) 130%);box-shadow:var(--shadow-1)}
+.brand .mark svg{width:17px;height:17px}
+.brand .tt{display:flex;flex-direction:column;min-width:0;line-height:1.2}
+header h1{font-size:15px;font-weight:700;margin:0;letter-spacing:-.01em;white-space:nowrap}
+header .src{font-size:11px;color:var(--muted);font-family:var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px}
+nav{display:flex;gap:2px;align-items:center;padding:3px;background:var(--chip);border-radius:10px;overflow-x:auto;scrollbar-width:none;justify-self:start;max-width:100%}
+nav::-webkit-scrollbar{display:none}
+nav button{flex:none;border:0;background:transparent;color:var(--muted);padding:6px 12px;border-radius:7px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s,box-shadow .15s}
+nav button:hover{color:var(--fg)}
+nav button[aria-selected="true"]{background:var(--panel);color:var(--accent);font-weight:600;box-shadow:var(--shadow-1),0 0 0 1px var(--line)}
+.nav-sep{flex:none;display:inline-block;width:1px;height:18px;background:var(--line-2);margin:0 6px}
+.nav-lab{flex:none;font-size:11px;color:var(--muted);margin-right:2px;font-weight:600;letter-spacing:.04em}
+.theme-seg{display:flex;gap:2px;padding:3px;background:var(--chip);border-radius:10px}
+.theme-seg button{display:flex;align-items:center;gap:5px;border:0;background:transparent;color:var(--muted);padding:5px 10px;border-radius:7px;font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;transition:background .15s,color .15s}
+.theme-seg button:hover{color:var(--fg)}
+.theme-seg button[aria-pressed="true"]{background:var(--panel);color:var(--accent);font-weight:600;box-shadow:var(--shadow-1),0 0 0 1px var(--line)}
+.theme-seg svg{width:14px;height:14px;flex:none}
+@media (max-width:760px){.theme-seg button span{display:none}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:1180px){header .src{display:none}}
+@media (max-width:760px){header{gap:10px} .brand .tt{display:none}}
+
+/* 본문 */
+main{padding-block:18px 40px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));max-width:1560px;margin:0 auto}
+.view[hidden]{display:none}
+.view:not([hidden]){animation:fade .18s ease-out}
+@keyframes fade{from{opacity:.5}to{opacity:1}}
+
+/* 필터 바: 카드 한 장 안에 라벨 위·입력 아래 */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin-bottom:16px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+.toolbar label{font-size:11.5px;font-weight:600;color:var(--muted);display:flex;flex-direction:column;gap:5px;min-width:0}
+.toolbar label[style*="flex-direction:row"]{margin-top:0!important;height:34px;font-size:13px;font-weight:500;color:var(--fg);cursor:pointer;padding:0 4px}
+select,input[type=search],input[type=text],input[type=date]{font:inherit;font-size:13px;height:34px;padding:0 10px;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--panel);color:var(--fg);min-width:140px;transition:border-color .15s,box-shadow .15s}
+select{appearance:none;-webkit-appearance:none;padding-right:30px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center}
+input[type=search]{min-width:240px;padding-left:32px;
+  background:var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 10px center}
+input[type=date]{min-width:0}
+select:hover,input:hover{border-color:color-mix(in srgb,var(--accent) 35%,var(--line-2))}
+select:focus,input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;margin:0}
+.count{font-size:12px;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums;align-self:center;background:var(--panel-2);border:1px solid var(--line);padding:4px 10px;border-radius:999px}
+.count b{color:var(--fg)}
+
+/* KPI 타일 · 카드 */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.tile{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;min-width:0;box-shadow:var(--shadow-1);transition:border-color .15s,box-shadow .15s,transform .15s}
+.tile .k{font-size:12px;font-weight:600;color:var(--muted)}
+.tile .v{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15;letter-spacing:-.02em;margin:4px 0 2px}
+.tile .s{font-size:11.5px;color:var(--muted)}
+#o-tiles .tile{padding-left:20px;overflow:hidden}
+#o-tiles .tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}
+#o-tiles .tile:nth-child(2)::before{background:var(--bad)} #o-tiles .tile:nth-child(2) .v{color:var(--bad)}
+#o-tiles .tile:nth-child(3)::before{background:var(--warn)}
+#o-tiles .tile:nth-child(4)::before{background:var(--indigo)}
+.tile.go{cursor:pointer}
+.tile.go:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));box-shadow:var(--shadow-2);transform:translateY(-1px)}
+.tile.go::after{content:"→";position:absolute;right:14px;top:12px;color:var(--muted);opacity:0;transition:opacity .15s,transform .15s}
+.tile.go:hover::after{opacity:1;transform:translateX(2px)}
+.tile h3.ct{margin:0 0 12px;font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+.tile h3.ct .crit{display:block;font-size:12px;margin-top:2px;max-width:none}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+h2{font-size:15px;font-weight:700;margin:16px 0 10px;letter-spacing:-.01em}
+h3{font-weight:700;letter-spacing:-.01em}
+p.note{font-size:12.5px;color:var(--muted);margin:4px 0 12px;max-width:80ch;line-height:1.6}
+
+/* 막대 차트 */
+.bar{display:grid;grid-template-columns:120px 1fr 52px;gap:10px;align-items:center;font-size:12.5px;padding:5px 6px;margin:0 -6px;cursor:pointer;border-radius:var(--r-sm);transition:background .12s}
+.bar:hover{background:var(--panel-2)}
+.bar .lb{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:12px}
+.bar .tr{height:10px;background:var(--chip);border-radius:999px;overflow:hidden;display:flex;gap:2px}
+.bar .tr i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:999px}
+.bar .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+.lg{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);margin:0 0 8px} .lg i{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+
+/* 표 */
+.tbl{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+.tile .tbl{box-shadow:none;border-radius:var(--r-md)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+th,td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+th{position:sticky;top:0;background:var(--panel-2);font-weight:600;font-size:12px;color:var(--muted);white-space:nowrap;z-index:1;box-shadow:inset 0 -1px 0 var(--line);border-bottom:0}
+tbody tr{transition:background .1s}
+tbody tr:hover>td{background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
+tr.go:hover>td{background:var(--accent-soft)}
+td.mono,th.mono,.mono{font-family:var(--mono);font-size:12.5px}
+td.mono,th.mono{white-space:nowrap}
+td.num,th.num{font-variant-numeric:tabular-nums;text-align:right}
+.hist td:nth-child(-n+4){white-space:nowrap;width:1%}
+.hist td:nth-child(5){min-width:185px;max-width:200px} .hist td:nth-child(6){min-width:110px;max-width:160px} .hist td:nth-child(7){white-space:nowrap;width:1%}
+.hist td.ct{min-width:340px}
+.hist td.ct+td{min-width:140px;max-width:200px;font-size:11.5px;word-break:break-all}
+.tile > table.hist{border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.tile > table.hist td:first-child{font-weight:600;color:var(--fg);background:var(--panel-2)}
+
+/* O/X 행렬 */
+.matrix td{text-align:center;padding:4px 6px;font-family:var(--mono);font-size:12px}
+.matrix td.O{background:var(--ok-bg);color:var(--ok);font-weight:600} .matrix td.X{color:var(--unk)}
+.matrix td.mm{box-shadow:inset 0 0 0 2px var(--bad);background:var(--bad-bg)}
+.matrix th.rot{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;padding:10px 4px;font-family:var(--mono);font-weight:500;box-shadow:inset 0 1px 0 var(--line)}
+.matrix tbody tr:hover>td{background:inherit;filter:brightness(.97)}
+.matrix tbody tr:hover>td.O{background:var(--ok-bg)}
+
+/* 배지 · 칩 */
+.pill{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;line-height:1.45;white-space:nowrap}
+.p-O{background:var(--ok-bg);color:var(--ok)} .p-X{background:var(--unk-bg);color:var(--unk)}
+.p-match{background:var(--ok-bg);color:var(--ok)} .p-mismatch{background:var(--bad-bg);color:var(--bad)} .p-not_evaluable{background:var(--unk-bg);color:var(--unk)} .p-recorded_other{background:var(--warn-bg);color:var(--warn)} .p-conditional{background:var(--warn-bg);color:var(--warn)} .p-exception_ok{background:var(--ok-bg);color:var(--ok)}
+.p-flag{background:var(--accent-soft);color:var(--accent)} .p-typo{background:var(--bad-bg);color:var(--bad)} .p-new_project{background:var(--ok-bg);color:var(--ok)} .p-other{background:var(--unk-bg);color:var(--unk)}
+.chip{display:inline-block;background:var(--chip);border:1px solid var(--line);border-radius:5px;padding:0 6px;font-family:var(--mono);font-size:11.5px;line-height:1.6;margin:1px 2px 1px 0}
+.crit{white-space:pre-wrap;max-width:420px;font-size:12.5px;color:var(--muted)}
+.rec{display:inline-block;min-width:28px;text-align:center;padding:1px 8px;border-radius:var(--r-sm);font-weight:700;font-size:12px;border:1px solid transparent;line-height:1.6}
+.rec-match{background:var(--ok-bg);color:var(--ok);border-color:color-mix(in srgb,var(--ok) 55%,transparent)}
+.rec-mismatch{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
+.rec-pending{background:var(--warn-bg);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 55%,transparent)}
+.rec-none{background:var(--unk-bg);color:var(--unk);border-color:var(--line)}
+a.rec[data-proj]{transition:transform .1s,box-shadow .1s} a.rec[data-proj]:hover{transform:translateY(-1px);box-shadow:var(--shadow-1)}
+
+/* 상세 정보 키-값 카드 */
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:10px 0 14px}
+.kv > div{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-md);padding:9px 12px;box-shadow:var(--shadow-1)}
+.kv .k{font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:2px} .kv .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* 목록(왼쪽) + 상세(오른쪽) */
+.md{display:grid;grid-template-columns:270px minmax(0,1fr);gap:16px;align-items:start}
+.md-side{order:-1}
+.md-main{min-width:0}
+.md-main > h2:first-child,.md-main > h2[style]{font-size:19px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.md-side{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--hdr) + 14px);max-height:calc(100vh - var(--hdr) - 32px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);min-width:0;box-shadow:var(--shadow-1);overflow:hidden}
+.md-side-head{padding:11px 14px;border-bottom:1px solid var(--line);font-weight:700;font-size:13px;background:var(--panel-2);display:flex;align-items:baseline;gap:6px}
+.md-side-head .s{font-weight:500;color:var(--muted);font-size:11.5px;margin-left:auto}
+.md-list{list-style:none;margin:0;padding:6px;overflow:auto}
+.md-list li{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;align-items:center;padding:6px 10px;border-radius:7px;cursor:pointer;font-size:12.5px;transition:background .1s}
+.md-list li:hover{background:var(--panel-2)}
+.md-list li.sel{background:var(--accent-soft);color:var(--accent);box-shadow:inset 3px 0 0 var(--accent);font-weight:600}
+.md-list li.sel .mono,.md-list li.sel .sub{color:inherit;opacity:1}
+.md-list li .mono{font-family:var(--mono);font-size:12px;font-weight:500}
+.md-list li .sub{grid-column:1/-1;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.md-list li .badges{display:flex;gap:4px;align-items:center}
+.md-list li .badge,.badge{font-size:10.5px;font-weight:700;padding:0 6px;border-radius:999px;background:var(--chip);line-height:1.6}
+.md-list li .badge.mm,.badge.mm{background:var(--bad-bg);color:var(--bad)}
+.md-list li.sel .badge{background:color-mix(in srgb,var(--accent) 16%,transparent);color:inherit}
+.md-list li.sel .badge.mm{background:var(--bad-bg);color:var(--bad)}
+.tree li.grp{font-weight:700;margin-top:8px;grid-template-columns:1fr auto;color:var(--fg)}
+.tree li.grp:first-child{margin-top:0}
+.tree li.child{padding-left:24px;grid-template-columns:auto 1fr auto;position:relative}
+.tree li.child::before{content:"";position:absolute;left:13px;top:0;bottom:0;width:1px;background:var(--line)}
+.tree li .cnt{font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--muted);font-weight:500}
+.tree li.sel .cnt{color:inherit}
+.tree li.dim{opacity:.4}
+@media (max-width:900px){.md{grid-template-columns:1fr}.md-side{position:static;max-height:42vh;order:-1}}
+
+/* 접기 · 링크 */
+details{margin:10px 0}
+summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:600;list-style:none;display:inline-flex;align-items:center;gap:6px;padding:4px 0}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s;margin-right:2px}
+details[open]>summary::before{transform:rotate(45deg)}
+details > .tbl,details > .tiles,details > .two{margin-top:8px}
+a.link{color:var(--accent);cursor:pointer;text-decoration:none;border-bottom:1px dashed color-mix(in srgb,var(--accent) 50%,transparent)}
+a.link:hover{border-bottom-style:solid}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+
+<header>
+  <div class="brand">
+    <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9.5V3"/><path d="M7 15h10"/></svg></span>
+    <span class="tt"><h1>IBU 진단사양 뷰어</h1><span class="src" id="src"></span></span>
+  </div>
+  <nav id="nav" role="tablist">
+    <button role="tab" data-view="overview">요약</button>
+    <button role="tab" data-view="vehicle">차종 보기</button>
+    <button role="tab" data-view="items">항목 검색</button>
+    <button role="tab" data-view="matrix">O/X 행렬</button>
+    <button role="tab" data-view="mismatch">불일치</button>
+    <button role="tab" data-view="history">개정 이력</button>
+    <span class="nav-sep" aria-hidden="true"></span><span class="nav-lab">참조</span>
+    <button role="tab" data-view="features">기능사양표</button>
+    <button role="tab" data-view="signals">블록도 신호</button>
+  </nav>
+  <div class="theme-seg" id="theme-seg" role="group" aria-label="화면 테마">
+    <button type="button" data-theme-set="light" title="밝은 테마"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>Light</span></button>
+    <button type="button" data-theme-set="dark" title="어두운 테마"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span>Dark</span></button>
+  </div>
+</header>
+
+<main>
+<section class="view" id="v-overview">
+  <div class="toolbar">
+    <label>담당자 <select id="o-owner"></select></label>
+    <label>차종 <select id="o-proj"><option value="">전체</option></select></label>
+    <span class="count" id="o-scope"></span>
+  </div>
+  <div class="tiles" id="o-tiles"></div>
+  <div class="two">
+    <div class="tile"><h3 class="ct">차종별 규칙 불일치 <span class="crit" style="font-weight:400">— 많은 순 10개, 누르면 차종 보기</span></h3><div id="o-c1"></div></div>
+    <div class="tile"><h3 class="ct">시트 종류별 '적용 판단 기준' 상태 <span class="crit" style="font-weight:400">— 어디부터 기준을 채워야 하나</span></h3><div id="o-c2"></div></div>
+  </div>
+  <div class="two" style="margin-top:14px">
+    <div class="tile"><h3 class="ct">불일치가 몰린 항목 <span class="crit" style="font-weight:400" id="o-mmsub"></span></h3><div class="tbl" style="max-height:340px;overflow:auto"><table id="o-mmtop"><thead><tr><th class="num">불일치</th><th>시트</th><th class="mono">코드</th><th>항목</th></tr></thead><tbody></tbody></table></div></div>
+    <div class="tile"><h3 class="ct">연도별 개정 건수 <span class="crit" style="font-weight:400">— 누르면 개정 이력</span></h3><div id="o-c3"></div></div>
+  </div>
+  <div class="tile" style="margin-top:14px"><h3 class="ct">원본 엑셀 정리 필요 <span class="crit" style="font-weight:400">— 규칙과 무관하게 엑셀에서 고쳐야 하는 것들 (현재는 수동 정리, 파서 자동 탐지 예정)</span></h3>
+    <table class="hist" style="font-size:13px"><tbody>
+      <tr><td style="white-space:nowrap">DID #B001</td><td>차종 열에 같은 이름이 두 번씩 있고 값이 다름 — <span class="mono">SP2i PE</span>, <span class="mono">BN7i</span>, <span class="mono">AX EV</span>, <span class="mono">SU2i F/L</span> (열 복사 후 이름 미변경으로 추정)</td></tr>
+      <tr><td style="white-space:nowrap">History 11행</td><td>Read ECU Identification 시트의 행(<span class="mono">#F191h SystemSupplierECUHardwareVersion…</span>)이 잘못 붙여넣어져 있음 — 뷰어는 무시하고 R1에 귀속</td></tr>
+      <tr><td style="white-space:nowrap">History 날짜</td><td>26줄이 <span class="mono">yymmdd</span> 글자가 아니라 날짜 서식 셀(일련번호 45147 등)로 입력됨 — 뷰어가 변환해 표시</td></tr>
+      <tr><td style="white-space:nowrap">History Sheet 열</td><td>같은 시트를 65가지로 표기(<span class="mono">B007 / DID #B007 / #B012 / IOCBI / 12A0</span> …), 미기재 126줄, <span class="mono">ALL</span> 19줄 — 입력 규약 필요</td></tr>
+      <tr><td style="white-space:nowrap">Read ECU Identification</td><td>차종 머리글 행 끝에 값 셀(<span class="mono">O</span>, <span class="mono">V</span>)이 붙어 있음; 기준 "STD" 항목(<span class="mono">#F191h/#F1B0h/#F1B1h</span>)이 구형 29개 차종에서 X — UNECE 적용 여부가 기준 문구에 빠진 것으로 보임</td></tr>
+      <tr><td style="white-space:nowrap">IOCBI(3세대)</td><td>차종이 6개뿐이라 값 행이 머리글보다 더 채워져 있어 머리글 인식이 어긋났었음(파서에서 보정) — 시트 꼴을 다른 시트와 맞추면 안전</td></tr>
+    </tbody></table></div>
+  <details style="margin-top:14px"><summary>데이터 상태 (적재·커버리지·출처)</summary>
+  <div class="tiles" id="tiles" style="margin-top:10px"></div>
+  <div class="two">
+    <div>
+      <h2>시트별 적재 결과</h2>
+      <div class="tbl"><table id="t-sheets"><thead><tr><th>시트</th><th>종류</th><th class="num">항목</th><th class="num">차종 열</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div>
+      <h2>규칙 평가 커버리지</h2>
+      <p class="note">'적용 판단 기준' 문장을 조건식으로 바꿔 차종별로 평가한 결과와, 현재 기록된 O/X의 비교입니다. 평가 불가 사유가 커버리지를 올릴 다음 작업입니다.</p>
+      <div class="tbl"><table id="t-cov"><thead><tr><th>상태</th><th class="num">셀 수</th><th>의미</th></tr></thead><tbody></tbody></table></div>
+      <h2>데이터 출처</h2>
+      <div class="tbl"><table id="t-src"><thead><tr><th>문서</th><th>파일</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+  </details>
+</section>
+
+<section class="view" id="v-vehicle" hidden>
+  <div class="toolbar">
+    <label>담당자 <select id="vh-owner"></select></label>
+    <label>차종 <select id="vh-proj"></select></label>
+    <label>검색 <input type="search" id="vh-q" placeholder="항목명·코드·신호·SW 변수"></label>
+    <label style="flex-direction:row;align-items:center;gap:6px;margin-top:14px"><input type="checkbox" id="vh-only"> 이 차종에 적용(O)된 항목만 보기</label>
+    <span class="count" id="vh-count"></span>
+  </div>
+  <div class="md">
+    <div class="md-main" id="vh-detail"></div>
+    <aside class="md-side">
+      <div class="md-side-head">진단사양서 <span class="s" id="vh-side-sub"></span></div>
+      <ul class="md-list tree" id="vh-tree"></ul>
+    </aside>
+  </div>
+</section>
+
+<section class="view" id="v-items" hidden>
+  <div class="toolbar">
+    <label>검색 <input type="search" id="i-q" placeholder="항목명·코드·신호명·SW 변수·기준 문장"></label>
+    <label>시트 <select id="i-sheet"><option value="">전체</option></select></label>
+    <label>규칙 <select id="i-rule"><option value="">전체</option><option value="yes">규칙 있음</option><option value="no">규칙 없음(기준 비어 있음)</option><option value="free">자유 문장(변환 불가)</option></select></label>
+    <label style="flex-direction:row;align-items:center;gap:6px;margin-top:14px"><input type="checkbox" id="i-mm"> 불일치 있는 항목만</label>
+    <label>담당자(차종 칩) <select id="i-owner"></select></label>
+    <span class="count" id="i-count"></span>
+  </div>
+  <div class="md">
+    <div class="md-main" id="i-detail"><p class="note">왼쪽 목록에서 항목을 고르면 그 항목의 차종별 적용 현황이 여기에 표시됩니다.</p></div>
+    <aside class="md-side">
+      <div class="md-side-head">항목 <span class="s" id="i-side-sub"></span></div>
+      <ul class="md-list tree" id="i-list"></ul>
+    </aside>
+  </div>
+</section>
+
+<section class="view" id="v-matrix" hidden>
+  <div class="toolbar">
+    <label>차종 범위 <select id="m-scope"><option value="eval">블록도·기능사양표가 있는 차종</option><option value="all">전체 차종</option></select></label>
+    <label>담당자 <select id="m-owner"></select></label>
+    <label>검색 <input type="search" id="m-q" placeholder="항목명·코드"></label>
+    <label style="flex-direction:row;align-items:center;gap:6px;margin-top:14px"><input type="checkbox" id="m-mm"> 불일치 있는 행만</label>
+    <span class="count" id="m-count"></span>
+  </div>
+  <div class="md">
+    <div class="md-main">
+      <p class="note" style="margin-top:0">엑셀의 "항목 × 차종" O/X 행렬. 빨간 테두리 = 규칙 평가 결과와 기록이 다른 셀. 왼쪽에서 분류(RDBI·WDBI…)를 고르면 그 아래 시트 전부, 시트를 고르면 그 시트만 보입니다.</p>
+      <div class="tbl" style="max-height:calc(100vh - 170px);overflow:auto"><table id="t-matrix" class="matrix"></table></div>
+    </div>
+    <aside class="md-side">
+      <div class="md-side-head">진단사양서 <span class="s" id="m-side-sub"></span></div>
+      <ul class="md-list tree" id="m-tree"></ul>
+    </aside>
+  </div>
+</section>
+
+<section class="view" id="v-signals" hidden>
+  <div class="toolbar">
+    <label>검색 <input type="search" id="s-q" placeholder="신호명"></label>
+    <label>차종 <select id="s-proj"><option value="">전체</option></select></label>
+    <label style="flex-direction:row;align-items:center;gap:6px;margin-top:14px"><input type="checkbox" id="s-diag" checked> 진단사양서가 참조하는 신호만</label>
+    <span class="count" id="s-count"></span>
+  </div>
+  <p class="note">블록도 PDF 텍스트에서 추출한 신호명과, 각 신호가 그려진 차종, 그 신호를 적용 판단 기준으로 참조하는 진단 항목입니다. 도면 텍스트 추출이라 잘린 이름이 있을 수 있습니다(.vsdx 원본 확보 후 정확히 재추출 예정).</p>
+  <div class="tbl"><table id="t-sig"><thead><tr><th class="mono">신호</th><th class="num">차종 수</th><th>차종</th><th>참조하는 진단 항목</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section class="view" id="v-features" hidden>
+  <div class="toolbar">
+    <label>차종 <select id="f-proj"></select></label>
+    <label>검색 <input type="search" id="f-q" placeholder="기능명·그룹·품번코드"></label>
+    <label>제어 근거 <select id="f-ctrl"><option value="">전체</option></select></label>
+    <label style="flex-direction:row;align-items:center;gap:6px;margin-top:14px"><input type="checkbox" id="f-diag" checked> 진단사양서가 참조하는 기능만</label>
+    <span class="count" id="f-count"></span>
+  </div>
+  <div class="tbl"><table id="t-feat"></table></div>
+</section>
+
+<section class="view" id="v-mismatch" hidden>
+  <div class="toolbar">
+    <label>시트 <select id="mm-sheet"><option value="">전체</option></select></label>
+    <label>차종 <select id="mm-proj"><option value="">전체</option></select></label>
+    <label>방향 <select id="mm-dir"><option value="">전체</option><option value="XO">기록 X · 규칙 O</option><option value="OX">기록 O · 규칙 X</option></select></label>
+    <span class="count" id="mm-count"></span>
+  </div>
+  <p class="note">검토 후보 목록입니다. 세 부류가 섞여 있습니다: ① 실제 오기 또는 누락, ② 규칙 문장의 부가 조건("-SMK 사양", "& 직구동 타입")을 아직 읽지 못한 경우, ③ 블록도에 이름은 있으나 N.C.인 핀(도면 텍스트만으로는 구분 불가). 확인 결과는 정본의 exceptions 또는 규칙 보정으로 돌아갑니다.</p>
+  <div class="tbl"><table id="t-mm"><thead><tr><th>시트</th><th class="mono">코드</th><th>항목</th><th>차종</th><th>기록</th><th>규칙</th><th>근거</th><th>적용 판단 기준</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section class="view" id="v-history" hidden>
+  <div class="toolbar">
+    <label>검색 <input type="search" id="h-q" placeholder="내용·차종·작성자·Rev"></label>
+    <label>종류 <select id="h-kind"><option value="">전체</option><option value="flag">O/X 변경</option><option value="typo">오기 수정</option><option value="new_project">차종 추가</option><option value="other">기타</option></select></label>
+    <label>작성자 <select id="h-author"><option value="">전체</option></select></label>
+    <label>기간 <span style="display:flex;gap:4px;align-items:center"><input type="date" id="h-from"> ~ <input type="date" id="h-to"></span></label>
+    <span class="count" id="h-count"></span>
+  </div>
+  <div class="md">
+    <div class="md-main"><div class="tbl" style="max-height:78vh;overflow:auto"><table id="t-hist" class="hist"><thead><tr><th class="mono">Rev</th><th class="mono">날짜</th><th>작성자</th><th>종류</th><th>시트</th><th>차종</th><th>단계</th><th>내용</th><th>기준</th></tr></thead><tbody></tbody></table></div></div>
+    <aside class="md-side">
+      <div class="md-side-head">개정 <span class="s" id="h-side-sub"></span></div>
+      <ul class="md-list" id="h-tree"></ul>
+    </aside>
+  </div>
+</section>
+</main>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function(){
+const D = JSON.parse(document.getElementById('data').textContent);
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pill = (v,cls) => `<span class="pill p-${cls||v}">${esc(v)}</span>`;
+const sheets = [...new Set(D.items.map(i=>i.sheet))];
+const projCodes = D.projects.map(p=>p.code);
+const projAlias = Object.fromEntries(D.projects.map(p=>[p.code,p.aliases]));
+const evalProjects = new Set();
+D.items.forEach(i=>Object.entries(i.eval).forEach(([p,[r,s]])=>{ if(s==='match'||s==='mismatch') evalProjects.add(p); }));
+const STATUS_KO = {match:'일치',mismatch:'불일치',conditional:'조건부',exception_ok:'예외 확인',not_evaluable:'평가 불가',recorded_other:'기록값 비표준'};
+const KIND_KO = {flag:'O/X 변경',typo:'오기 수정',new_project:'차종 추가',other:'기타'};
+$('#src').textContent = `${D.stats.module?D.stats.module+' ':''}${D.stats.rev?D.stats.rev+' · ':''}정본 ${(D.stats.sources||{}).diagspec||''} · ${D.stats.built_at?D.stats.built_at+' 생성 · ':''}항목 ${D.items.length} · 차종 ${D.projects.length}`;
+document.title = `IBU 진단사양 뷰어 ${D.stats.module?D.stats.module+' ':''}${D.stats.rev||''} (${(D.stats.built_at||'').slice(0,10)})`;
+
+function fill(sel, vals, keep){ const el=$(sel); const cur=el.value; (keep?[]:[]); vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;el.appendChild(o);}); if(cur) el.value=cur; }
+fill('#i-sheet',sheets); fill('#mm-sheet',sheets); fill('#h-author',[...new Set(D.history.map(h=>h.author).filter(Boolean))].sort());
+const projOpts = projCodes.filter(c=>D.projects.find(p=>p.code===c).sources.includes('diagspec'));
+const owners=[...new Set(Object.values(D.owners||{}))].sort(); const ownerOf=p=>(D.owners||{})[p]||'';
+function fillOwner(sel){ $(sel).innerHTML='<option value="">전체</option>'+owners.map(o=>`<option>${esc(o)}</option>`).join(''); }
+fill('#s-proj',[...evalProjects].sort()); fill('#mm-proj',[...evalProjects].sort());
+fill('#f-proj',[...new Set(D.features.flatMap(f=>Object.keys(f.applicability)))]);
+fill('#f-ctrl',[...new Set(D.features.map(f=>f.control).filter(Boolean))].sort());
+
+/* 요약 — 담당자/차종 범위로 보는 대시보드 */
+function renderOverview(){
+  const ow=$('#o-owner').value, pv=$('#o-proj').value;
+  const P=projOpts.filter(p=>(!ow||ownerOf(p)===ow)&&(!pv||p===pv)); const Pset=new Set(P); const one=P.length===1?P[0]:null;
+  $('#o-scope').textContent=one?`${one} · 담당 ${ownerOf(one)||'미기재'}`:`차종 ${P.length}개${ow?` · 담당 ${ow}`:''}`;
+  let mm=0, pend=0, on=0, tot=0; const mmByP={}, mmByItem={};
+  D.items.forEach(i=>{ P.forEach(p=>{ const r=i.recorded[p]; if(r===undefined) return; tot++; if(r==='O') on++; const e=i.eval[p]; if(e&&e[1]==='mismatch'){ mm++; mmByP[p]=(mmByP[p]||0)+1; mmByItem[i.id]=(mmByItem[i.id]||0)+1; } else if(i.criteria_text&&!(e&&e[1]==='match')) pend++; }); });
+  const al=one?new Set((projAlias[one]||[]).map(a=>a.toLowerCase().replace(/\s+/g,' '))):null;
+  const hist=D.history.filter(h=>!al||al.has((h.project||'').toLowerCase().replace(/\s+/g,' '))||(h.project||'').toLowerCase()==='all');
+  const d90=new Date(Date.now()-90*864e5).toISOString().slice(0,10); const recent=hist.filter(h=>h.date>=d90);
+  const tile=(k,v,sub,go)=>`<div class="tile go" data-go="${go}"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="s">${esc(sub)}</div></div>`;
+  $('#o-tiles').innerHTML=tile(one?`${one} 적용 항목`:'적용 셀 (O)',one?`${on} / ${D.items.filter(i=>one in i.recorded).length}`:on.toLocaleString(),one?'항목 수, 누르면 차종 보기':`${P.length}개 차종 × 항목, 기록 ${tot.toLocaleString()}셀`,'vehicle')
+    +tile('규칙 불일치',mm,'검토 후보 — 누르면 불일치 탭','mismatch')
+    +tile('자동 평가 불가',pend.toLocaleString(),'기준은 있으나 근거를 못 찾은 셀 — 차종 보기 노란색','vehicle')
+    +tile('최근 90일 개정',recent.length,`전체 ${hist.length}건 중 — 누르면 개정 이력`,'history');
+  // 차종별 불일치 top10
+  const top=Object.entries(mmByP).sort((a,b)=>b[1]-a[1]).slice(0,10); const mx=top[0]?.[1]||1;
+  $('#o-c1').innerHTML=top.length?top.map(([p,n])=>`<div class="bar" data-proj="${esc(p)}" title="${esc(p)} 불일치 ${n}건 · 담당 ${esc(ownerOf(p)||'미기재')}"><span class="lb">${esc(p)}</span><span class="tr"><i style="width:${n/mx*100}%"></i></span><span class="n">${n}</span></div>`).join(''):'<p class="crit">이 범위에 불일치가 없습니다.</p>';
+  // 시트 종류별 기준 상태 (범위 무관)
+  const KIND_KO2={RDBI:'RDBI 요약',DID:'DID (PID)',WDBI:'WDBI',DTC:'DTC',IOCBI:'IOCBI',ECUID:'ECU ID'}; const byK={};
+  D.items.forEach(i=>{ const k=i.kind; const r=i.rule; const st=r.evaluable?'rule':(r.reason==='no_criteria'?'none':'free'); (byK[k]=byK[k]||{rule:0,free:0,none:0})[st]++; });
+  const kmax=Math.max(...Object.values(byK).map(v=>v.rule+v.free+v.none));
+  $('#o-c2').innerHTML=`<div class="lg"><span><i style="background:var(--ok)"></i>규칙으로 변환됨</span><span><i style="background:var(--warn)"></i>자유 문장</span><span><i style="background:var(--unk)"></i>기준 비어 있음</span></div>`+Object.entries(byK).map(([k,v])=>{const t=v.rule+v.free+v.none; return `<div class="bar" data-kind="${k}" title="${esc(KIND_KO2[k]||k)}: 규칙 ${v.rule} · 자유 문장 ${v.free} · 비어 있음 ${v.none}"><span class="lb" style="font-family:inherit">${esc(KIND_KO2[k]||k)}</span><span class="tr" style="width:${t/kmax*100}%"><i style="width:${v.rule/t*100}%;background:var(--ok)"></i><i style="width:${v.free/t*100}%;background:var(--warn)"></i><i style="width:${v.none/t*100}%;background:var(--unk)"></i></span><span class="n">${v.rule}/${v.free}/${v.none}</span></div>`;}).join('');
+  // 불일치 몰린 항목
+  const topI=Object.entries(mmByItem).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([id,n])=>[D.items.find(x=>x.id===id),n]);
+  $('#o-mmsub').textContent=`— ${Object.keys(mmByItem).length}개 항목에 ${mm}건, 누르면 항목 검색`;
+  $('#o-mmtop tbody').innerHTML=topI.map(([i,n])=>`<tr class="go" data-item="${esc(i.id)}" style="cursor:pointer" title="${esc(i.criteria_text)}"><td class="num"><span style="padding:0 8px;border-radius:999px;background:var(--bad-bg);color:var(--bad);font-weight:600">${n}</span></td><td style="white-space:nowrap">${esc(i.sheet.replace('Read ECU Identification','ECU ID'))}</td><td class="mono">${esc(i.code)}</td><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.name)}</td></tr>`).join('')||'<tr><td colspan="4" class="crit">없음</td></tr>';
+  // 연도별 개정
+  const yr={}; hist.forEach(h=>{const y=(h.date||'').slice(0,4); if(y) yr[y]=(yr[y]||0)+1;}); const ys=Object.entries(yr).sort(); const ymx=Math.max(1,...ys.map(x=>x[1]));
+  $('#o-c3').innerHTML=ys.map(([y,n])=>`<div class="bar" data-year="${y}" title="${y}년 ${n}건"><span class="lb" style="font-family:inherit">${y}</span><span class="tr"><i style="width:${n/ymx*100}%"></i></span><span class="n">${n}</span></div>`).join('');
+}
+fillOwner('#o-owner'); fill('#o-proj',projOpts);
+$('#o-owner').addEventListener('change',()=>{ const ow=$('#o-owner').value; $('#o-proj').innerHTML='<option value="">전체</option>'; fill('#o-proj',projOpts.filter(c=>!ow||ownerOf(c)===ow)); renderOverview(); });
+$('#o-proj').addEventListener('change',renderOverview);
+$('#v-overview').addEventListener('click',e=>{ const pv=$('#o-proj').value;
+  const setVeh=p=>{ if(p&&projOpts.includes(p)){ $('#vh-owner').value=''; $('#vh-proj').innerHTML=''; fill('#vh-proj',projOpts); $('#vh-proj').value=p; } };
+  const t=e.target.closest('.tile.go'); if(t){ const go=t.dataset.go; if(go==='vehicle'){ setVeh(pv); show('vehicle'); renderVehicle(); } else if(go==='mismatch'){ if(pv&&[...$('#mm-proj').options].some(o=>o.value===pv)) $('#mm-proj').value=pv; show('mismatch'); renderMismatch(); } else if(go==='history'){ $('#h-from').value=new Date(Date.now()-90*864e5).toISOString().slice(0,10); $('#h-to').value=''; hSel='*'; show('history'); renderHistory(); } return; }
+  const b=e.target.closest('.bar[data-proj]'); if(b){ setVeh(b.dataset.proj); show('vehicle'); renderVehicle(); return; }
+  const y=e.target.closest('.bar[data-year]'); if(y){ $('#h-from').value=y.dataset.year+'-01-01'; $('#h-to').value=y.dataset.year+'-12-31'; hSel='*'; show('history'); renderHistory(); return; }
+  const k=e.target.closest('.bar[data-kind]'); if(k){ $('#i-q').value=''; $('#i-sheet').value=''; $('#i-rule').value='no'; show('items'); renderItems(); return; }
+  const r=e.target.closest('tr[data-item]'); if(r){ iSel=r.dataset.item; const it=D.items.find(x=>x.id===iSel); if(it) iOpen.add(it.sheet); show('items'); renderItems(); renderItemDetail(iSel); return; } });
+
+/* 데이터 상태 (접힌 블록) */
+(function overview(){
+  const s=D.stats, ev=(s.match||0)+(s.mismatch||0);
+  const tiles=[
+    ['진단 항목',D.items.length,'33시트 중 항목형 시트'],
+    ['차종 코드',D.projects.length,'원본 표기 정규화 후'],
+    ["규칙 있는 항목",s.items_with_rule,`전체 ${s.items}개 중`],
+    ['평가 가능 셀',ev,`전체 ${s.cells.toLocaleString()}셀 중`],
+    ['규칙=기록 일치율',(s.match_rate*100).toFixed(1)+'%',`${s.match} 일치 · ${s.mismatch||0} 불일치`],
+    ['검토 후보',s.mismatch||0,'불일치 탭'],
+    ['블록도 차종',s.projects_with_blockdiag,`신호 ${s.signals_total}개`],
+    ['개정 이력',s.history_rows,`오기 수정 ${s.history_kinds.typo||0} · O/X 변경 ${s.history_kinds.flag||0}`],
+  ];
+  $('#tiles').innerHTML=tiles.map(([k,v,sub])=>`<div class="tile"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="s">${esc(sub)}</div></div>`).join('');
+  $('#t-sheets tbody').innerHTML=s.sheets.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.kind||'(미적재)')}</td><td class="num">${x.items??''}</td><td class="num">${x.projects??''}</td></tr>`).join('');
+  const cov=[['match',s.match,'규칙 결과와 기록이 같음'],['mismatch',s.mismatch||0,'검토 후보 — 불일치 탭'],['conditional',s.conditional||0,'품번·지역 등 문서로 판단할 수 없는 조건이 남아 O/X 어느 쪽도 규칙과 모순되지 않음'],['exception_ok',s.exception_ok||0,'규칙과 다르지만 담당자가 확인해 적용예외에 사유를 남긴 칸'],['not_evaluable',s.not_evaluable,'규칙 없음 / 해당 차종의 블록도·기능사양표 없음 / 자유 문장'],['recorded_other',s.recorded_other||0,'기록 셀이 O/X가 아닌 값']];
+  $('#t-cov tbody').innerHTML=cov.map(([k,v,m])=>`<tr><td>${pill(STATUS_KO[k],k)}</td><td class="num">${(v||0).toLocaleString()}</td><td>${esc(m)}</td></tr>`).join('');
+  const src=D.stats.sources||{}, lastRev=D.history.length?D.history[D.history.length-1]:null;   /* 파일명은 고정이라 진단사양서 개정은 History 마지막 줄로 보인다 */
+  $('#t-src tbody').innerHTML=`<tr><td>통합 진단사양서</td><td class="mono">${esc(src.diagspec||'')}${lastRev?` <span class="crit">· ${esc(lastRev.rev)} (${esc(lastRev.date)})</span>`:''}</td></tr><tr><td>IBU 블록도</td><td class="mono">${esc(src.blockdiag||'')} <span class="crit">(Visio → PDF)</span></td></tr><tr><td>기능사양표</td><td class="mono">${esc(src.funcspec||'')}</td></tr>`;
+})();
+
+
+/* 차종 보기 — 차종 하나를 기준으로 엑셀 시트 순서대로 읽는다 */
+const SHEET_ORDER = D.stats.sheets.map(x=>x.name).filter(n=>D.items.some(i=>i.sheet===n));
+const vhTree = (()=>{ const t=[]; const did=[]; const wdbi=[]; const iocbi=[];
+  SHEET_ORDER.forEach(n=>{ if(n==='RDBI DataIdentifier') t.push({id:'RDBI',label:'RDBI DataIdentifier',sheet:n,kind:'RDBI',children:did});
+    else if(n.startsWith('DID #')) did.push({id:n,label:n.replace('DID ',''),sheet:n,kind:'DID'});
+    else if(n.startsWith('WDBI')) { if(!wdbi.length) t.push({id:'WDBI',label:'WDBI (쓰기)',kind:'GROUP',children:wdbi}); wdbi.push({id:n,label:n,sheet:n,kind:'WDBI'}); }
+    else if(n.startsWith('IOCBI')) { if(!iocbi.length) t.push({id:'IOCBI',label:'IOCBI (출력 제어)',kind:'GROUP',children:iocbi}); iocbi.push({id:n,label:n,sheet:n,kind:'IOCBI'}); }
+    else t.push({id:n,label:n,sheet:n,kind:D.items.find(i=>i.sheet===n)?.kind||'OTHER'}); });
+  if(D.security&&D.security.blocks) t.unshift({id:'SEC',label:'Security Access',sheet:'Security Access',kind:'SEC'});   /* 엑셀 시트 순서대로 맨 앞 */
+  return t; })();
+fill('#vh-proj',projOpts); if(projOpts.includes('CN7_PE')) $('#vh-proj').value='CN7_PE';
+fillOwner('#vh-owner'); $('#vh-owner').addEventListener('change',()=>{ const ow=$('#vh-owner').value, cur=$('#vh-proj').value; const list=projOpts.filter(c=>!ow||ownerOf(c)===ow); $('#vh-proj').innerHTML=''; fill('#vh-proj',list); $('#vh-proj').value=list.includes(cur)?cur:(list[0]||''); renderVehicle(); });
+let vhSel = null;
+function vhItems(node, p, q, only){ const its=D.items.filter(i=>i.sheet===node.sheet && (!only || i.recorded[p]==='O') && (!q || (i.name+' '+i.code+' '+i.sw_variable+' '+i.criteria_text+' '+(i.rule.signals||[]).join(' ')).toLowerCase().includes(q))); return its; }
+function vhCount(node,p,q,only){ if(node.children&&!node.sheet){ return node.children.reduce((a,c)=>{const r=vhCount(c,p,q,only); return [a[0]+r[0],a[1]+r[1],a[2]||r[2]];},[0,0,false]); }
+  if(node.kind==='SEC') return [0,0,false,null];
+  const all=D.items.filter(i=>i.sheet===node.sheet && p in i.recorded); const on=all.filter(i=>i.recorded[p]==='O'); const mm=all.some(i=>i.eval[p]&&i.eval[p][1]==='mismatch');
+  const hit=q?vhItems(node,p,q,false).length:null; return [on.length, all.length, mm, hit]; }
+function renderVehicle(){
+  const p=$('#vh-proj').value, q=$('#vh-q').value.trim().toLowerCase(), only=$('#vh-only').checked;
+  const li=(n,child)=>{ const [on,all,mm,hit]=vhCount(n,p,q,only); const dim=q&&hit===0&&!(n.children&&n.children.some(c=>vhCount(c,p,q,only)[3])); 
+    return `<li data-node="${esc(n.id)}" class="${child?'child':'grp'} ${vhSel===n.id?'sel':''} ${dim?'dim':''}"><span class="${child?'mono':''}">${esc(n.label)}</span>${child?'<span></span>':''}<span class="cnt">${all?`${on}/${all}`:''}${mm?' <span class="badge mm">!</span>':''}${q&&hit?` <span class="badge">${hit}</span>`:''}</span></li>`; };
+  $('#vh-tree').innerHTML=vhTree.map(n=>li(n,false)+(n.children?n.children.map(c=>li(c,true)).join(''):'')).join('');
+  $('#vh-side-sub').textContent=p; const al=projAlias[p]||[];
+  $('#vh-count').innerHTML=`담당 <b>${esc(ownerOf(p)||'미기재')}</b> · 원본 표기 ${al.map(a=>`<span class="chip">${esc(a)}</span>`).join('')} · 블록도 ${D.signals_by_project[p]?'있음':'없음'} · 기능사양표 ${D.features.some(f=>p in f.applicability)?'있음':'없음'}`;
+  if(!vhSel) vhSel='RDBI';
+  renderVehicleDetail(vhSel);
+}
+function didNodeFor(code){ const ks=[...(code.toUpperCase().matchAll(/B[0-9A-F]{3}/g))].map(x=>x[0]); for(const k of ks){ const n=vhTree[0].children.find(c=>didKey(c.sheet)===k); if(n) return n.id; } return ''; }
+function findNode(id){ for(const n of vhTree){ if(n.id===id) return n; if(n.children){ const c=n.children.find(x=>x.id===id); if(c) return c; } } return null; }
+const COLS = {
+  RDBI:[['DID','code','mono'],['Description','name'],['Remark',i=>i.attrs.remark||'']],
+  DID:[['Byte / bit',i=>(i.attrs.byte||'')+(i.attrs.bit?` <span class="crit">${esc(i.attrs.bit)}</span>`:''),'mono'],['PID','code','mono'],['항목',i=>`<div style="min-width:200px">`+(i.attrs.category?`<span class="pill p-X">${esc(i.attrs.category)}</span> `:'')+esc(i.name)+(i.attrs.note?`<div class="crit">${esc(i.attrs.note)}</div>`:'')+'</div>'],['값',i=>`<div style="min-width:120px">${i.values.map(v=>(v.value?`<span class="chip">${esc(v.value)}</span> `:'')+esc(v.meaning)).join('<br>')}</div>`]],
+  WDBI:[['Value','code','mono'],['항목','name'],['값',i=>i.values.map(v=>`<span class="chip">${esc(v.value)}</span> ${esc(v.meaning)}`).join('<br>')]],
+  DTC:[['DTC','code','mono'],['Trouble description','name'],['Confirmation Time',i=>i.attrs.confirmation_time||'']],
+  IOCBI:[['Hex','code','mono'],['항목','name'],['Output Condition',i=>i.attrs.output_condition||''],['Output Time',i=>i.attrs.output_time||''],['Remark',i=>i.attrs.remark||'','crit']],
+  ECUID:[['DID','code','mono'],['Description','name'],['Data Type',i=>i.attrs.data_type||''],['비고',i=>i.attrs.note||'','crit'],['UNECE 영향',i=>i.attrs.unece_dependent||'']],
+  OTHER:[['코드','code','mono'],['항목','name']],
+};
+function cell(i,col){ const [,f,cls]=col; const v=typeof f==='function'?f(i):esc(i[f]||''); const c=cls==='monowrap'?' class="crit" style="font-family:var(--mono)"':cls?` class="${cls}"`:''; return `<td${c}>${v}</td>`; }
+function nodeHistory(node,p){ const al=new Set((projAlias[p]||[]).map(a=>a.toLowerCase())); const key=node.kind==='DID'?didKey(node.sheet):null;
+  return D.history.filter(h=>{ const sh=(h.sheet||'').toLowerCase(); let ok=false;
+    if(key) ok=didKey(h.sheet)===key; else if(node.kind==='RDBI') ok=sh.startsWith('rdbi'); else if(node.kind==='DTC') ok=sh==='dtc'; else if(node.kind==='IOCBI') ok=sh.startsWith('iocbi'); else if(node.kind==='WDBI') ok=sh===node.sheet.toLowerCase(); else if(node.kind==='ECUID') ok=sh.startsWith('read ecu'); else if(node.kind==='SEC') ok=sh.startsWith('security'); else if(node.kind==='GROUP') ok=node.children.some(c=>sh===c.sheet.toLowerCase()||sh.startsWith(node.id.toLowerCase()));
+    return ok; }).map(h=>({...h, mine: al.has((h.project||'').toLowerCase().replace(/\s+/g,' ')) || (h.project||'').toLowerCase()==='all'})).reverse(); }
+function renderVehicleDetail(id){
+  vhSel=id; const node=findNode(id); if(!node) return; const p=$('#vh-proj').value, q=$('#vh-q').value.trim().toLowerCase(), only=$('#vh-only').checked;
+  document.querySelectorAll('#vh-tree li').forEach(li=>li.classList.toggle('sel',li.dataset.node===id));
+  let body='';
+  if(node.kind==='SEC'){ const hist=nodeHistory(node,p);
+    const tbl=b=>{ const w=Math.max(...b.rows.map(r=>r.length)); return `<div class="tbl" style="margin:6px 0 14px"><table><tbody>${b.rows.map((r,ri)=>`<tr>${Array.from({length:w},(_,c)=>`<td class="${ri===0?'':'crit'}" style="${ri===0?'font-weight:600;':''}white-space:pre-line;font-size:12.5px">${esc(r[c]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`; };
+    body=`<p class="note">엑셀 'Security Access' 시트 원문입니다. 항목×차종 표가 아니라 보안 접근(SID 27h) 규격·보안 레벨 설명이라 차종 선택과 무관하게 같은 내용이 보입니다.</p>`+D.security.blocks.map(b=>`${b.title?`<h3 style="margin:14px 0 4px">${esc(b.title)}</h3>`:''}${tbl(b)}`).join('')+
+      `<details><summary>개정 이력 — ${hist.length}건</summary><div class="tbl"><table class="hist"><thead><tr><th class="mono">Rev</th><th class="mono">날짜</th><th>작성자</th><th>종류</th><th>차종</th><th>내용</th></tr></thead><tbody>${hist.map(h=>`<tr><td class="mono">${esc(h.rev)}</td><td class="mono">${esc(h.date)}</td><td>${esc(h.author)}</td><td>${pill(KIND_KO[h.kind],h.kind)}</td><td>${esc(h.project)}</td><td class="crit ct">${esc(h.contents)}</td></tr>`).join('')}</tbody></table></div></details>`; }
+  else if(node.kind==='GROUP'){ body=`<p class="note">${node.children.length}개 시트. 왼쪽에서 시트를 고르세요.</p><ul>${node.children.map(c=>{const [on,all]=vhCount(c,p,'',false);return `<li><a class="link" data-node="${esc(c.id)}">${esc(c.label)}</a> — ${esc(p)} 적용 ${on}/${all}</li>`;}).join('')}</ul>`; }
+  else {
+    const its=vhItems(node,p,q,only); const cols=COLS[node.kind]||COLS.OTHER; const hasSw=its.some(i=>i.sw_variable);   /* SW 변수 열은 값이 있는 시트에서만, 맨 뒤에 */ const [on,all,,]=vhCount(node,p,'',false);
+    const hasRule=its.some(i=>i.criteria_text);
+    const rows=its.map(i=>{const e=i.eval[p]||[null,'not_evaluable']; const rec=i.recorded[p];
+      const st=(e[1]==='match'||e[1]==='exception_ok')?'match':e[1]==='mismatch'?'mismatch':i.criteria_text?'pending':'none';
+      const tip=e[1]==='match'?`규칙 결과 ${e[0]} = 기록 ${rec}`:e[1]==='exception_ok'?`규칙 결과 ${e[0]} ≠ 기록 ${rec} — 담당자 확인 예외`:e[1]==='conditional'?`조건부 (규칙 ${e[0]}: 판단 불가 조건이 남음) · 기록 ${rec}`:e[1]==='mismatch'?`규칙 결과 ${e[0]} ≠ 기록 ${rec} — 검토 필요`:i.criteria_text?`규칙 평가 불가 (${STATUS_KO[e[1]]||e[1]}) — 엑셀 기록만 표시`:'적용 판단 기준 없음 — 엑셀 기록만 표시';
+      return `<tr>${cols.map(c=>cell(i,c)).join('')}<td><span class="rec rec-${st}" title="${esc(tip)}">${esc(rec||'—')}</span></td>${hasRule?`<td class="crit" style="min-width:240px">${esc(i.criteria_text)}</td><td style="min-width:150px">${ruleLabel(i.rule,p)}</td>`:''}<td class="crit" style="max-width:150px;font-size:11px;line-height:1.35">${esc(i.tool_display)}</td>${hasSw?`<td class="crit" style="font-family:var(--mono);font-size:11px;max-width:180px">${esc(i.sw_variable)}</td>`:''}</tr>`;}).join('');
+    const hist=nodeHistory(node,p); const mine=hist.filter(h=>h.mine);
+    body=`<div class="kv"><div><div class="k">${esc(p)} 적용 / 전체</div><div class="v">${on} / ${all}</div></div><div><div class="k">규칙 있는 항목</div><div class="v">${D.items.filter(i=>i.sheet===node.sheet&&i.rule.evaluable).length}</div></div><div><div class="k">${esc(p)} 규칙 불일치</div><div class="v">${D.items.filter(i=>i.sheet===node.sheet&&i.eval[p]&&i.eval[p][1]==='mismatch').length}</div></div><div><div class="k">개정 (이 차종 / 전체)</div><div class="v">${mine.length} / ${hist.length}</div></div></div>
+      <div class="crit" style="margin:6px 0 4px;font-size:12px">${esc(p)} 적용 = 엑셀 기록 · <span class="rec rec-match">O</span> 규칙 일치 <span class="rec rec-mismatch">X</span> 규칙과 다름 <span class="rec rec-pending">O</span> 자동 평가 불가 <span class="rec rec-none">O</span> 기준 없음 · 규칙 칩 색 = 이 차종의 블록도·기능사양표 근거(초록 있음/빨강 없음/노랑 자료 없음), 올리면 상세</div>
+      <div class="tbl" style="max-height:calc(100vh - 140px);overflow:auto"><table><thead><tr>${cols.map(c=>`<th>${esc(c[0])}</th>`).join('')}<th title="엑셀에 기록된 O/X. 테두리 색: 초록 = 규칙과 일치, 빨강 = 규칙과 다름(검토), 노랑 = 기준은 있으나 자동 평가 불가, 회색 = 기준 없음">${esc(p)} 적용</th>${hasRule?'<th>적용 판단 기준</th><th>규칙</th>':''}<th title="엑셀 'Diag Tool Display' 열 — 진단기(GDS/KDS) 화면 표기와 적용 품번 메모">Tool 표시</th>${hasSw?'<th>SW 변수</th>':''}</tr></thead><tbody>${rows||`<tr><td colspan="${cols.length+4}" class="crit">표시할 항목이 없습니다${only?' — "적용된 항목만" 체크를 해제해 보세요':''}.</td></tr>`}</tbody></table></div>
+      <details ${mine.length&&mine.length<=20?'open':''}><summary>개정 이력 — 이 차종 ${mine.length}건 / 전체 ${hist.length}건</summary><div class="tbl" style="max-height:50vh;overflow:auto"><table class="hist"><thead><tr><th class="mono">Rev</th><th class="mono">날짜</th><th>작성자</th><th>종류</th><th>차종</th><th>단계</th><th>내용</th></tr></thead><tbody>${hist.map(h=>`<tr style="${h.mine?'':'opacity:.55'}"><td class="mono">${esc(h.rev)}</td><td class="mono">${esc(h.date)}</td><td>${esc(h.author)}</td><td>${pill(KIND_KO[h.kind],h.kind)}</td><td>${esc(h.project)}</td><td>${esc(h.stage)}</td><td class="crit ct">${esc(h.contents)}</td></tr>`).join('')}</tbody></table></div></details>`;
+  }
+  let sub='';
+  if(node.kind==='DID'){ const k=didKey(node.sheet); const r=D.items.find(i=>i.sheet==='RDBI DataIdentifier'&&didKey(i.code)===k); if(r) sub=`<div class="crit" style="margin:-6px 0 10px;font-size:13px">${esc(r.name)}${r.attrs.remark?` · ${esc(r.attrs.remark)}`:''}</div>`; }
+  $('#vh-detail').innerHTML=`<h2 style="margin-top:0">${esc(node.label)} <span class="chip">${esc(p)}</span></h2>${sub}${body}`;
+}
+$('#vh-tree').addEventListener('click',e=>{const li=e.target.closest('li[data-node]'); if(li){renderVehicleDetail(li.dataset.node); window.scrollTo({top:0,behavior:'smooth'});}});
+$('#vh-detail').addEventListener('click',e=>{const a=e.target.closest('a[data-node]'); if(a){renderVehicleDetail(a.dataset.node); renderVehicle();}});
+$('#vh-proj').addEventListener('change',renderVehicle); $('#vh-q').addEventListener('input',renderVehicle); $('#vh-only').addEventListener('change',renderVehicle);
+
+/* DID 키 추출 */
+const didKey = s => (String(s||'').match(/B[0-9A-F]{3}/i)||[''])[0].toUpperCase();   // '#B001h', 'DID #B001', 'B001' → 'B001'
+/* 항목 검색 */
+/* 블록도 근거: 차종 p 의 도면(SMK/IMMO 페이지)에 신호 s 가 있는지 — rules.py 와 같은 앞부분 일치 */
+function sigEvidence(s,p){ const v=D.signal_variants[p]; if(!v) return {st:'none',txt:`${p}: 블록도 없음`}; const hit=Object.entries(v).filter(([k,ss])=>ss.some(y=>y.startsWith(s)||s.startsWith(y))).map(([k])=>k); return hit.length?{st:'ok',txt:`${p} 블록도에 있음 (${hit.join('/')} 페이지)`}:{st:'bad',txt:`${p} 블록도에 없음 (${Object.keys(v).join('/')} 페이지 확인)`}; }
+function featEvidence(tok,p){ const up=String(tok).toUpperCase(); const words=up.split(/[^A-Z0-9]+/).filter(w=>w.length>1); const fs=D.features.filter(f=>p in f.applicability&&words.every(w=>f.name.toUpperCase().includes(w)));
+  if(!D.features.some(f=>p in f.applicability)) return {st:'none',txt:`${p}: 기능사양표 없음`}; if(!fs.length) return {st:'none',txt:`${p} 기능사양표에 '${tok}' 행 없음`};
+  const on=fs.some(f=>Object.values(f.applicability[p]).some(a=>a.state==='STD'||a.state==='OPT')); return {st:on?'ok':'bad',txt:fs.map(f=>`${f.name}: `+Object.entries(f.applicability[p]).map(([r,a])=>`${r} ${a.state}`).join(', ')).join('\n')}; }
+function evChip(txt,ev){ const c=ev?{ok:'background:var(--ok-bg);color:var(--ok)',bad:'background:var(--bad-bg);color:var(--bad)',none:'background:var(--warn-bg);color:var(--warn)'}[ev.st]:''; return `<span class="chip" ${ev?`title="${esc(ev.txt)}" style="${c};cursor:help"`:''}>${esc(txt)}</span>`; }
+function ruleLabel(r,p){ if(!r.evaluable) return r.reason==='no_criteria'?'<span class="pill p-X">없음</span>':`<span class="pill p-recorded_other">자유 문장</span>`; if(r.const) return `상수 ${r.const}`;
+  const parts=[]; if(r.signals?.length) parts.push(`신호(${r.signals_mode==='any'?'하나라도':'모두'}): `+r.signals.map(s=>evChip(s,p?sigEvidence(s,p):null)).join('')); if(r.features?.length) parts.push('기능: '+r.features.map(g=>g.map(t=>evChip(t,p?featEvidence(t,p):null)).join(' | ')).join(' AND ')); if(r.buses?.length) parts.push('버스: '+r.buses.map(b=>`<span class="chip">${esc(b)}</span>`).join('')); if(r.variant) parts.push(`블록도 형: <span class="chip">${esc({IMMO:'IMMO형(-SMK)',SMK:'SMK형',NON_SMK_NON_IMMO:'-SMK·-IMMO형'}[r.variant]||r.variant)}</span>`); const sv=Object.entries(r.sig_variant||{}).concat(Object.entries(r.sig_unknown||{})); if(sv.length) parts.push('신호별 조건: '+sv.map(([s,v])=>`<span class="chip">${esc(s+' → '+v)}</span>`).join('')); const un=(r.unknown||[]).concat((r.or_unknown||[]).map(x=>'또는 '+x)); if(un.length) parts.push('판단 불가(조건부): '+un.map(u=>`<span class="chip" style="background:var(--warn-bg);color:var(--warn)">${esc(u)}</span>`).join('')); return parts.join('<br>'); }
+let iSel=null; const iOpen=new Set(), iClosed=new Set();
+function itemHay(i){ return (i.name+' '+i.code+' '+i.sw_variable+' '+i.criteria_text+' '+(i.rule.signals||[]).join(' ')+' '+i.values.map(v=>v.value+' '+v.meaning).join(' ')).toLowerCase(); }
+function renderItems(){
+  const q=$('#i-q').value.trim().toLowerCase(), sh=$('#i-sheet').value, rk=$('#i-rule').value, onlyMm=$('#i-mm').checked;
+  const its=D.items.filter(i=>{ if(sh&&i.sheet!==sh) return false; const r=i.rule; const kind=r.evaluable?'yes':(r.reason==='no_criteria'?'no':'free'); if(rk&&kind!==rk) return false;
+    if(onlyMm&&!Object.values(i.eval).some(e=>e[1]==='mismatch')) return false; return !q||itemHay(i).includes(q); });
+  const bySheet=new Map(); its.forEach(i=>{ if(!bySheet.has(i.sheet)) bySheet.set(i.sheet,[]); bySheet.get(i.sheet).push(i); });
+  const MAX=600; let n=0; const searching=!!(q||rk||onlyMm);   /* 검색·필터 중이면 결과가 있는 시트는 펼치고, 아니면 접은 채로 */
+  $('#i-list').innerHTML=[...bySheet.entries()].map(([sheet,list])=>{ const open=iOpen.has(sheet)||(!iClosed.has(sheet)&&((searching&&list.length<=60)||(sh&&sh===sheet)||list.some(i=>i.id===iSel)));
+    return `<li class="grp" data-grp="${esc(sheet)}" style="cursor:pointer"><span>${open?'▾':'▸'} ${esc(sheet)}</span><span class="cnt">${list.length}</span></li>`+(open?list.map(i=>{ if(n++>=MAX) return ''; const rec=Object.values(i.recorded); const o=rec.filter(v=>v==='O').length; const mm=Object.values(i.eval).some(e=>e[1]==='mismatch');
+    return `<li class="child ${iSel===i.id?'sel':''}" data-item="${esc(i.id)}" title="${esc(i.name)}"><span class="mono">${esc(i.code)}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.name)||'(이름 없음)'}</span><span class="cnt">${o}/${rec.length}${mm?' <span class="badge mm">!</span>':''}</span></li>`; }).join(''):''); }).join('');
+  $('#i-side-sub').textContent=`${its.length}개${its.length>MAX?` (${MAX}개까지 표시)`:''}`; $('#i-count').textContent=`${its.length} / ${D.items.length}개 항목`;
+  if(iSel&&!its.some(i=>i.id===iSel)) iSel=null;
+  if(!iSel&&searching&&its.length) iSel=its[0].id;
+  if(iSel) renderItemDetail(iSel); else $('#i-detail').innerHTML='<p class="note">왼쪽에서 시트를 펼쳐 항목을 고르거나, 위에서 검색하세요.</p>';
+}
+function itemHistory(i){ const code=i.code.replace(/^#/,'').replace(/h$/,''); const key=i.kind==='DID'?didKey(i.sheet):null; const nm=(i.name||'').toLowerCase();
+  return D.history.filter(h=>{ const c=(h.contents||''); const sh=(h.sheet||''); if(key&&didKey(sh)!==key&&!c.includes(key)) return false; if(!key&&i.kind!=='OTHER'&&!(sh.toUpperCase().startsWith(i.kind==='ECUID'?'READ ECU':i.kind)||sh.includes(code))) return false;
+    return (code.length>=3&&c.includes(code))||(nm.length>=6&&c.toLowerCase().includes(nm)); }).reverse(); }
+function renderItemDetail(id){
+  iSel=id; document.querySelectorAll('#i-list li[data-item]').forEach(li=>li.classList.toggle('sel',li.dataset.item===id));
+  const i=D.items.find(x=>x.id===id); if(!i){ $('#i-detail').innerHTML='<p class="note">표시할 항목이 없습니다.</p>'; return; }
+  const ow=$('#i-owner').value; const groups={O:[],X:[],etc:[]}; projOpts.filter(p=>!ow||ownerOf(p)===ow).forEach(p=>{ const r=i.recorded[p]; if(r==='O') groups.O.push(p); else if(r==='X') groups.X.push(p); else groups.etc.push(p); });
+  const chip=p=>{ const rec=i.recorded[p]; const e=i.eval[p]||[null,'not_evaluable']; const st=(e[1]==='match'||e[1]==='exception_ok')?'match':e[1]==='mismatch'?'mismatch':i.criteria_text?'pending':'none';
+    const tip=e[1]==='match'?`규칙 ${e[0]} = 기록 ${rec}`:e[1]==='exception_ok'?`규칙 ${e[0]} ≠ 기록 ${rec} — 담당자 확인 예외`:e[1]==='conditional'?`조건부 (규칙 ${e[0]}) · 기록 ${rec}`:e[1]==='mismatch'?`규칙 ${e[0]} ≠ 기록 ${rec} — 검토`:i.criteria_text?`자동 평가 불가 (${STATUS_KO[e[1]]||e[1]})`:'기준 없음';
+    return `<a class="rec rec-${st}" data-proj="${esc(p)}" title="${esc(tip)} · 담당 ${esc(ownerOf(p)||'미기재')} · 누르면 차종 보기" style="cursor:pointer;margin:2px 3px 2px 0;font-weight:500;font-size:12px">${esc(p)}${rec&&rec!=='O'&&rec!=='X'?` <span class="crit">${esc(rec)}</span>`:''}</a>`; };
+  const mmN=Object.values(i.eval).filter(e=>e[1]==='mismatch').length, hist=itemHistory(i);
+  const attrs=Object.entries(i.attrs).filter(([k,v])=>v&&k!=='hex').map(([k,v])=>`<div><div class="k">${esc({byte:'Byte',bit:'bit',category:'분류',remark:'Remark',note:'비고',confirmation_time:'Confirmation Time',output_condition:'Output Condition',output_time:'Output Time',data_type:'Data Type',unece_dependent:'UNECE 영향'}[k]||k)}</div><div class="v" style="font-size:13px;font-weight:400">${esc(v)}</div></div>`).join('');
+  $('#i-detail').innerHTML=`<h2 style="margin-top:0"><span class="mono">${esc(i.code)}</span> ${esc(i.name)||'(이름 없음)'} <span class="chip">${esc(i.sheet)}</span></h2>
+    <div class="kv">${attrs}${i.values.length?`<div><div class="k">값</div><div class="v" style="font-size:13px;font-weight:400">${i.values.map(v=>(v.value?`<span class="chip">${esc(v.value)}</span> `:'')+esc(v.meaning)).join('<br>')}</div></div>`:''}${i.tool_display?`<div><div class="k">Tool 표시</div><div class="v crit" style="font-size:12px;font-weight:400">${esc(i.tool_display)}</div></div>`:''}${i.sw_variable?`<div><div class="k">SW 변수</div><div class="v mono" style="font-size:12px;font-weight:400">${esc(i.sw_variable)}</div></div>`:''}</div>
+    <div class="kv" style="margin-top:10px"><div><div class="k">적용 판단 기준</div><div class="v" style="font-size:13px;font-weight:400;white-space:pre-line">${esc(i.criteria_text)||'<span class="crit">(비어 있음)</span>'}</div></div><div><div class="k">규칙</div><div class="v" style="font-size:13px;font-weight:400">${ruleLabel(i.rule)}</div></div></div>
+    <h3 style="margin:18px 0 6px">차종별 적용 현황 <span class="crit" style="font-weight:400">O ${groups.O.length} · X ${groups.X.length} · 미기재 ${groups.etc.length}${mmN?` · <span class="badge mm">불일치 ${mmN}</span>`:''} — 색은 규칙 판정(초록 일치/빨강 다름/노랑 평가 불가/회색 기준 없음)</span></h3>
+    <div class="kv" style="grid-template-columns:1fr">
+      <div><div class="k">적용 O (${groups.O.length})</div><div>${groups.O.map(chip).join('')||'<span class="crit">없음</span>'}</div></div>
+      <div><div class="k">미적용 X (${groups.X.length})</div><div>${groups.X.map(chip).join('')||'<span class="crit">없음</span>'}</div></div>
+      ${groups.etc.length?`<div><div class="k">미기재·기타 (${groups.etc.length})</div><div>${groups.etc.map(chip).join('')}</div></div>`:''}
+    </div>
+    <details style="margin-top:14px" ${hist.length&&hist.length<=15?'open':''}><summary>개정 이력 — 이 항목 ${hist.length}건</summary><div class="tbl" style="max-height:45vh;overflow:auto"><table class="hist"><thead><tr><th class="mono">Rev</th><th class="mono">날짜</th><th>작성자</th><th>종류</th><th>시트</th><th>차종</th><th>단계</th><th>내용</th></tr></thead><tbody>${hist.map(h=>`<tr><td class="mono">${esc(h.rev)}</td><td class="mono">${esc(h.date)}</td><td>${esc(h.author)}</td><td>${pill(KIND_KO[h.kind],h.kind)}</td><td>${esc(h.sheet)}</td><td>${esc(h.project)}</td><td>${esc(h.stage)}</td><td class="crit ct">${esc(h.contents)}</td></tr>`).join('')||'<tr><td colspan="8" class="crit">코드·항목명이 들어간 이력이 없습니다.</td></tr>'}</tbody></table></div></details>`;
+}
+fillOwner('#i-owner'); $('#i-q').addEventListener('input',renderItems); ['#i-sheet','#i-rule','#i-mm'].forEach(x=>$(x).addEventListener('change',renderItems)); $('#i-owner').addEventListener('change',()=>renderItemDetail(iSel));
+$('#i-list').addEventListener('click',e=>{const g=e.target.closest('li[data-grp]'); if(g){ const k=g.dataset.grp; const wasOpen=g.textContent.trim().startsWith('▾'); if(wasOpen){ iOpen.delete(k); iClosed.add(k); const cur=D.items.find(x=>x.id===iSel); if(cur&&cur.sheet===k) iSel=null; /* 접으면 그 시트의 선택도 지운다 */ } else { iOpen.add(k); iClosed.delete(k);} renderItems(); return; }
+  const li=e.target.closest('li[data-item]'); if(li){renderItemDetail(li.dataset.item); window.scrollTo({top:0,behavior:'smooth'});}});
+$('#i-detail').addEventListener('click',e=>{const a=e.target.closest('a[data-proj]'); if(!a) return; const i=D.items.find(x=>x.id===iSel); if(!i) return;
+  if(projOpts.includes(a.dataset.proj)) $('#vh-proj').value=a.dataset.proj; const n=vhTree.flatMap(t=>[t,...(t.children||[])]).find(x=>x.sheet===i.sheet); if(n) vhSel=n.id; show('vehicle'); renderVehicle(); });
+
+let mSel='RDBI';
+const mTree=vhTree.filter(n=>n.kind!=='SEC');
+function mNodes(id){ for(const n of mTree){ if(n.id===id) return [n.sheet?n:null,...(n.children||[])].filter(Boolean); if(n.children){ const c=n.children.find(x=>x.id===id); if(c) return [c]; } } return []; }
+function renderMatrix(){
+  const scope=$('#m-scope').value, q=$('#m-q').value.trim().toLowerCase(), onlyMm=$('#m-mm').checked, ow=$('#m-owner').value;
+  const pick=i=>(!q||(i.name+i.code).toLowerCase().includes(q))&&(!onlyMm||Object.values(i.eval).some(e=>e[1]==='mismatch'));
+  const cntOf=n=>{ const sheets=n.children?[n.sheet,...n.children.map(c=>c.sheet)].filter(Boolean):[n.sheet]; const its=D.items.filter(i=>sheets.includes(i.sheet)&&pick(i)); return [its.length, its.filter(i=>Object.values(i.eval).some(e=>e[1]==='mismatch')).length]; };
+  const li=(n,child)=>{ const [c,mm]=cntOf(n); return `<li data-node="${esc(n.id)}" class="${child?'child':'grp'} ${mSel===n.id?'sel':''} ${c?'':'dim'}"><span class="${child?'mono':''}">${esc(n.label)}</span>${child?'<span></span>':''}<span class="cnt">${c}${mm?` <span class="badge mm">${mm}</span>`:''}</span></li>`; };
+  $('#m-tree').innerHTML=mTree.map(n=>li(n,false)+(n.children?n.children.map(c=>li(c,true)).join(''):'')).join('');
+  const nodes=mNodes(mSel); const sheets=nodes.map(n=>n.sheet);
+  const its=D.items.filter(i=>sheets.includes(i.sheet)&&pick(i));
+  let cols=[...new Set(its.flatMap(i=>Object.keys(i.recorded)))].sort(); if(scope==='eval') cols=cols.filter(c=>evalProjects.has(c)); if(ow) cols=cols.filter(c=>ownerOf(c)===ow);
+  const head=`<thead><tr><th class="mono" style="position:sticky;left:0;z-index:2">코드</th><th style="position:sticky;left:70px;z-index:2">항목</th>${cols.map(c=>`<th class="rot" title="담당 ${esc(ownerOf(c)||'미기재')}">${esc(c)}</th>`).join('')}</tr></thead>`;
+  let body='', last=null;
+  its.forEach(i=>{ if(sheets.length>1&&i.sheet!==last){ last=i.sheet; body+=`<tr><td colspan="${cols.length+2}" style="text-align:left;font-weight:600;background:var(--chip);position:sticky;left:0">${esc(i.sheet)}</td></tr>`; }
+    body+=`<tr><td class="mono" style="text-align:left;position:sticky;left:0;background:var(--panel)">${esc(i.code)}</td><td style="text-align:left;white-space:nowrap;position:sticky;left:70px;background:var(--panel);max-width:260px;overflow:hidden;text-overflow:ellipsis" title="${esc(i.name)}">${esc(i.name).slice(0,40)}</td>${cols.map(c=>{const v=i.recorded[c]||'';const e=i.eval[c];return `<td class="${v==='O'?'O':v==='X'?'X':''} ${e&&e[1]==='mismatch'?'mm':''}">${esc(v.startsWith('VAL:')?'·':v)}</td>`;}).join('')}</tr>`; });
+  $('#t-matrix').innerHTML=head+'<tbody>'+body+'</tbody>'; $('#m-count').textContent=`${its.length}행 × ${cols.length}열`; $('#m-side-sub').textContent=mNodes(mSel).length>1?`${sheets.length}개 시트`:'';
+}
+$('#m-tree').addEventListener('click',e=>{const li=e.target.closest('li[data-node]'); if(li){ mSel=li.dataset.node; renderMatrix(); $('#t-matrix').parentElement.scrollTop=0; }});
+fillOwner('#m-owner'); ['#m-scope','#m-mm','#m-owner'].forEach(s=>$(s).addEventListener('change',renderMatrix)); $('#m-q').addEventListener('input',renderMatrix);
+
+/* 신호 */
+const sigRef={}; D.items.forEach(i=>(i.rule.signals||[]).forEach(s=>(sigRef[s]=sigRef[s]||[]).push(i)));
+const sigProj={}; Object.entries(D.signals_by_project).forEach(([p,ss])=>ss.forEach(s=>(sigProj[s]=sigProj[s]||[]).push(p)));
+/* PDF 텍스트에서 잘린 이름(L_xxx_OU, L_xxx_I)은 온전한 이름에 합친다 */
+(()=>{ const names=Object.keys(sigProj); names.forEach(s=>{ const full=names.find(t=>t!==s&&t.length>s.length&&t.startsWith(s)); if(full){ sigProj[full]=[...new Set([...sigProj[full],...sigProj[s]])]; delete sigProj[s]; } }); })();
+function renderSignals(){
+  const q=$('#s-q').value.trim().toLowerCase(), p=$('#s-proj').value, diag=$('#s-diag').checked;
+  const refOf=s=>sigRef[s]||Object.entries(sigRef).filter(([k])=>s.startsWith(k)||k.startsWith(s)).flatMap(([,v])=>v);
+  const names=[...new Set([...Object.keys(sigProj),...Object.keys(sigRef)])].sort().filter(s=>(!q||s.toLowerCase().includes(q))&&(!p||(sigProj[s]||[]).includes(p))&&(!diag||refOf(s).length));
+  $('#t-sig tbody').innerHTML=names.map(s=>`<tr><td class="mono">${esc(s)}</td><td class="num">${(sigProj[s]||[]).length}</td><td>${(sigProj[s]||[]).map(x=>`<span class="chip">${esc(x)}</span>`).join('')}</td><td>${[...new Set(refOf(s))].map(i=>`${esc(i.sheet)} ${esc(i.code)} ${esc(i.name)}`).join('<br>')||'<span class="pill p-X">참조 없음</span>'}</td></tr>`).join('');
+  $('#s-count').textContent=`${names.length}개 신호`;
+}
+$('#s-q').addEventListener('input',renderSignals); ['#s-proj','#s-diag'].forEach(x=>$(x).addEventListener('change',renderSignals));
+
+/* 기능사양표 */
+/* 진단사양서 규칙이 참조하는 기능: rules.py _feature_applied 와 같은 단어 포함 매칭 */
+const featRefs=(()=>{ const m={}; const up=s=>String(s||'').toUpperCase();
+  D.items.forEach(i=>(i.rule.features||[]).forEach(alts=>alts.forEach(tok=>{ const words=up(tok).split(/[^A-Z0-9]+/).filter(w=>w.length>1); if(!words.length) return;
+    D.features.forEach(f=>{ const n=up(f.name); if(words.every(w=>n.includes(w))) (m[f.id]=m[f.id]||new Set()).add(i.id); }); }))); return m; })();
+function renderFeatures(){
+  const p=$('#f-proj').value, q=$('#f-q').value.trim().toLowerCase(), ctrl=$('#f-ctrl').value, diag=$('#f-diag').checked;
+  const fs=D.features.filter(f=>p in f.applicability&&(!ctrl||f.control===ctrl)&&(!diag||featRefs[f.id])&&(!q||(f.name+' '+(f.group||'')+' '+(f.oem_code||'')).toLowerCase().includes(q)));
+  const regions=[...new Set(fs.flatMap(f=>Object.keys(f.applicability[p])))];
+  const head=`<thead><tr><th>그룹</th><th>기능</th><th class="mono">품번코드</th><th>제어 근거</th>${regions.map(r=>`<th>${esc(r)}</th>`).join('')}<th title="이 기능을 '적용 판단 기준'에서 참조하는 진단 항목">참조 진단 항목</th></tr></thead>`;
+  const body=fs.map(f=>`<tr><td>${esc(f.group||'')}</td><td>${esc(f.name)}</td><td class="mono">${esc(f.oem_code||'')}</td><td>${esc(f.control||'')}</td>${regions.map(r=>{const a=f.applicability[p][r]||{};const st=a.state;return `<td>${st==='STD'?pill('STD','O'):st==='OPT'?pill('OPT','recorded_other'):st==='NA'?pill('NA','X'):st==='VAL'?`<span class="chip">${esc(a.value)}</span>`:''}</td>`;}).join('')}<td class="crit">${(()=>{const ids=[...(featRefs[f.id]||[])]; if(!ids.length) return ''; const its=ids.map(id=>D.items.find(x=>x.id===id)).filter(Boolean); return `<details><summary>${its.length}개</summary>${its.map(x=>`<div><a class="link" data-sheet="${esc(x.sheet)}">${esc(x.sheet)}</a> · <span class="mono">${esc(x.code)}</span> ${esc(x.name)}</div>`).join('')}</details>`;})()}</td></tr>`).join('');
+  $('#t-feat').innerHTML=head+'<tbody>'+body+'</tbody>'; $('#f-count').textContent=`${fs.length}개 기능${diag?` (전체 ${D.features.filter(f=>p in f.applicability).length}개 중 진단 참조)`:''}`;
+}
+['#f-proj','#f-ctrl','#f-diag'].forEach(s=>$(s).addEventListener('change',renderFeatures));
+$('#t-feat').addEventListener('click',e=>{const a=e.target.closest('a[data-sheet]'); if(a){ const n=vhTree.flatMap(t=>[t,...(t.children||[])]).find(x=>x.sheet===a.dataset.sheet); if(n){ if(projOpts.includes($('#f-proj').value)) $('#vh-proj').value=$('#f-proj').value; vhSel=n.id; show('vehicle'); renderVehicle(); } }}); $('#f-q').addEventListener('input',renderFeatures);
+
+/* 불일치 */
+function renderMismatch(){
+  const sh=$('#mm-sheet').value, p=$('#mm-proj').value, dir=$('#mm-dir').value; const rows=[];
+  D.items.forEach(i=>Object.entries(i.eval).forEach(([pr,[r,s]])=>{ if(s!=='mismatch') return; if(sh&&i.sheet!==sh) return; if(p&&pr!==p) return; const rec=i.recorded[pr]; if(dir&&(rec+r)!==dir) return;
+    const why=(i.rule.signals||[]).length?`신호 ${i.rule.signals.map(x=>`<span class="chip">${esc(x)}</span>`).join('')} ${(D.signals_by_project[pr]||[]).some(y=>i.rule.signals.some(x=>y.startsWith(x)||x.startsWith(y)))?'블록도에 있음':'블록도에 없음'}`:(i.rule.features||[]).length?`기능 ${i.rule.features.map(g=>`<span class="chip">${esc(g.join('|'))}</span>`).join('')}`:'';
+    rows.push(`<tr><td>${esc(i.sheet)}</td><td class="mono">${esc(i.code)}</td><td>${esc(i.name)}</td><td class="mono">${esc(pr)}</td><td>${pill(rec)}</td><td>${pill(r)}</td><td>${why}</td><td class="crit">${esc(i.criteria_text)}</td></tr>`);}));
+  $('#t-mm tbody').innerHTML=rows.join(''); $('#mm-count').textContent=`${rows.length}건`;
+}
+['#mm-sheet','#mm-proj','#mm-dir'].forEach(s=>$(s).addEventListener('change',renderMismatch));
+
+/* 이력 */
+/* 개정 이력 — 왼쪽은 개정(Rev) 목록, 오른쪽은 그 개정에서 바뀐 줄들 */
+const revList=(()=>{ const m=new Map(); D.history.forEach(h=>{ const r=h.rev||'(없음)'; if(!m.has(r)) m.set(r,{rev:r,date:h.date,author:h.author,n:0}); m.get(r).n++; }); return [...m.values()].reverse(); })();
+let hSel='*';
+function renderHistory(){
+  const q=$('#h-q').value.trim().toLowerCase(), k=$('#h-kind').value, au=$('#h-author').value, from=$('#h-from').value, to=$('#h-to').value;
+  const base=D.history.filter(h=>(!k||h.kind===k)&&(!au||h.author===au)&&(!from||h.date>=from)&&(!to||h.date<=to)&&(!q||(h.contents+' '+h.sheet+' '+h.project+' '+h.author+' '+h.rev).toLowerCase().includes(q)));
+  const filtered=!!(q||k||au||from||to);
+  const cnt={}; base.forEach(h=>{cnt[h.rev||'(없음)']=(cnt[h.rev||'(없음)']||0)+1;});
+  $('#h-tree').innerHTML=`<li data-node="*" class="grp ${hSel==='*'?'sel':''}"><span>전체</span><span class="cnt">${base.length}</span></li>`+
+    revList.filter(r=>!filtered||cnt[r.rev]).map(r=>{const c=cnt[r.rev]||0; return `<li data-node="${esc(r.rev)}" class="${hSel===r.rev?'sel':''} ${c?'':'dim'}"><span class="mono">${esc(r.rev)}</span><span><span class="mono" style="font-size:11.5px">${esc(r.date)}</span> <span class="sub">${esc(r.author)}</span></span><span class="cnt">${c}</span></li>`;}).join('');
+  const shown=filtered?revList.filter(r=>cnt[r.rev]).length:revList.length; $('#h-side-sub').textContent=filtered?`${shown} / ${revList.length}개 개정`:`${revList.length}개 개정`;
+  if(filtered&&hSel!=='*'&&!cnt[hSel]) hSel='*';
+  const rows=hSel==='*'?base:base.filter(h=>(h.rev||'(없음)')===hSel);
+  $('#t-hist tbody').innerHTML=rows.slice().reverse().slice(0,2000).map(h=>`<tr><td class="mono">${esc(h.rev)}</td><td class="mono">${esc(h.date)}</td><td>${esc(h.author)}</td><td>${pill(KIND_KO[h.kind],h.kind)}</td><td>${esc(h.sheet)}</td><td>${esc(h.project)}</td><td>${esc(h.stage)}</td><td class="crit ct">${esc(h.contents)}</td><td class="crit">${esc(h.ref)}</td></tr>`).join('');
+  $('#h-count').textContent=`${hSel==='*'?'':hSel+' · '}${rows.length}행 (최신순${rows.length>2000?', 2000행까지 표시':''})`;
+}
+$('#h-tree').addEventListener('click',e=>{const li=e.target.closest('li[data-node]'); if(li){hSel=li.dataset.node; renderHistory(); $('#t-hist').parentElement.scrollTop=0;}});
+$('#h-q').addEventListener('input',renderHistory); ['#h-kind','#h-author','#h-from','#h-to'].forEach(s=>$(s).addEventListener('change',renderHistory));
+
+/* 탭 */
+const renderers={overview:renderOverview,vehicle:renderVehicle,items:renderItems,matrix:renderMatrix,signals:renderSignals,features:renderFeatures,mismatch:renderMismatch,history:renderHistory};
+const rendered={};
+function show(v){ if(!renderers[v]) v='overview'; document.querySelectorAll('.view').forEach(el=>el.hidden=el.id!=='v-'+v); document.querySelectorAll('#nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.view===v)); if(!rendered[v]){renderers[v](); rendered[v]=true;} try{localStorage.setItem('diagview',v);}catch(e){} }
+$('#nav').addEventListener('click',e=>{const b=e.target.closest('button[data-view]'); if(b){ show(b.dataset.view); } });
+let start=(location.hash||'').replace('#',''); if(!start){ try{start=localStorage.getItem('diagview')||'overview';}catch(e){start='overview';} }
+if(start==='project'||start==='rdbi') start='vehicle';
+show(start);
+})();
+</script>
+<script>
+/* 테마 선택: Light / Dark (뷰어 기능과 독립). 고른 값은 이 브라우저에 기억하고, 처음엔 OS 설정을 따른다 */
+(function(){
+  const seg=document.getElementById('theme-seg');
+  let t=null; try{t=localStorage.getItem('diagview-theme');}catch(e){}
+  if(t!=='light'&&t!=='dark') t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  function apply(){ document.documentElement.setAttribute('data-theme',t);
+    seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.themeSet===t)); }
+  seg.addEventListener('click',e=>{ const b=e.target.closest('button[data-theme-set]'); if(!b) return; t=b.dataset.themeSet; try{localStorage.setItem('diagview-theme',t);}catch(e){} apply(); });
+  apply();
+})();
+</script>

@@ -1,0 +1,31 @@
+# 차종 별칭표 — 정규화 규칙(projects.py)으로 잡히지 않는 표기를 마스터 코드에 묶는다.
+# 키: 마스터 코드, 값: 원본 문서에 실제로 등장하는 표기 목록
+aliases:
+  CN7_N_PE:
+    - "CN7N PE"
+    - "IBU_EOL 품번사양표_CN7N PE"
+    - "IBU_HW 품번사양표_CN7N PE "
+  CN7_HEV:
+    - "CN7 \nHEV"
+  SU2I_LWB_FL:
+    - "SU2i LWB FL"
+  # SU2i LWB 23MY 는 F/L 과 다른 차종이다 (2026-11-03 이지영 회신) — 별칭으로 묶지 않는다 → 코드 SU2I_LWB_23MY
+  KY_FL:
+    - "KY FL"
+  SU2B_FL:
+    - "SU2b FL"
+  # SMK 진단사양서 표기 (2026-11-03 확인: 같은 차종 — 한 시트에 함께 나오지 않고 값 충돌 없음)
+  SU2I_LWB:
+    - "SU2i LBW"
+  CN7_N:
+    - "CN7N"
+  HR_LPDI:
+    - "HR LPD I"
+  HR_LPDI_특장차:
+    - "HR LPD I 특장차"
+  PU_LPDI:
+    - "PU LPD I"
+  BC3_NLINE_25MY:
+    - "BC3 N-line 25MY"
+  CN7_NLINE:
+    - "CN7n → CN7 N-Line"
