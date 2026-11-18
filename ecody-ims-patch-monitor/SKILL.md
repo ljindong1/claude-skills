@@ -166,7 +166,8 @@ python <저장소>\ecody-search\scripts\ecm_api.py check
 
 - 둘 다 OK 면 P2 로 간다. IMS 만 OK 면 ECM 추적(P5)을 건너뛰고 페이지에 "ECM 미확인"을 명시한다.
 - `TOKEN_MISSING`·`HTTP 401` 이면 토큰이 없거나 만료다. 무인 실행이므로 **되묻지 않고** P8-F(실패 기록)로 간다.
-- 세션이 환경변수를 못 읽으면 명령 앞에 붙인다:
+- 🔴 **무인 회차에서는 토큰 주입 접두사를 쓰지 않는다 — 접두사 없이 바로 `check` 를 부른다.** `$env:… = [Environment]::GetEnvironmentVariable(…)` 는 *"Command invokes .NET methods"* 로 **자동 거부**된다(2026-11-13 ~ 11-18 닷새 연속 실측 — 매 회차 호출 하나를 헛쳤다). `run.cmd` 가 토큰을 환경변수로 넘겨 주므로 접두사가 애초에 필요 없다.
+- 사람이 있는 세션에서 `setx` 직후 변수가 안 잡힐 때**만** 쓸 수 있다:
   `$env:ECODY_IMS_TOKEN=[Environment]::GetEnvironmentVariable('ECODY_IMS_TOKEN','User');`
 - `python -I` 를 쓰면 안 된다 — 스크립트 자신의 폴더가 `sys.path` 에서 빠져 `_ecody_common` import 가 깨진다.
 - 토큰 발급·등록 절차는 `ecody-search` 스킬의 `references/api-token.md` 가 정본이다.
