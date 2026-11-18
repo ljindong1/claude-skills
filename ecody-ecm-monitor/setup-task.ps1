@@ -69,7 +69,7 @@ if ($null -ne $existing) {
     $trigger = New-ScheduledTaskTrigger -Weekly -At '09:00' `
         -DaysOfWeek Monday, Tuesday, Wednesday, Thursday, Friday
 
-    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable `
+    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
         -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew
 
     $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME `

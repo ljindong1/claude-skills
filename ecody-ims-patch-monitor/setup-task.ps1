@@ -2,7 +2,7 @@
 #
 # 실행:  powershell -NoProfile -ExecutionPolicy Bypass -File "<이 파일>"
 #
-#   작업이 없으면  -> 평일 09:30 로 새로 등록한다
+#   작업이 없으면  -> 평일 10:00 로 새로 등록한다
 #   작업이 있으면  -> **실행 대상(Action)만** run-hidden.vbs 로 바꾼다.
 #                     트리거.설정.계정은 손대지 않는다
 #
@@ -66,10 +66,10 @@ if ($null -ne $existing) {
 
 } else {
 
-    $trigger = New-ScheduledTaskTrigger -Weekly -At '09:30' `
+    $trigger = New-ScheduledTaskTrigger -Weekly -At '10:00' `
         -DaysOfWeek Monday, Tuesday, Wednesday, Thursday, Friday
 
-    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable `
+    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
         -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew
 
     $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME `
