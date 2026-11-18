@@ -118,12 +118,17 @@ grep -o 'ERR[0-9]\{6\}' <빌드 로그> | sort | uniq -c | sort -rn
 
 순서와 판정 기준만 둔다. 실행과 과제별 설정·체크리스트는 각 스킬(cvd-project·can-bench-setup·canoe-project-setup·hota)이 들고 있다. 비교 대상은 직전 회차의 실기 결과 기록이다.
 
+**어느 시험을 돌릴지는 Joule 의 TC 카탈로그가 정본이다** (`D:\Mobase\asec_autotest_tool\docs\joule-tc-catalog.md`).
+패치로 바뀐 모듈을 주면 `joule-tc select <제어기> --modules <모듈들>` 이 그 회차에 돌릴 TC 와, 카탈로그 TC 가
+아니라 기본 검증·리프로그래밍으로 봐야 하는 것, **아직 TC 가 없는 빈 곳**까지 찍는다. 고르기·안내서·TC 추가는
+`joule-tc` 스킬이 한다 - 이 표는 순서와 판정 기준만 가진다.
+
 | 순서 | 내용 | 판정 기준 | 담당 |
 |---|---|---|---|
 | 1 | ALL 빌드 산출물 확인 | 프로필의 변형 목록만큼 산출물이 **모두** 새 버전 (개수·폴더 이름은 프로필) | — |
 | 2 | 라이팅 | FBL 짝 자동 선택, **APP 양 뱅크(A·B) 모두**, 검증 지점 전부 일치 | cvd-project |
-| 3 | CAN 출력 | 실패 0, 에러 프레임 0, 주의·정보 건수가 직전 회차와 같음(정보 항목은 사양상 정상인 것만) | can-bench-setup |
-| 4 | 진단 회귀 | 세션, 보안접근, 읽기/쓰기, Routine, DTC, Reset, 다운로드 계열이 직전과 같은 응답 | canoe-project-setup / CANoe |
+| 3 | CAN 출력 | 실패 0, 에러 프레임 0, 주의·정보 건수가 직전 회차와 같음(정보 항목은 사양상 정상인 것만) | can-bench-setup (돌릴 TC 는 `joule-tc select`) |
+| 4 | 진단 회귀 | 세션, 보안접근, 읽기/쓰기, Routine, DTC, Reset, 다운로드 계열이 직전과 같은 응답 | Joule TC 카탈로그의 진단 TC (can-bench-setup 이 돌린다). 카탈로그에 없는 케이스만 canoe-project-setup / CANoe |
 | 5 | 패치 고유 시험 | 수평전개 결함의 **재현 조건**을 그대로 케이스로 (예: TransferData Repeat Block → 긍정 응답, HF 이전엔 NRC 0x71). 기능 추가면 그 기능 동작(예: DataLog DID 64B) | CANoe CAPL |
 | 6 | 서명 | rom zip 4개 → 서명 요청(플랫폼설계팀 aSIMS) → 서명 bin 4개. **요청한 빌드 번호·커밋을 기록**하고, 이후 실기가 끝날 때까지 APP 재빌드(push) 금지 — 재생성 때 Os 스택 배치가 바뀌어 이미지가 달라짐 | 프로필 담당 |
 | 7 | H-OTA | 그룹 A(양산 키): 업 성공 / 다운 차단(NRC 0xF4). 그룹 B(TEST): 업 성공 / OEUK 강제 다운 성공. External·BG→Repro 각각. **대칭성**이 판정 | hota |

@@ -71,6 +71,19 @@ python-can 모드는 사용자 저장소 **Joule** 을 직접 실행한다. 사�
   `--help` 를 읽어 따른다. 이 스킬 문서와 다르면 Joule 문서가 맞다.
 - `joule-hota`·`joule-reprog`(보드에 쓰는 도구)는 이 스킬 범위 밖이다.
 
+## 심화 TC 는 생성물이다 — 고치는 일은 joule-tc 가 한다
+
+`joule-verify deep`·`joule-run` 이 돌리는 `configs/tc/` 는 **생성물**이다. 정본은
+`configs/tc_catalog/<모듈>.toml` + `configs/tc_profiles/<제어기>.toml` 이고
+`joule-tc gen` 이 만든다. 그래서 이 스킬은 **돌리기만** 한다.
+
+- TC 를 더하거나 고치는 일, **이번 회차에 어느 TC 를 돌릴지 고르는 일**(`joule-tc select`),
+  사람 손이 필요한 TC 의 안내서(`joule-tc manual`), 설정 항목 커버리지(`joule-tc coverage`)는
+  **`joule-tc` 스킬로 보낸다.**
+- `configs/tc/` 를 손으로 고치지 않는다 - 다음 `gen` 이 덮어쓴다.
+- 돌려 보니 TC 의 기대값·단계가 틀렸으면 그 자리에서 고치지 않고 **무엇이 어떻게 틀렸는지 적어**
+  `joule-tc` 로 넘긴다 (고칠 자리가 카탈로그이고, 제어기 넷에 함께 반영해야 한다).
+
 ## 데이터가 안 나온다는 문의
 
 두 모드 공통으로 `references/troubleshooting.md` 를 먼저 읽는다. 첫 번째

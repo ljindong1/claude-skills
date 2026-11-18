@@ -78,6 +78,8 @@ skills-repo/
 ├── joule-repo-sync/
 │   ├── SKILL.md
 │   └── scripts/                        # 회사 Gitea → 개인 GitHub 미러링, 주간 작업 등록
+├── joule-tc/
+│   └── SKILL.md                        # TC 카탈로그 절차 (정본은 Joule 저장소 docs/)
 ├── redmine-daily-dashboard/
 │   ├── SKILL.md
 │   ├── references/                     # 대시보드 HTML 형식 정본
@@ -215,6 +217,7 @@ python3 skill-repo-sync/scripts/sync_skills.py \
 | `gwantongsa-mock-exam` | 관광통역안내사 필기 모의고사(국사 25 + 관광자원해설 25)를 이력 기반 중복 방지·사실 검증을 거쳐 생성하고 인쇄용 2단 PDF로 전달 |
 | `hota` | H-OTA A·B 그룹 리프로그래밍 평가(1세대 External·BG→Repro / 2세대 Wired·Wireless·Rule Units)를 Joule `joule-hota` 로 — 서명본 hash 판별(재빌드 감지), 보드 준비, Report Config·OEUK 준비, .log 정리·자동 판정, 이름 규칙 검사·수정, 보드평가레포트·Redmine zip·결과 표 (보드 쓰기·외부 등록은 승인 후) |
 | `joule-repo-sync` | 회사 Gitea 의 Joule(`asec_autotest_tool`) 커밋을 개인 GitHub 사본에 덧붙여 동기화 — 차종 표준 DB 를 떨어내고 force push 없이 작성자·날짜 보존 (회사 → 개인 단방향, 푸시는 확인 후) |
+| `joule-tc` | 제어기 평가 TC 의 정본인 **TC 카탈로그**를 읽고 고치는 절차 — 회차에 돌릴 TC 고르기(`select`), 사람 손이 필요한 TC 안내서(`manual`), 설정 항목 커버리지(`coverage`), 제어기 추가. `configs/tc/` 는 생성물이라 손으로 고치지 않는다. 돌리는 것은 can-bench-setup |
 | `redmine-daily-dashboard` | 매일 할당 일감을 수집해 어제 대비 변화·마감 임박·정체 건과 함께 Confluence 대시보드로 발행 |
 | `redmine-issue` | 사내 Redmine 이슈·프로젝트를 REST API로 조회해 정리. 새 일감 생성과 내가 등록한 일감의 수정·코멘트까지 (미리보기 승인 후 전송) |
 | `redmine-patch-issue` | eCoDY 패치 정리 페이지 하나를 읽어 SWP Delivery_Patch 적용용 Redmine **작업 지시서** 일감을 조립 — 작업 시간 순서의 목차, 단계마다 함정·완료 조건, 추측 대신 확인 방법 (미리보기 승인 후 전송, 사내망 전용) |
