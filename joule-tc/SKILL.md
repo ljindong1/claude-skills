@@ -37,8 +37,15 @@ description: 제어기 평가 TC(테스트 케이스)의 정본인 **TC 카탈�
   설정 구조 / **빠짐**. 셋째 쪽으로 밀어 넣어 숫자를 올리지 않는다 (절차 E).
 - **보드에 보내는 일은 이 스킬에 없다.** TC 를 만들었으면 실행은 can-bench-setup 으로 넘긴다.
 - **저장소 파일을 고치면 바뀌는 내용을 보여 주고 확인받는다.** 커밋·푸시는 사용자 확인 뒤에만 한다.
-- **테스트는 좁게.** 고치는 동안과 커밋까지는 덮는 파일만 (`uv run --directory <Joule> pytest tests/test_tc_catalog.py tests/test_tc_golden.py -q`).
-  전체(약 4분)는 푸시 직전 한 번이다.
+- **테스트는 좁게.** 고치는 동안과 커밋까지는 덮는 파일만 돌린다. **TC 를 새로 만들거나 제목·설명 글을
+  고쳤으면 묶음이 넷이다** - `test_tc_catalog`·`test_tc_coverage`·`test_tc_golden` 에 **`test_tc_text` 를 더한다**
+  (그 파일이 제목·설명 글 규칙을 본다. 2026-11-20 에 두 세션이 똑같이 빼먹어 전체 회차에서 떨어졌다).
+
+  ```powershell
+  uv run --directory <Joule> pytest tests/test_tc_catalog.py tests/test_tc_coverage.py tests/test_tc_golden.py tests/test_tc_text.py -q
+  ```
+
+  그 넷이 약 2분이고 **전체는 8~10분**이다 (2026-11-20 실측 467초·592초). 전체는 푸시 직전 한 번이다.
 - 한국어로 보고한다. 화면·로그 문자열에 cp949 에 없는 문자를 쓰지 않는다.
 
 ## A. 이번 회차에 돌릴 TC 고르기
