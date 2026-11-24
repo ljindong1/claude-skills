@@ -202,13 +202,11 @@ title = "Tester 유선 4케이스를 한 번 실행으로 (A1·A2·B1·B2)"
    **읽기만 하고 고치지는 않는다** (PC 전체에 영향). 시험을 위해 바꿨으면 **끝나고 되돌린다**.
 4. **복사 원본(`TC_TAR_*`)은 사용자가 웹 화면에서 지운다 - Claude 는 지우지 않는다** (2026-11-24 사용자 결정).
    지우는 때는 **당사 TC 를 다 만들고 `tester-tc` base 대조를 통과한 뒤**다.
-   **다만 웹 화면의 삭제는 지금 먹지 않는다** (2026-11-24 확인. 화면에서 지우면 사라져 보이는데
-   **새로 고치면 되살아나고** 파일은 처음부터 그대로였다 - `Testcases\<id>\TC_TAR_*.json` 넷과
-   `CLI\cli_config.json` 의 12줄. `PUT /ruledatabase` 가 200 을 주고도 파일을 안 바꾸는 것과 같은 꼴이다).
+   **`tester-project` 로 만든 프로젝트는 그 삭제가 막혀 있다** - 아래 "저장이 `0x10000001` 로 막힌다" 를
+   먼저 푼다 (2026-11-24 HE1i. 넷을 그렇게 지웠다).
    **디스크가 정본이다** - `run` 과 `tester-tc` 가 읽는 것이 그것이고 화면은 증거가 아니다.
-   그러니 **지워지지 않으면 그대로 둔다** - 회차가 부르는 것은 `TC_MB_*` 뿐이라 돌리는 데 영향이 없다.
-   파일로 지우는 것(서비스 멈춤 -> 폴더·`cli_config.json` 손질 -> 재시작)은 **하지 않는다**: 얻는 것이
-   없고 `tester-tc --replace` 길만 닫힌다.
+   그러니 **지운 뒤에는 파일로 센다**: `Testcases\<id>\TC_*.json` 과 `CLI\cli_config.json` 의 줄 수
+   (`joule-hota projects` 가 "당사 n · 공식 m" 으로 찍어 준다).
    Claude 몫은 둘이다 - 지우기 전에 **`Testcases\<id>\` 백업**과 **"다시 만들 일이 남았는지"** 를 짚어 주는 것.
    까닭 셋: joule 에 그 명령이 없어(REST `DELETE /testcase/...` 는 로그인 토큰을 요구한다) 임시 스크립트를
    쓰게 되고 · 웹 화면은 `Testcases\` 와 `CLI\cli_config.json` 을 함께 정리하고 · **지운 뒤에는
@@ -234,6 +232,7 @@ title = "Tester 유선 4케이스를 한 번 실행으로 (A1·A2·B1·B2)"
 | 내림 차단 TC 인데 활성화가 **성공**한다 | TC 가 아니라 차례다 - `tester-tc` 를 낱개로 돌리면 그 TC 가 **뒤에 붙어** 묶음의 보드 상태 사슬이 깨진다. 올린 것이 내림이 아니라 같은 버전이 된다 (2026-11-24 HE1i A2). **묶음 전에 이름 없이 `tester-tc --replace` 를 돌려 차례를 맞추고 `TC 차례:` 줄을 읽는다** |
 | `31 01 02 13` 이 `7F 31 13 incorrectMessageLength` | `TC_TAR_207` 의 활성화 노드만 `routineControlOptionRecord=""` 다 (**벤더 공식 TC 쪽 결함** - 프로젝트의 TC 열둘 가운데 그 하나뿐이고 201·501·504 는 `0x00F1B1`). 복사본에서 `{ node = "routineControl", index = 1, routineControlOptionRecord = "0x00F1B1" }` 로 메운다. 같은 블록의 `0x0300`·`0x0211` 은 비어 있는 것이 정상이다 |
 | `set` 으로 rx 아닌 것을 고치고 싶다 | 된다 - 고정 칸 셋(`block`·`node`·`index`) 밖의 키는 **그 태그의 속성**이 된다. `routineControl`·`securityAccess`·`transferData` 를 같은 길로 고친다 |
+| 웹 화면 저장이 `0x10000001 ... (Source Version)` 으로 막힌다 | **`tester-project`(REST)로 만든 프로젝트는 `sourceVersion` 이 비어 있다** - 올린 펌웨어에서 `targetVersion` 만 채운다. 저장할 때 일반 설정 검사가 걸려 **저장이 통째로 거절되므로 TC 삭제도 설정 저장도 안 들어간다** (화면에서는 사라져 보였다가 새로 고치면 되살아난다. 그 칸을 채우는 저장도 같은 경로라 화면으로는 못 푼다). 푸는 법: `VehicleInfo\vehicleInfo.json` 의 `ecuInfo.versionInfo.versionScenarios.sourceVersion` 을 하위 버전으로 채우고(백업 먼저, BOM 없는 UTF-8 로 그 문자열만 치환) **WebApi 를 끈다** - 서비스가 1분쯤 뒤 다시 띄우며 디스크를 다시 읽는다. 웹 화면에서 만든 프로젝트에는 이 칸이 차 있어 이 일이 없다 (`web_config.json` 이 있는지로도 갈린다 - REST 로 만든 쪽에는 없다) |
 | `-status` 가 `Running` 인데 시험이 도는지 모르겠다 | `-status` 는 **서버 프로세스만** 본다. 그리고 회차를 중간에 끊어 `-stop` 을 건너뛰면 서버가 "이미 테스트가 진행 중" 으로 거절하고 엔진이 `test/streamJson` 을 뿜으며 남는다 (`call TesterConsole stop` 이 200 을 줘도 MQTT 만 끊는다). 서비스 재시작으로만 되살아난다 - **그래서 도는 회차를 끊지 않는다** (백그라운드로 띄우고 기다린다) |
 | 시간 초과 뒤 뒤 케이스가 `Tx transmission failed` | `-stop` 뒤 서버가 실제로 멈추기를 기다려야 한다 (joule 이 한다). `timeout_s` 를 넉넉히 |
 | TEST 빌드 보드에서 공식 정보 TC 가 실패 | 공식 TC 는 일반 빌드 부품번호를 기대한다 (`expect=[...000] recv=[...TEST0]`) |
