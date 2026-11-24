@@ -212,7 +212,15 @@ title = "Tester 유선 4케이스를 한 번 실행으로 (A1·A2·B1·B2)"
    쓰게 되고 · 웹 화면은 `Testcases\` 와 `CLI\cli_config.json` 을 함께 정리하고 · **지운 뒤에는
    `tester-tc --replace` 가 base 를 못 찾아 당사 TC 를 다시 만들 수 없으므로** 그 시점 판단(bin 이 최종인가,
    서명본이 또 올 일정인가)이 사람 몫이다. 만들어 둔 TC 는 블록을 자기 안에 갖고 있어 **원본이 없어도 돈다**
-   (회차에 끼지도 않는다 - 묶음이 부르는 것은 `TC_MB_*` 뿐이다). 되찍는 길은 웹 "자동 생성(Test Case)" 이고
+   (회차에 끼지도 않는다 - 묶음이 부르는 것은 `TC_MB_*` 뿐이다).
+   **되찾는 길은 롬패키지로 새 프로젝트를 만드는 것 하나다** (`tester-project`). 2026-11-24 에 서버 REST 를
+   전수로 봤다 - 공식 TC 를 만드는 것은 `POST /firmware/upload` -> `POST /firmware/project/from-firmware`
+   둘뿐이고 뒤쪽은 받는 값에 **`configId` 가 없어 언제나 새 프로젝트를 만든다.** 웹 화면도 같은 둘을 부르므로
+   (`wwwroot` 번들의 `firmwareUploadPost`·`firmwareProjectFromFirmwarePost`) **"웹 자동 생성으로 지금
+   프로젝트에 되찍는" 길은 없다** (전에 이 자리에 그렇게 적혀 있었다 - 틀렸다). 기존 프로젝트에 TC 를 넣는
+   REST 는 `POST /testcase/{configId}`(빈 TC) + `POST /block/...`(블록 하나씩)뿐이라 **넣을 블록을 가진
+   쪽만** 쓸 수 있고 그것이 `tester-tc` 다. 되찾은 뒤에는 `config_dir` 을 새 폴더로 바꾸고 거기서
+   `tester-tc` 로 당사 TC 를 다시 만든다 - 전부 명령으로 되고 사람 손은 안 든다.
    지웠으면 그 복구 절차를 계획 파일 주석에 남긴다.
 5. 서버가 `0x10012703` 로 멈추면 네트워크 주소가 바뀐 것이다 - 옛 WebApi·mosquitto 를 끄고 서비스를 다시 시작하고
    REST(7047)가 열리기까지 30초쯤 기다린다.
