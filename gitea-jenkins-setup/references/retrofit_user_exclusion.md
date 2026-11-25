@@ -90,13 +90,17 @@ url · BranchSpec · command · BuildType · disabled   (전부 유지)
 
 ## 2026-11-25 적용 현황 (jdlee Job 6개)
 
-| Job | 폴링 | 사용자 제외 | 저장소 `GitPush.bat` |
-| --- | --- | --- | --- |
-| HE1i_PSU_AUTOSAR_jdlee | **해제** | `jenkins` | `tglee/psu_master` — 수정됨(커밋은 사용자 지시 대기) |
-| HE1i_PSU_FBL_jdlee | 유지 | `jenkins` | `tglee/psu_fbl_master` — **미반영** |
-| NQ6e_PSU_AUTOSAR_jdlee | 유지 | `jenkins` | `tglee/psu_master` (같은 저장소, 다른 브랜치) |
-| NQ6e_PSU_FBL_jdlee | 유지 | `jenkins` | `tglee/psu_fbl_master` — **미반영** |
-| LT2_TPMS_AUTOSAR_jdlee | 유지 | `jenkins` | `Kahuz/tpms_rf_receiver_bj` — **미반영** |
-| LT2_TPMS_FBL_jdlee | 유지 | `jenkins` | `Kahuz/tpms_rf_receiver_bj_fbl` — **미반영** |
+Job 쪽 사용자 제외 필터는 6개 모두 들어갔다. 저장소 쪽은 **브랜치 단위**로 봐야 한다 — bat 은 브랜치에 들어 있으므로 같은 저장소라도 작업 브랜치마다 고쳐야 한다. 저장소 수로 세면 틀린다.
 
-미반영 저장소는 그 과제를 작업할 때 두 줄을 고친다. 그 전까지 해당 Job 은 **1겹**이다.
+| Job | 폴링 | 사용자 제외 | 그 Job 이 보는 브랜치의 `GitPush.bat` |
+| --- | --- | --- | --- |
+| HE1i_PSU_AUTOSAR_jdlee | **해제** | `jenkins` | `tglee/psu_master` @ `devel_HE1i_jdlee_R44_DeliveryPatch` — **반영 완료**(1d2c62b39) |
+| NQ6e_PSU_AUTOSAR_jdlee | 유지 | `jenkins` | `tglee/psu_master` @ `devel_NQ6e_jdlee_candb_v26.08.01` — 미반영 |
+| HE1i_PSU_FBL_jdlee | 유지 | `jenkins` | `tglee/psu_fbl_master` @ `devel_HE1i_jdlee_FBL_patch_Update` — 미반영 |
+| NQ6e_PSU_FBL_jdlee | 유지 | `jenkins` | `tglee/psu_fbl_master` @ `devel_NQ6e_jdlee_swp_v3.0.19` — 미반영 |
+| LT2_TPMS_AUTOSAR_jdlee | 유지 | `jenkins` | `Kahuz/tpms_rf_receiver_bj` @ `devel_LT2_jdlee_p2_R44_DeliveryPatch` — 미반영 |
+| LT2_TPMS_FBL_jdlee | 유지 | `jenkins` | `Kahuz/tpms_rf_receiver_bj_fbl` @ `devel_LT2_jdlee_p1_R44_DeliveryPatch` — 미반영 |
+
+미반영 브랜치 5개는 그 과제를 작업할 때 두 줄을 고친다. 그 전까지 해당 Job 은 **1겹**이다. `psu_fbl` 과 TPMS 는 프로젝트 폴더 이름이 달라 bat 경로도 다르다(`psu_fbl/Build/`, 저장소 루트의 `Build/`).
+
+⚠️ **반영은 빌드가 한 번 돌아야 발효된다.** Jenkins 는 원격 브랜치를 체크아웃하므로, bat 을 push 한 뒤 그 Job 이 한 번 빌드해야 비로소 `jenkins` 이름으로 커밋이 올라가고 사용자 필터가 실제로 걸린다.
