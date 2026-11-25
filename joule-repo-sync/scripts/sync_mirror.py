@@ -27,7 +27,11 @@ MIRROR_REMOTE = "origin"            # 개인 GitHub
 MIRROR_REMOTE_BRANCH = "main"
 LAST_SYNC_REF = "refs/sync/company-main"
 
-EXCLUDE = ["*.dbc"]                 # 사본에서 빼는 것 (git pathspec)
+# 사본에서 빼는 것 (git pathspec).
+# *.dbc = 차종 표준 DB (고객사 자료).
+# HAE_ASK = 시드-키 DLL·설명서. 2026-11-25 에 사내 저장소로 들어왔는데 (사내에서만
+# 운영되는 저장소라 사용자 결정) 개인 GitHub 계정은 회사 밖이라 여기서 떨어낸다.
+EXCLUDE = ["*.dbc", "HAE_ASK"]
 TRAILER = "Mirror-Of"
 
 # 사본 커밋의 작성자·커밋터를 개인 계정으로 적는다 (날짜·메시지는 회사 것 그대로).
@@ -44,19 +48,22 @@ README_BLOCK = """## 이 저장소에 대하여
 사내 Gitea 저장소 `asec_autotest_tool` 의 개인 백업 사본이다.
 개발은 사내 저장소에서 하고, 이 사본은 커밋 단위로 덧붙이기만 한다 (회사 -> 개인 단방향).
 
-- 빠진 것: 차종 표준 DB `*.dbc`. 고객사 자료라 사내 저장소에만 둔다.
+- 빠진 것 하나: 차종 표준 DB `*.dbc`. 고객사 자료라 사내 저장소에만 둔다.
   설정이 가리키는 `can_db/<차종>/` 에 DBC 를 채우면 검증 명령이 돈다.
+- 빠진 것 둘: 시드-키 `HAE_ASK/`. 벤더가 준 보안 접근 DLL·설명서라 사내 저장소에만 둔다.
+  리프로그래밍 명령은 그것이 없으면 보안 접근에서 멈춘다.
 - 각 커밋 끝의 `Mirror-Of:` 가 대응하는 사내 저장소 커밋이다.
 """
 
 GITIGNORE_BLOCK = """# 개인 백업 사본에서 빼는 것 - 사내 저장소에만 둔다
 *.dbc
+HAE_ASK/
 """
 
 OVERLAYS = {"README.md": README_BLOCK, ".gitignore": GITIGNORE_BLOCK}
 
 PRE_PUSH_HOOK = """#!/bin/sh
-# joule-repo-sync 안전망: 개인 GitHub 로 차종 DBC 가 나가는 것을 막는다.
+# joule-repo-sync 안전망: 개인 GitHub 로 차종 DBC·시드-키가 나가는 것을 막는다.
 case "$2" in
   *github*) ;;
   *) exit 0 ;;
@@ -65,9 +72,10 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   case "$local_sha" in
     0000000000000000000000000000000000000000) continue ;;
   esac
-  hits=$(git ls-tree -r --name-only "$local_sha" | grep -i "\\.dbc$" | head -5)
+  hits=$(git ls-tree -r --name-only "$local_sha" \\
+         | grep -iE "\\.dbc$|^HAE_ASK/" | head -5)
   if [ -n "$hits" ]; then
-    echo "pre-push 거부: $local_ref 에 차종 DBC 가 들어 있다." >&2
+    echo "pre-push 거부: $local_ref 에 사내 전용 자료가 들어 있다 (DBC 또는 HAE_ASK)." >&2
     echo "$hits" >&2
     exit 1
   fi
@@ -539,7 +547,7 @@ def cmd_verify(a):
                 mtip, ref).splitlines()
     unexpected = [ln for ln in rows
                   if ln.split("\t")[-1] not in OVERLAYS and ln.split("\t")[-1] not in ex]
-    print("  빠진 DBC %d 개, 안내를 덧붙인 파일 %d 개" % (len(ex), len(OVERLAYS)))
+    print("  빠진 사내 전용 파일 %d 개, 안내를 덧붙인 파일 %d 개" % (len(ex), len(OVERLAYS)))
     rc = 0
     if unexpected:
         print("  [경고] 설명되지 않는 차이 %d 건:" % len(unexpected))
@@ -549,12 +557,12 @@ def cmd_verify(a):
     else:
         print("  그 밖의 차이 없음 - 사본 내용이 회사 저장소와 같다.")
     bad = [n for n in gits(a.work, "ls-tree", "-r", "--name-only", mtip).splitlines()
-           if n.lower().endswith(".dbc")]
+           if n.lower().endswith(".dbc") or n.startswith("HAE_ASK/")]
     if bad:
-        print("  [경고] 사본에 DBC 가 남아 있다: %s" % ", ".join(bad))
+        print("  [경고] 사본에 사내 전용 자료가 남아 있다: %s" % ", ".join(bad))
         rc = 1
     else:
-        print("  사본에 .dbc 없음 확인.")
+        print("  사본에 .dbc · HAE_ASK/ 없음 확인.")
     return rc
 
 
