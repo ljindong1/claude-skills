@@ -8,7 +8,10 @@ rem  Edit     : [USER] section only
 rem ==========================================================================
 setlocal EnableExtensions EnableDelayedExpansion
 
-rem ---- [USER] commit author : edit per user ---------------------------------
+rem ---- [USER] commit author : Jenkins-only identity (never a person) -------
+rem  Must differ from any developer identity. The Jenkins Job also filters
+rem  polling by this author name ("Polling ignores commits from certain
+rem  users"), which is the second guard against build-commit feedback loops.
 set "COMMIT_NAME=<Gitea display name>"
 set "COMMIT_EMAIL=<company email>"
 

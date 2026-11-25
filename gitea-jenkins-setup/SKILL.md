@@ -9,6 +9,8 @@ description: 사내 Gitea 저장소로 Jenkins 자동 빌드 환경을 구축하
 
 HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실수(제외 필터 앞 공백·`(?s)` 누락으로 인한 연속 빌드, bat 줄바꿈 깨짐, 권한 누락)를 없애는 것이 목적이다. 값은 skill이 직접 넣고, 넣은 뒤 다시 읽어 확인한다.
 
+2026-11 에는 **필터가 정확히 걸려 있는데도** 사람 커밋 없이 빌드·커밋이 4번 생겼다. 그래서 안전장치를 두 겹으로 두고 빌드 기록을 보존한다 — 5단계의 ⚠️ **자기 커밋 루프** 참고.
+
 ## 절대 규칙
 
 1. **Claude Code CLI 전용.** 사용자 PC에서 실행 중이 아니면(웹·Cowork 샌드박스) 사내 주소에 닿지 않는다. 그 경우 "Claude Code CLI에서 실행해 달라"고 안내하고 멈춘다.
@@ -35,6 +37,7 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
 - `references/troubleshooting.md` — 실패·conflict 대응
 - `references/migrate_to_shared_fork.md` — 개인 Fork → 공유 Fork 이전 (요청 시에만)
 - `references/pr_assembly.md` — 모드 D: PR 브랜치 구성(넣을 것·뺄 것), 명령 골격, 검증, push·PR 생성, 함정
+- `references/retrofit_user_exclusion.md` — **이미 만들어진 Job**에 2겹 방어를 넣거나 폴링을 끄는 절차 (요청 시에만). `config.xml` POST 가 막힌 계정에서 설정 화면으로 바꾸는 검증된 방법
 
 ## 실행 위치
 
@@ -179,7 +182,8 @@ A 묶음(원본 저장소)이 정해지면 바로 진행한다.
 | 조회 | `job-info --name <Job> --ref-job <참고 Job>` → Job 존재, 뷰 목록, 인증정보 ID 후보 |
 | 뷰 | 뷰 목록에서 선택 (예: `PSU`), 없으면 뷰 없이 생성 |
 | 참고 Job (인증정보 ID용) | 기본 `ASEC_BJ1_PSU`. 읽기만 한다. 후보가 1개면 그 값, 여럿·0개면 사용자에게 확인. 사내 `build` 계정 인증정보 ID 확인값: `4c818a67-cf87-405f-a290-c24aae743ac9` (2026-09 기준) |
-| 커밋 작성자 | 이름 제안: 로그인 ID. 이메일: 사용자 입력. **영문·숫자·기호만**(한글은 Jenkins 콘솔에서 깨짐) |
+| Jenkins 커밋 신원 | **묻지 않는다 — `jenkins` 고정** (이메일은 `jenkins@<사용자 이메일 도메인>`). `GitPush.bat` 의 `COMMIT_NAME` 에 박히고 Job 의 사용자 제외 필터와 짝이다. **사람 ID 를 쓰면 2겹을 만들 수 없다**(아래 ⚠️) |
+| 설정 커밋 작성자 | bat 추가 커밋에 남길 **사람** 이름·이메일. 이름 제안: 로그인 ID. 이메일: 사용자 입력. **영문·숫자·기호만**(한글은 Jenkins 콘솔에서 깨짐) |
 | Job 설명 | 제안: 모드 A·B `<차종> <제어기> <작업주제> - <로그인ID> Fork 빌드`, 모드 C `<차종> <제어기> <APP\|FBL> - <공유 Fork> 작업 브랜치(devel_<차종>_<ID>_*) 빌드` |
 
 Job이 이미 있으면(`exists: true`) 입력 단계에서 알리고, 이름을 바꿀지 사용자에게 묻는다(기존 Job은 수정하지 않는다). **Jenkins 는 대소문자만 다른 이름을 같은 이름으로 본다**(Windows 서버) — `HE1I_PSU_FBL_jdlee` 가 있으면 `HE1i_PSU_FBL_jdlee` 도 `exists` 로 나온다.
@@ -196,7 +200,8 @@ Fork           jdlee/psu_master (개인)
 공동작업자      build(쓰기) [+ 추가 인원]
 로컬 경로       D:\Mobase\psu_master (CLI 위치: <cwd>)
 작업 브랜치     devel_HE1i_jdlee_dev_R44_DeliveryPatch
-커밋 작성자     jdlee / jdlee@…
+Jenkins 신원    jenkins / jenkins@…        ← GitPush.bat (폴링 제외 대상)
+설정 커밋       jdlee / jdlee@…             ← bat 추가 커밋
 Jenkins Job    HE1i_PSU_AUTOSAR_jdlee (뷰 PSU, 비활성 생성)
 진행 방식       Gitea: API|Chrome, Jenkins: API|Chrome
 ```
@@ -278,7 +283,7 @@ python gjsetup.py detect-project --path <target>
 ## 4. 표준 배치 파일
 
 ```
-python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name <작업 브랜치> --model <차종> --commit-name <이름> --email <이메일>
+python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name <작업 브랜치> --model <차종> --commit-name jenkins --email jenkins@<도메인> --author-name <사람 이름> --author-email <사람 이메일>
 ```
 
 `<프로젝트 폴더>\Build\`에 **6개**를 넣고 한 번에 커밋·push한다.
@@ -286,7 +291,7 @@ python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name
 | 파일 | 출처 | 역할 |
 | --- | --- | --- |
 | `Build_Hook_GIT_ASEC.bat` | `assets` 바이트 그대로 | 랩 표준 훅. **수정하지 않는다.** 전용 훅이 없는 브랜치를 위한 fallback |
-| `GitPush.bat` | `assets` + `[USER]` 2줄 치환 | 빌드 결과물 자동 커밋·push |
+| `GitPush.bat` | `assets` + `[USER]` 2줄 치환 | 빌드 결과물 자동 커밋·push. **신원은 `jenkins` 고정** — Job 의 사용자 제외 필터와 짝이고, 사람 ID 면 그 필터를 못 쓴다(5단계 ⚠️) |
 | `Build_Hook_<차종>.bat` | 표준 훅에서 생성 | ⭐ **Job이 실제로 부르는 훅.** 표준 훅 + **0-0) 패키징 선언 블록**(산출물을 `Debug` 아래 어디에 담을지) + **서브모듈 체크아웃 블록(0단계)** + `PostPackage` 호출 블록 + `ALL` 분기·push 블록. **수정 허용** — 과제에서 선언 줄을 직접 고쳐도 된다 |
 | `PostPackage.bat` | `assets` 바이트 그대로 | `Build_all.bat`의 `[Post-build] Archiving` 블록 기반. **과제 분기가 없다** — `Debug` 를 기준으로 산출물을 모으고(`.sre` 최신), 어디에 담을지는 전용 훅의 **0-0) 선언**이 정한다(2축: 변종·버전, `.` 은 그 축 꺼짐). `rom_<버전폴더>\`·`.zip`(aSIMS 서명 입력)을 만들고, `.s19` 가 없으면(FBL) 생략한다. 해석 실패 시 조용히 건너뛰지 않고 산출물 이름의 버전 토큰으로 되돌아가며 WARNING 을 찍는다. 📐·📁 절 참고 |
 | `BuildVariants.bat` | `assets` 바이트 그대로 | `JENKINS_BUILD_TARGET ALL`일 때 빌드 1회 안에서 가능한 조합(APP 4개, FBL 2개)을 차례로 빌드·패키징 |
@@ -443,7 +448,7 @@ python gjsetup.py add-bat --path <target> --project <프로젝트 폴더> --name
 >
 > ⚠️ **개발자 계정의 404 를 근거로 "권한이 없어 불가능"이라고 결론내지 말 것.** `build` 계정은 개발자와 다른 계정이고, 사내 조직(`git`) 저장소를 읽을 수 있다. 실측 — 같은 서브모듈 저장소가 `jdlee` 토큰으로는 `Repository not found`(404)였는데 `build` 계정은 clone 에 성공해 빌드가 통과했다(APP 빌드 #2, SUCCESS). 읽을 수 없다고 미리 단정하지 말고 **훅을 넣고 한 번 돌려서 확인한다.**
 >
-> Job 설정으로 켜는 방법(SCM → Additional Behaviours → `Advanced sub-modules behaviours` → recursive + parent credentials)도 있지만, **이 스킬은 기존 Job 을 수정하지 않는다.** 덧붙여 `config.xml` POST 는 수정하지 않은 원본을 그대로 올려도 HTTP 500 이 난다(2026-11-09 실측) — 일반 계정은 Job 설정 쓰기가 막혀 있다. 사용자가 직접 화면에서 켜야 한다.
+> Job 설정으로 켜는 방법(SCM → Additional Behaviours → `Advanced sub-modules behaviours` → recursive + parent credentials)도 있지만, **이 스킬은 기존 Job 을 수정하지 않는다.** 덧붙여 `config.xml` POST 는 수정하지 않은 원본을 그대로 올려도 HTTP 500 이 난다(2026-11-09·2026-11-25 실측) — 일반 계정은 Job 설정 쓰기가 막혀 있다. 다만 **설정 화면(`/job/<Job>/configure`) 경로는 동작한다** — 사용자가 요청하면 그 절차로 켤 수 있다(`references/retrofit_user_exclusion.md`, 2026-11-25 Job 6개 검증).
 >
 > 결과물 커밋에는 서브모듈 소스가 들어가지 않는다(저장소에는 포인터만 기록된다). `Debug\` 아래에 생기는 서브모듈 오브젝트 파일(`.o`·`.dbo`)은 중간 산출물이라 모드 D 가 PR 에서 걸러낸다.
 
@@ -493,9 +498,23 @@ python gjsetup.py job-create --name <Job> --xml <임시폴더>\<Job>.xml [--view
 | Repository URL · Credentials | Fork 주소 · `build` 인증정보 | |
 | Branch Specifier | `*/devel_<차종>_<ID>_*` | 같은 사람의 작업 브랜치를 한 Job으로. `GitPush.bat`이 브랜치를 자동으로 따라감 |
 | 제외 메시지 필터 | `(?s).*Auto commit from Jenkins.*` | 결과물 커밋에 반응한 연속 빌드 방지. `(?s)`는 메시지 끝 줄바꿈 대응 |
+| **제외 사용자 필터** | `jenkins` (`GitPush.bat` 의 `COMMIT_NAME` 과 같은 값) | 2겹째. 메시지 필터가 풀려도 막는다. 값은 **작성자 이름**이고 이메일이 아니다 |
+| **빌드 기록 보존** | 30개 (`BuildDiscarderProperty`) | 재발 시 원인을 잡을 증거. 2개만 남아 2026-11 원인을 확정하지 못했다 |
 | Poll SCM | `* * * * *` | push 후 1분 안에 빌드 |
 | 빌드 명령 | `if exist` 분기 — 전용 훅 `<프로젝트 폴더>\Build\Build_Hook_<차종>.bat`이 있으면 그것을, 없으면 표준 훅을 호출 | 전용 훅이 없는 브랜치가 같은 Job에 걸려도 빌드가 깨지지 않게 |
 | 서브모듈 · 빌드 후 조치 · 동시 빌드 | 없음 · 없음 · 끔 | |
+
+> ⚠️ **자기 커밋 루프 — 안전장치는 두 겹이어야 한다 (2026-11-25 HE1i APP 실측)**
+>
+> 빌드가 산출물을 **폴링 대상과 같은 브랜치**에 커밋·push 한다. 빌드는 자기가 체크아웃한 리비전까지만 "여기까지 빌드함"으로 기록하고 **그 뒤에** 새 커밋을 올리므로, 빌드가 끝난 순간부터 저장소에는 **Jenkins 가 아직 빌드하지 않은 커밋 1개**가 영구히 남는다. 폴링 범위에 **장전된 커밋이 상시 1개** 있고, 제외 필터가 그것을 매번 붙잡아 주는 구조다.
+>
+> 필터가 한 번 풀리면 즉시 빌드 → 새 커밋 → 다시 장전이다. HE1i APP 에서 2026-11-13~11-21 에 네 번 풀려 **사람 커밋 없이** 빌드·커밋 4개(#42~#45)가 생겼다. 증거: #44 는 기준 `883b55274`(#42 커밋)/체크아웃 `8ccf6c872`(#43 커밋), #45 는 기준 `8ccf6c872`/체크아웃 `743400973`(#44 커밋) — 매번 직전 자동 커밋을 빌드했다.
+>
+> 배제한 원인: 저장소 push(19개 브랜치 전체에서 그 기간 커밋은 Jenkins 자동 커밋 4개뿐), 웹훅·태그(각 0개), Jenkins 재시작(가동 19.7일 무중단), 에이전트 끊김(큐 대기 9초, 같은 시각 다른 Job 빌드 0건), 워크스페이스 손상(`Fetching`, 클론 아님). **왜 풀렸는지는 미확정** — 폴링 로그는 1분마다 덮어써지고 빌드 기록이 2개만 남아 당시 증거가 사라졌다. 그래서 기록 보존을 30개로 둔다.
+>
+> ⚠️ **커밋 신원을 사람 ID 로 두면 2겹을 만들 수 없다.** 2026-11 이전 `GitPush.bat` 은 `jdlee <jdlee@mobaseasec.com>` 로 커밋해서, 사용자 제외 필터를 걸면 **본인 커밋까지 무시**됐다. 그래서 신원은 `jenkins` 로 고정하고 **bat 추가 커밋만 사람 이름**(`--author-name`)으로 남긴다 — 그 커밋까지 무시되면 첫 빌드가 돌지 않는다.
+>
+> 연료(매 빌드 커밋) 자체를 없애는 것은 이 스킬의 선택이 아니다. 산출물 전부 push 가 현재 방침이고, 매 빌드마다 바뀌는 것은 로그만이 아니라 `.elf`·`.hex`·`.map`·`.s19`·`rom_*.zip` 까지다(빌드 시각이 바이너리에 박힌다 — 로그만 `.gitignore` 해도 커밋은 계속 생긴다). 루프를 **구조적으로** 끊어야 하면 산출물을 폴링하지 않는 브랜치로 보내거나(`GitPush.bat` 의 `PUSH_BRANCH` + Branch Specifier 를 와일드카드가 아닌 정확한 이름으로) 폴링을 끈다. 이미 만들어진 Job 에 적용하는 절차는 `references/retrofit_user_exclusion.md`.
 
 `job-create` 결과가 `conflict`면 기존 Job은 수정하지 않고 중단한다. HTTP 오류는 `detail`을 보여주고 `troubleshooting.md` Jenkins 표를 따른다.
 
@@ -507,7 +526,7 @@ python gjsetup.py collab --repo <소유자>/<repo> --user build   # exists / wri
 python gjsetup.py job-verify --name <Job> --repo-url <…> --branch-spec "<…>" --project <…> --model <차종> --user <Jenkins ID>
 ```
 
-`job-verify`의 `checks`가 모두 true여야 한다. 특히 `exclusion_exact`(필터가 정확히 일치, 공백 없음). false 항목이 있으면 **수정하지 않고** 사용자에게 보고한다(skill이 방금 만든 Job이므로 원인은 템플릿·플러그인 형식 차이일 가능성이 크다).
+`job-verify`의 `checks`가 모두 true여야 한다. 특히 `exclusion_exact`(메시지 필터가 정확히 일치, 공백 없음)와 `user_exclusion`(사용자 필터 = `GitPush.bat` 의 `COMMIT_NAME`) — 이 둘이 2겹 방어다. `build_discarder`(기록 30개)도 함께 본다. false 항목이 있으면 **수정하지 않고** 사용자에게 보고한다(skill이 방금 만든 Job이므로 원인은 템플릿·플러그인 형식 차이일 가능성이 크다).
 
 ### 최종 보고 형식
 
@@ -521,7 +540,7 @@ python gjsetup.py job-verify --name <Job> --repo-url <…> --branch-spec "<…>"
 | 3. Clone·브랜치 | … | <로컬 경로>, <작업 브랜치> (<커밋>) |
 | 4. 표준 bat | … | <프로젝트>\Build\ 6개, 커밋 <해시>, 빌드 대상 <CURRENT/ALL/define 없음> |
 | 5. Job | ✅ 생성 / ♻️ 재사용 | <Job> (뷰 <뷰>, 비활성) 또는 <Job> 재사용 — 만들지 않음 |
-| 6. 검증 | ✅ 8/8 | 필터·URL·브랜치·명령·권한·매개변수 |
+| 6. 검증 | ✅ 10/10 | 메시지 필터·**사용자 필터**·**기록 보존**·URL·브랜치·명령·권한·매개변수 |
 
 경고: <서브모듈 실패 등>
 Jenkins: <JENKINS_URL>/job/<Job>/
@@ -534,6 +553,7 @@ Jenkins: <JENKINS_URL>/job/<Job>/
 - 예 → `python gjsetup.py job-enable --name <Job>` 후, 첫 빌드 확인 방법만 안내한다(이 skill은 빌드 결과 판정을 하지 않는다):
   - Console Output에서 `[HOOK] Build/Git Push/Final ERROR LEVEL : 0` → `Finished: SUCCESS`
   - 빌드 종료 후 2~3분 동안 결과물 커밋에 반응한 추가 빌드가 **생기지 않는지**
+  - 며칠 뒤 **사람 커밋 없이** 빌드가 돌아 있으면 자기 커밋 루프다(5단계 ⚠️). 폴링 기록은 1분마다 덮어써지므로 그때 바로 `Git Polling Log` 를 보고 `Failed to determine if we want to exclude ...` 가 있는지 확인한다
   - **산출물이 규정 폴더에 생겼는지** — FBL은 `Debug\OEUK_<차종>\`. `Debug\` 바로 아래 평면으로 생겼거나 콘솔에 `[PostPackage] ... Skipping.` 이 있으면 패키징이 빠진 것이다(빌드는 `SUCCESS` 로 뜨므로 결과만 보면 모른다). 위 📐 규정 항목으로 돌아가 `PJ_Define.h` 위치를 확인하고 **사용자에게 보고**한다
   - 결과물 받기: 로컬에서 `git pull`
 - 아니오 → Job 화면의 `프로젝트 활성화` 버튼으로 나중에 켤 수 있다고 안내한다.

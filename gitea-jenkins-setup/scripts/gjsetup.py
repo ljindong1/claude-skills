@@ -70,6 +70,9 @@ from xml.sax.saxutils import escape as xml_escape
 HERE = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.normpath(os.path.join(HERE, "..", "assets"))
 EXCLUSION = "(?s).*Auto commit from Jenkins.*"
+# Jenkins 자동 커밋 전용 신원. 사람 ID 를 쓰면 "특정 사용자 커밋 무시" 필터를
+# 쓸 수 없다(본인 커밋까지 무시된다). 2026-11-25 HE1i 자기 커밋 루프에서 확인.
+PUSH_IDENTITY = "jenkins"
 JOB_PERMS = [
     "hudson.model.Item.Build", "hudson.model.Item.Cancel", "hudson.model.Item.Configure",
     "hudson.model.Item.Read", "hudson.model.Item.Workspace",
@@ -881,7 +884,10 @@ def c_add_bat(a):
     if not pj_info["is_default"]:
         msg += 2 * chr(10) + "PJ_Define.h path for this repository: " + pj_rel
     git(["add", "--"] + rel_all, cwd=root)
-    git(["-c", "user.name=" + a.commit_name, "-c", "user.email=" + a.email,
+    # 설정 커밋은 사람 이름으로 남긴다 - Jenkins 신원(PUSH_IDENTITY)으로 커밋하면
+    # Job 의 사용자 제외 필터가 이 커밋까지 무시해 첫 빌드가 돌지 않는다.
+    git(["-c", "user.name=" + (getattr(a, "author_name", None) or a.commit_name),
+         "-c", "user.email=" + (getattr(a, "author_email", None) or a.email),
          "commit", "-m", msg], cwd=root)
     git(["push", "origin", a.name], cwd=root, auth=True)
     head = git(["rev-parse", "--short", "HEAD"], cwd=root).stdout.strip()
@@ -955,7 +961,8 @@ def c_render_job(a):
     cmd = build_command(a.project, a.model)
     perms = "\n".join("      <permission>USER:%s:%s</permission>" % (p, xml_escape(a.user)) for p in JOB_PERMS)
     vals = {"DESCRIPTION": a.description or "", "PERMISSIONS": perms, "REPO_URL": a.repo_url,
-            "CREDENTIALS_ID": a.cred_id, "BRANCH_SPEC": a.branch_spec, "BUILD_COMMAND": cmd}
+            "CREDENTIALS_ID": a.cred_id, "BRANCH_SPEC": a.branch_spec, "BUILD_COMMAND": cmd,
+            "EXCLUDED_USERS": getattr(a, "excluded_users", None) or PUSH_IDENTITY}
     for k, v in vals.items():
         tpl = tpl.replace("${%s}" % k, v if k == "PERMISSIONS" else xml_escape(v))
     ET.fromstring(tpl.encode("utf-8"))  # well-formed check
@@ -992,6 +999,8 @@ def c_job_verify(a):
         "repo_url": get("url") == [a.repo_url],
         "branch_spec": a.branch_spec in get("name"),
         "exclusion_exact": get("excludedMessage") == [EXCLUSION],
+        "user_exclusion": get("excludedUsers") == [getattr(a, "excluded_users", None) or PUSH_IDENTITY],
+        "build_discarder": get("numToKeep") == ["30"],
         "poll_scm": get("spec") == ["* * * * *"],
         "build_command": [flat(c) for c in get("command")] == [flat(exp_cmd)],
         "param_default_hook": bool(choices) and choices[0] == "Hook",
@@ -1146,17 +1155,24 @@ def main():
                    help="rom_<버전> 에 담을 .s19 파일명. 기본값은 <산출물>.s19")
     p.add_argument("--name", required=True); p.add_argument("--commit-name", required=True)
     p.add_argument("--email", required=True)
+    p.add_argument("--author-name", dest="author_name", default=None,
+                   help="설정 커밋(bat 추가)의 작성자. 기본값은 --commit-name. Jenkins 신원과 "
+                        "달라야 그 커밋이 폴링에서 무시되지 않는다")
+    p.add_argument("--author-email", dest="author_email", default=None)
     p.add_argument("--model", required=True, help="차종 코드 (예: HE1i). 전용 훅 이름에 쓰인다")
     p = sp.add_parser("job-info"); p.add_argument("--name", required=True); p.add_argument("--ref-job")
     p = sp.add_parser("render-job")
     for k in ["--name", "--repo-url", "--branch-spec", "--project", "--user", "--cred-id", "--out", "--model"]:
         p.add_argument(k, required=True)
     p.add_argument("--description", default="")
+    p.add_argument("--excluded-users", dest="excluded_users", default=PUSH_IDENTITY,
+                   help="폴링에서 무시할 커밋 작성자 이름. GitPush.bat 의 COMMIT_NAME 과 같아야 한다")
     p = sp.add_parser("job-create"); p.add_argument("--name", required=True); p.add_argument("--xml", required=True)
     p.add_argument("--view")
     p = sp.add_parser("job-verify")
     for k in ["--name", "--repo-url", "--branch-spec", "--project", "--user", "--model"]:
         p.add_argument(k, required=True)
+    p.add_argument("--excluded-users", dest="excluded_users", default=PUSH_IDENTITY)
     p = sp.add_parser("job-enable"); p.add_argument("--name", required=True)
     p = sp.add_parser("job-match"); p.add_argument("--repo-url", required=True)
     p.add_argument("--branch", required=True)
