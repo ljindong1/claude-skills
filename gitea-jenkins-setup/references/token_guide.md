@@ -2,13 +2,15 @@
 
 토큰이 없어도 skill은 Chrome 모드로 진행할 수 있다. 토큰을 등록하면 더 빠르고 결과 검증이 정확하다.
 
+⚠️ **2026-11 기준 Jenkins 토큰은 사무소(서울)에서 쓸 수 없다.** `wiki...:5151` 앞에 authentik SSO 가 서 있어 토큰이 Jenkins 에 닿지 않는다 — 모든 경로가 302 다. **재발급해도 같다.** Gitea 토큰은 정상이다. 자세한 것은 `jenkins_sso.md`. 아래 3절은 연구소 안에서 직접 주소로 쓸 때, 또는 방화벽이 열린 뒤를 위한 것이다.
+
 ## 1. 등록할 환경변수
 
 | 이름 | 값 (사내 기본) | 비고 |
 | --- | --- | --- |
 | `GITEA_URL` | `http://ccm.mobaseelec.com:3000` | 끝에 `/` 없이 |
 | `GITEA_TOKEN` | Gitea 액세스 토큰 | 아래 2절 |
-| `JENKINS_URL` | `https://wiki.mobaseelec.com:5151` | 끝에 `/` 없이 |
+| `JENKINS_URL` | `https://wiki.mobaseelec.com:5151` | 끝에 `/` 없이. 사내망 직접 주소는 `http://build.mobaseelec.com:8800` (연구소 안에서만 열린다) |
 | `JENKINS_USER` | Jenkins 로그인 ID (예: `jdlee`) | |
 | `JENKINS_TOKEN` | Jenkins API Token | 아래 3절 |
 | `JENKINS_INSECURE` | `1` (선택) | Jenkins HTTPS 인증서 오류가 날 때만 |
@@ -47,3 +49,5 @@ python "<skill 폴더>\scripts\gjsetup.py" preflight
 ```
 
 `mode`가 `{"gitea": "api", "jenkins": "api"}`이면 API 모드로 진행된다.
+
+`jenkins` 가 `chrome` 인데 `jenkins.http` 가 **200 이고 `id` 가 없으면 토큰이 잘못된 것이 아니다** — SSO 프록시가 가로챈 것이다(`jenkins_sso.md`). 토큰을 다시 만들지 말 것.

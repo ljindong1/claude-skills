@@ -33,7 +33,8 @@ HE1I PSU 과제(2026-09)에서 사람이 수작업으로 진행하며 겪은 실
   실행: `python "<이 SKILL.md가 있는 폴더>\scripts\gjsetup.py" <명령> [옵션]`
 - `assets/` — 배포용 파일(CRLF·ASCII), Job XML 템플릿. `Build_Hook_GIT_ASEC.bat`· `GitPush.bat`·`PostPackage.bat`·`BuildVariants.bat`·`PJ_Variant.ps1` 은 **과제 저장소에 바이트 그대로 배포하고 과제에서 고치지 않는다** — 과제별 차이는 전용 훅의 0-0) 선언으로 낸다. asset 자체를 고치는 것은 스킬 개선이므로 가능하지만, **과제 분기를 넣지 말고 선언으로 빼낸다**
 - `references/token_guide.md` — 토큰 발급·등록 (토큰이 없을 때 사용자에게 안내)
-- `references/chrome_mode.md` — 토큰이 없는 시스템을 Chrome으로 처리하는 절차
+- `references/chrome_mode.md` — Chrome 으로 처리하는 절차 (토큰이 없을 때, 그리고 **Jenkins 는 토큰이 있어도**)
+- `references/jenkins_sso.md` — ⚠️ Jenkins 앞단의 SSO 프록시. **2026-11 부터 CLI+토큰으로 Jenkins API 가 안 된다**(토큰 문제 아님). 두 주소의 차이·되살리는 길
 - `references/troubleshooting.md` — 실패·conflict 대응
 - `references/migrate_to_shared_fork.md` — 개인 Fork → 공유 Fork 이전 (요청 시에만)
 - `references/pr_assembly.md` — 모드 D: PR 브랜치 구성(넣을 것·뺄 것), 명령 골격, 검증, push·PR 생성, 함정
@@ -91,9 +92,10 @@ python gjsetup.py preflight
 | `git: false` | git 설치 안내 후 **중단** |
 | `git_identity`의 `user.name`/`user.email`이 false | **중단하지 않는다.** 4단계 커밋은 `--commit-name`/`--email`을 그 커밋에만 적용하므로 진행에 지장이 없다. 다만 사용자가 앞으로 이 PC에서 직접 커밋할 때 걸리므로 보고에 한 줄 남긴다 |
 | `mode.gitea = api`, `mode.jenkins = api` | API 모드 |
+| `mode.jenkins = chrome` 인데 `jenkins.http` 가 **200 이고 `id` 가 없음** | **SSO 프록시(authentik)가 가로챈 것이다.** 토큰 문제가 아니므로 **재발급을 안내하지 말고**, 중단하지도 말고 Jenkins 만 Chrome 모드로 진행한다. 이유와 되살리는 길은 `references/jenkins_sso.md`. 2026-11-25 서울사무소 실측 |
 | 한쪽 또는 둘 다 `chrome` | 사용자에게 알린다: "토큰이 없어 ○○는 Chrome 연동으로 진행합니다. 토큰을 등록하면 더 빠르고 정확합니다(`references/token_guide.md`)." 그다음 Chrome 도구(`mcp__claude-in-chrome__*`) 사용 가능 여부를 확인한다 |
 | Chrome 모드가 필요한데 Chrome 도구도 없음 | 토큰 발급·등록 방법(`token_guide.md`)과 Chrome 연동(`/chrome`) 방법을 안내하고 **중단** |
-| 토큰은 있는데 `http` 401/403/-1 | `hint`를 보여주고 토큰 재발급 안내 후 **중단** (Chrome으로 우회하지 않는다 — 토큰 문제를 먼저 해결) |
+| 토큰은 있는데 `http` 401/403/-1 | `hint`를 보여주고 토큰 재발급 안내 후 **중단** (Chrome으로 우회하지 않는다 — 토큰 문제를 먼저 해결). **단 Jenkins 가 200/`id` 없음이면 위 행을 따른다 — 그건 토큰 문제가 아니다** |
 
 Chrome 모드 시스템의 모든 단계는 `references/chrome_mode.md`의 해당 절을 따른다. 로컬 git 단계(3·4)와 `detect-project`·`render-job`은 모드와 무관하게 스크립트로 한다.
 

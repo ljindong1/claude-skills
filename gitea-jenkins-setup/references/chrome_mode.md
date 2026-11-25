@@ -1,6 +1,8 @@
-# Chrome 모드 (API 토큰이 없을 때)
+# Chrome 모드 (토큰이 없을 때 · Jenkins 는 토큰이 있어도)
 
 `preflight`의 `mode`가 `chrome`인 시스템만 이 방식으로 처리한다. 한쪽만 토큰이 있으면 그쪽은 API로 한다.
+
+⚠️ **Jenkins 는 2026-11 부터 토큰이 있어도 여기로 온다.** 앞단 authentik SSO 가 CLI 호출을 302 로 되돌리고, 크롬만 세션 쿠키를 갖고 있다. 배경·되살리는 길은 `jenkins_sso.md`. 두 가지를 기억한다 — **`https://` 로 열 것**(http 는 `ERR_CONNECTION_RESET`), 그리고 **젠킨스 페이지 안에서는 `fetch` 로 REST API 를 그대로 쓸 수 있다**(조회는 이게 가장 빠르고, Job 여러 개를 한 호출로 읽는다). 설정 변경은 `fetch` POST 가 500 이라 `configure` 화면 폼으로 한다(`retrofit_user_exclusion.md`).
 로컬 git 단계(clone·branch·add-bat)와 `detect-project`, `render-job`은 모드와 무관하게 항상 `gjsetup.py`로 한다.
 
 ## 0. 준비

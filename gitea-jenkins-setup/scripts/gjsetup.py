@@ -225,6 +225,14 @@ def c_preflight(a):
         else:
             info["hint"] = ("JENKINS_USER/JENKINS_TOKEN 확인" if st in (401, 403)
                             else "SSL 오류면 JENKINS_INSECURE=1 검토: " + txt[:200])
+        if st == 200 and not info.get("id"):
+            # 리다이렉트를 따라가 SSO 로그인 화면을 200 으로 받은 경우. 토큰 문제가 아니다.
+            sso = any(k in txt for k in ("goauthentik", "authentik", "/application/o/authorize"))
+            info["proxy"] = "authentik" if sso else "unknown"
+            info["hint"] = ("SSO 프록시(authentik)가 가로챔 - 토큰 문제가 아니다. 재발급해도 같다. "
+                            "Chrome 모드로 진행(references/jenkins_sso.md)" if sso else
+                            "200 이지만 /me/api/json 이 JSON 이 아니다 - 로그인 화면일 수 있다 "
+                            "(references/jenkins_sso.md)")
         res["jenkins"] = info
 
     gitea_ok = bool(res["gitea"] and res["gitea"].get("login"))
